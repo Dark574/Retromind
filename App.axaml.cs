@@ -350,7 +350,8 @@ public partial class App : Application
         services.AddSingleton<IGogPlaytimeSyncService>(provider => new GogPlaytimeSyncService(
             provider.GetRequiredService<GogAuthService>(),
             provider.GetRequiredService<IGogPlaytimeApiClient>(),
-            GogPlaytimeSyncService.GetDefaultQueuePath(AppPaths.DataRoot)));
+            GogPlaytimeSyncService.GetDefaultQueuePath(AppPaths.DataRoot),
+            provider.GetRequiredService<IErrorService>()));
         services.AddSingleton<GogAchievementsApiClient>();
         services.AddSingleton<IGogAchievementsProgressService, GogAchievementsProgressService>();
         services.AddSingleton<GogLibraryService>();

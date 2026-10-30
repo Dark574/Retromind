@@ -646,6 +646,42 @@ the report never mutates JSON or deletes files.
   store only the numeric product ID, start time, duration, and a hash of the Galaxy account ID. Pending entries are
   retried only with credentials for the same account, while tokens and plain account IDs are never persisted.
   Retromind does not publish GOG Presence.
+  - The schema-1 queue at `AppPaths.DataRoot/Cache/Gog/pending-playtime-sessions.json` is read under a local
+    semaphore shared by enqueue and removal. Only a missing file/directory is an empty starting state. Existing
+    files with read/access errors, invalid JSON/schema/session fields, missing `Sessions`, more than 256 entries,
+    or more than 256 KiB are preserved without upload, replacement, deletion, or automatic repair. Existing valid
+    schema-1 files, including UTF-8 BOMs, remain supported. Network requests run outside the queue semaphore;
+    successful removal reloads and validates the latest queue to preserve concurrently enqueued sessions.
+  - Writes still use a unique temporary file, flush, and replacement of the queue; unsuccessful writes preserve
+    the previous queue and clean up only their own temporary file. Deleting the last uploaded session is also a
+    checked persistence operation. `IGogPlaytimeSyncService.EnqueueSessionAsync` retains its `Task` signature;
+    eligible sessions fault with `GogPlaytimeQueueException` (`Read`, `Write`, `Capacity`, or `AccountUnavailable`)
+    when durable enqueue is impossible. The existing launcher catch preserves the launch result and does not
+    request synchronization after a failed enqueue. A full queue rejects a new distinct session explicitly instead
+    of evicting the oldest; updates to an already queued session remain possible.
+  - Remote confirmation (HTTP 201) and the local queue commit are separate outcomes. After a confirmed upload,
+    a failed reload/write/delete stops that synchronization run and reports `GogPlaytime.QueueUpdateAfterUploadFailed`.
+    A bounded in-memory registry records confirmed sessions; later runs in the same service instance retry only
+    their local removal, never the POST. Caller cancellation after confirmation retains this marker. Duplicate
+    identical legacy rows upload once and are removed together. If a concurrent enqueue changes the duration for
+    the same account/product/start time, removal preserves the updated session and reports
+    `SessionChangedAfterUpload`; the instance continues to block its re-upload instead of inventing delta semantics.
+    Reproduction: block the upload of a five-minute session, enqueue that same session with six minutes, then
+    complete the upload. The six-minute entry remains pending. No automatic reconciliation is attempted.
+  - This registry is intentionally not a new persistent acknowledgement protocol: restart/crash after remote
+    confirmation but before local commit can cause a repeated upload. A timeout can also leave remote acceptance
+    unknown. GOG deduplication/idempotence is not assumed. Queue locking covers one service instance, not external
+    writers or multiple Retromind processes; exactly-once delivery across those boundaries is not guaranteed.
+  - The injected `IErrorService` provides diagnostics only, without notification callbacks. Stable codes are
+    `GogPlaytime.QueueReadFailed` and `GogPlaytime.QueueWriteFailed` (`Error`),
+    `GogPlaytime.QueueCapacityExceeded` and `GogPlaytime.UploadFailed` (`Warning`), and
+    `GogPlaytime.QueueUpdateAfterUploadFailed` (`Error`). Context includes the operation, product ID, last validated
+    queue count where available, HTTP status, exception type, and confirmation/local-retry state. Neither account
+    IDs nor their hashes, tokens, request payloads, or raw exception messages/stacks are passed to diagnostics;
+    HTTP/auth exceptions can embed credentials and personal identifiers. Error-output failures cannot change
+    queue outcomes. Transient HTTP/network diagnostics are limited to one report per operation per minute per
+    instance using monotonic time; the next emitted report includes the number suppressed. Existing request
+    timing, the 16-attempt batch bound, account separation, and per-session HTTP rejection behavior remain intact.
 - `MetadataService`: scraper-provider factory + provider caching + connect gating
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider

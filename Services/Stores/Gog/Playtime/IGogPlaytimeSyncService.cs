@@ -7,6 +7,10 @@ namespace Retromind.Services.Stores.Gog.Playtime;
 
 internal interface IGogPlaytimeSyncService
 {
+    /// <summary>
+    /// Completes after persistence for an eligible session. Queue/account/capacity failures fault the task;
+    /// the launcher already treats these as a best-effort integration failure without changing game results.
+    /// </summary>
     Task EnqueueSessionAsync(
         MediaItem item,
         DateTimeOffset startedAtUtc,

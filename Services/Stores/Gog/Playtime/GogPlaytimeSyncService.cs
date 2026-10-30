@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Net.Http;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -32,30 +34,41 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
     private readonly Func<CancellationToken, Task<string?>> _getUserIdAsync;
     private readonly IGogPlaytimeApiClient _apiClient;
     private readonly string _queuePath;
+    private readonly IErrorService _errorService;
+    private readonly Func<string, Stream> _openQueueRead;
+    private readonly Action<string, string> _replaceQueue;
+    private readonly Action<string> _deleteQueue;
+    private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _queueGate = new(1, 1);
     private readonly SemaphoreSlim _syncGate = new(1, 1);
     private readonly object _backgroundSyncLock = new();
     private bool _backgroundSyncRequested;
     private Task? _backgroundSyncTask;
+    // Only accessed under _syncGate. These are confirmed remote writes whose local commit is still pending.
+    private readonly Dictionary<SessionIdentity, PendingSession> _confirmedUploads = new();
+    private readonly object _diagnosticLock = new();
+    private readonly Dictionary<string, (long Timestamp, int Suppressed)> _transientUploadDiagnostics = new();
 
     internal GogPlaytimeSyncService(
         GogAuthService authService,
         IGogPlaytimeApiClient apiClient,
-        string queuePath)
+        string queuePath,
+        IErrorService errorService)
+        : this((authService ?? throw new ArgumentNullException(nameof(authService))).GetGameplayCredentialsAsync,
+            authService.GetGameplayUserIdAsync, apiClient, queuePath, errorService)
     {
-        ArgumentNullException.ThrowIfNull(authService);
-        _getCredentialsAsync = authService.GetGameplayCredentialsAsync;
-        _getUserIdAsync = authService.GetGameplayUserIdAsync;
-        _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
-        ArgumentException.ThrowIfNullOrWhiteSpace(queuePath);
-        _queuePath = Path.GetFullPath(queuePath);
     }
 
     internal GogPlaytimeSyncService(
         Func<CancellationToken, Task<GogGameplayCredentials?>> getCredentialsAsync,
         Func<CancellationToken, Task<string?>> getUserIdAsync,
         IGogPlaytimeApiClient apiClient,
-        string queuePath)
+        string queuePath,
+        IErrorService errorService,
+        Func<string, Stream>? openQueueRead = null,
+        Action<string, string>? replaceQueue = null,
+        Action<string>? deleteQueue = null,
+        TimeProvider? timeProvider = null)
     {
         _getCredentialsAsync = getCredentialsAsync ??
                                throw new ArgumentNullException(nameof(getCredentialsAsync));
@@ -63,6 +76,12 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         _apiClient = apiClient ?? throw new ArgumentNullException(nameof(apiClient));
         ArgumentException.ThrowIfNullOrWhiteSpace(queuePath);
         _queuePath = Path.GetFullPath(queuePath);
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
+        _openQueueRead = openQueueRead ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read,
+            FileShare.Read, 16 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan));
+        _replaceQueue = replaceQueue ?? ((source, target) => File.Move(source, target, overwrite: true));
+        _deleteQueue = deleteQueue ?? File.Delete;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     internal static string GetDefaultQueuePath(string dataRoot)
@@ -84,7 +103,7 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         ArgumentNullException.ThrowIfNull(item);
         var gameId = GogMediaItemStateHelper.TryGetGameId(item)?.Trim();
         var timeMinutes = GetWholeMinutes(duration);
-        if (gameId == null || timeMinutes < 1)
+        if (!IsPositiveNumericIdentifier(gameId) || timeMinutes < 1)
             return;
 
         string? userId;
@@ -98,20 +117,22 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[GOG] Could not identify the account for playtime sync: {ex.Message}");
-            return;
+            ReportFailure("GogPlaytime.UploadFailed", ErrorSeverity.Warning, "IdentifyAccount", gameId,
+                exception: ex, throttleTransient: true);
+            throw new GogPlaytimeQueueException(GogPlaytimeQueueFailure.AccountUnavailable, ex);
         }
 
         if (string.IsNullOrWhiteSpace(userId))
         {
-            Debug.WriteLine("[GOG] Playtime session was not queued because no gameplay account is available.");
-            return;
+            ReportFailure("GogPlaytime.UploadFailed", ErrorSeverity.Warning, "IdentifyAccount", gameId,
+                throttleTransient: true);
+            throw new GogPlaytimeQueueException(GogPlaytimeQueueFailure.AccountUnavailable);
         }
 
         var pendingSession = new PendingSession
         {
             AccountIdentifierHash = HashAccountIdentifier(userId.Trim()),
-            GameId = gameId,
+            GameId = gameId!,
             SessionDate = startedAtUtc.ToUniversalTime().ToUnixTimeSeconds(),
             TimeMinutes = timeMinutes
         };
@@ -121,9 +142,18 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var pendingSessions = await LoadQueueAsync(cancellationToken).ConfigureAwait(false);
-            AddOrUpdateSession(pendingSessions, pendingSession);
-            await SaveQueueAsync(pendingSessions, cancellationToken).ConfigureAwait(false);
+            var pendingSessions = await LoadQueueAsync("Enqueue", gameId, cancellationToken).ConfigureAwait(false);
+            var previousCount = pendingSessions.Count;
+            try
+            {
+                AddOrUpdateSession(pendingSessions, pendingSession);
+            }
+            catch (GogPlaytimeQueueException ex) when (ex.Failure == GogPlaytimeQueueFailure.Capacity)
+            {
+                ReportFailure("GogPlaytime.QueueCapacityExceeded", ErrorSeverity.Warning, "Enqueue", gameId, previousCount);
+                throw;
+            }
+            await SaveQueueAsync(pendingSessions, "Enqueue", gameId, previousCount, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -145,13 +175,29 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
 
     public async Task TrySyncPendingAsync(CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(_queuePath))
-            return;
-
         await _syncGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!File.Exists(_queuePath))
+            List<PendingSession> pendingSessions;
+            await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                pendingSessions = await LoadQueueAsync("Sync", null, cancellationToken).ConfigureAwait(false);
+            }
+            catch (GogPlaytimeQueueException)
+            {
+                // An unreadable queue is never an empty queue and must not lead to uploads or writes.
+                return;
+            }
+            finally
+            {
+                _queueGate.Release();
+            }
+
+            var queuedIdentities = pendingSessions.Select(GetIdentity).ToHashSet();
+            foreach (var identity in _confirmedUploads.Keys.Where(key => !queuedIdentities.Contains(key)).ToArray())
+                _confirmedUploads.Remove(identity);
+            if (pendingSessions.Count == 0)
                 return;
 
             GogGameplayCredentials? credentials;
@@ -165,7 +211,8 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[GOG] Playtime sync credentials are unavailable: {ex.Message}");
+                ReportFailure("GogPlaytime.UploadFailed", ErrorSeverity.Warning, "Credentials",
+                    pendingCount: pendingSessions.Count, exception: ex, throttleTransient: true);
                 return;
             }
 
@@ -173,59 +220,65 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
                 return;
 
             var accountIdentifierHash = HashAccountIdentifier(credentials.UserId.Trim());
-            PendingSession[] matchingSessions;
-            await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try
-            {
-                var pendingSessions = await LoadQueueAsync(cancellationToken).ConfigureAwait(false);
-                matchingSessions = pendingSessions
-                    .Where(session => string.Equals(
-                        session.AccountIdentifierHash,
-                        accountIdentifierHash,
-                        StringComparison.Ordinal))
-                    .OrderBy(session => session.SessionDate)
-                    .Take(MaximumSyncAttemptsPerRun)
-                    .ToArray();
-            }
-            finally
-            {
-                _queueGate.Release();
-            }
-
+            var matchingSessions = pendingSessions
+                .Where(session => string.Equals(
+                    session.AccountIdentifierHash,
+                    accountIdentifierHash,
+                    StringComparison.Ordinal))
+                .DistinctBy(GetIdentity)
+                .OrderBy(session => session.SessionDate)
+                .Take(MaximumSyncAttemptsPerRun)
+                .ToArray();
             foreach (var session in matchingSessions)
             {
+                var identity = GetIdentity(session);
+                if (!_confirmedUploads.TryGetValue(identity, out var confirmedSession))
+                {
+                    try
+                    {
+                        using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                        requestCts.CancelAfter(RequestTimeout);
+                        await _apiClient.PostSessionAsync(session.GameId, credentials.UserId, credentials.AccessToken,
+                            session.SessionDate, session.TimeMinutes, requestCts.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (GogPlaytimeApiException ex) when (ex.StatusCode is not null and
+                                                             not HttpStatusCode.Unauthorized and
+                                                             not HttpStatusCode.Forbidden and
+                                                             not HttpStatusCode.TooManyRequests)
+                    {
+                        // Preserve per-session rejection behavior: later different sessions may still upload.
+                        ReportFailure("GogPlaytime.UploadFailed", ErrorSeverity.Warning, "Upload", session.GameId,
+                            pendingSessions.Count, ex, ex.StatusCode, throttleTransient: IsTransientFailure(ex));
+                        continue;
+                    }
+                    catch (Exception ex)
+                    {
+                        ReportFailure("GogPlaytime.UploadFailed", ErrorSeverity.Warning, "Upload", session.GameId,
+                            pendingSessions.Count, ex, GetHttpStatus(ex), throttleTransient: IsTransientFailure(ex));
+                        break;
+                    }
+
+                    // The API client returns normally only for HTTP 201. Record that fact BEFORE local IO/cancellation.
+                    confirmedSession = session;
+                    _confirmedUploads[identity] = confirmedSession;
+                }
+
                 try
                 {
-                    using var requestCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-                    requestCts.CancelAfter(RequestTimeout);
-                    await _apiClient
-                        .PostSessionAsync(
-                            session.GameId,
-                            credentials.UserId,
-                            credentials.AccessToken,
-                            session.SessionDate,
-                            session.TimeMinutes,
-                            requestCts.Token)
-                        .ConfigureAwait(false);
-                    await RemoveUploadedSessionAsync(session, cancellationToken).ConfigureAwait(false);
-                }
-                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-                {
-                    throw;
-                }
-                catch (GogPlaytimeApiException ex) when (ex.StatusCode is not null and
-                                                         not System.Net.HttpStatusCode.Unauthorized and
-                                                         not System.Net.HttpStatusCode.Forbidden and
-                                                         not System.Net.HttpStatusCode.TooManyRequests)
-                {
-                    // A rejection tied to one game/session must not block later valid entries.
-                    Debug.WriteLine(
-                        $"[GOG] A pending playtime session was rejected (HTTP {(int)ex.StatusCode.Value}).");
+                    await RemoveUploadedSessionAsync(confirmedSession, cancellationToken).ConfigureAwait(false);
+                    _confirmedUploads.Remove(identity);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine(
-                        $"[GOG] Pending playtime session could not be synchronized ({ex.GetType().Name}).");
+                    ReportFailure("GogPlaytime.QueueUpdateAfterUploadFailed", ErrorSeverity.Error, "RemoveUploadedSession",
+                        confirmedSession.GameId, pendingSessions.Count, ex, HttpStatusCode.Created, uploadConfirmed: true);
+                    if (ex is OperationCanceledException && cancellationToken.IsCancellationRequested)
+                        throw;
+                    // Stop this run. Later runs in THIS instance retry only the local commit, never this POST.
                     break;
                 }
             }
@@ -257,7 +310,8 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[GOG] Background playtime sync failed: {ex.Message}");
+                ReportFailure("GogPlaytime.UploadFailed", ErrorSeverity.Warning, "BackgroundSync",
+                    exception: ex, throttleTransient: true);
             }
         }
     }
@@ -269,7 +323,13 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         await _queueGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            var pendingSessions = await LoadQueueAsync(cancellationToken).ConfigureAwait(false);
+            var pendingSessions = await LoadQueueAsync("RemoveUploadedSession", uploadedSession.GameId, cancellationToken).ConfigureAwait(false);
+            var previousCount = pendingSessions.Count;
+            // A concurrent observation may have increased this session's duration. Do not discard it,
+            // invent a delta upload, or assume the server replaces/deduplicates sessions.
+            if (pendingSessions.Any(session => GetIdentity(session) == GetIdentity(uploadedSession) &&
+                                               session.TimeMinutes != uploadedSession.TimeMinutes))
+                throw new GogPlaytimeQueueException(GogPlaytimeQueueFailure.SessionChangedAfterUpload);
             var removed = pendingSessions.RemoveAll(session =>
                 string.Equals(
                     session.AccountIdentifierHash,
@@ -281,7 +341,7 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
             if (removed == 0)
                 return;
 
-            await SaveQueueAsync(pendingSessions, cancellationToken).ConfigureAwait(false);
+            await SaveQueueAsync(pendingSessions, "RemoveUploadedSession", uploadedSession.GameId, previousCount, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -312,35 +372,38 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
             return;
         }
 
+        if (sessions.Count >= MaximumPendingSessions)
+            throw new GogPlaytimeQueueException(GogPlaytimeQueueFailure.Capacity);
         sessions.Add(pendingSession);
-        if (sessions.Count <= MaximumPendingSessions)
-            return;
-
-        sessions.Sort((left, right) => left.SessionDate.CompareTo(right.SessionDate));
-        sessions.RemoveRange(0, sessions.Count - MaximumPendingSessions);
     }
 
-    private async Task<List<PendingSession>> LoadQueueAsync(CancellationToken cancellationToken)
+    private async Task<List<PendingSession>> LoadQueueAsync(
+        string operation, string? gameId, CancellationToken cancellationToken)
     {
-        if (!File.Exists(_queuePath))
-            return [];
-
         try
         {
-            var fileInfo = new FileInfo(_queuePath);
-            if (fileInfo.Length is <= 0 or > MaximumQueueBytes)
+            Stream opened;
+            try
+            {
+                // File.Exists also returns false for access errors: only an actual not-found open is empty.
+                opened = _openQueueRead(_queuePath);
+            }
+            catch (FileNotFoundException) { return []; }
+            catch (DirectoryNotFoundException) { return []; }
+            await using var stream = opened;
+            var buffer = new byte[MaximumQueueBytes + 1];
+            var length = 0;
+            while (length < buffer.Length)
+            {
+                var count = await stream.ReadAsync(buffer.AsMemory(length), cancellationToken).ConfigureAwait(false);
+                if (count == 0) break;
+                length += count;
+            }
+            if (length is <= 0 or > MaximumQueueBytes)
                 throw new InvalidDataException("The GOG playtime queue has an invalid size.");
-
-            await using var stream = new FileStream(
-                _queuePath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                16 * 1024,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            var document = await JsonSerializer
-                .DeserializeAsync<QueueDocument>(stream, JsonOptions, cancellationToken)
-                .ConfigureAwait(false);
+            // Stream deserialization accepted UTF-8 BOMs; retain compatibility for existing valid files.
+            var offset = length >= 3 && buffer[0] == 0xEF && buffer[1] == 0xBB && buffer[2] == 0xBF ? 3 : 0;
+            var document = JsonSerializer.Deserialize<QueueDocument>(buffer.AsSpan(offset, length - offset), JsonOptions);
             if (document == null ||
                 document.SchemaVersion != QueueSchemaVersion ||
                 document.Sessions == null ||
@@ -361,25 +424,27 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
                                    JsonException or
                                    InvalidDataException)
         {
-            Debug.WriteLine($"[GOG] Ignoring invalid playtime queue: {ex.Message}");
-            return [];
+            ReportFailure("GogPlaytime.QueueReadFailed", ErrorSeverity.Error, operation, gameId, exception: ex);
+            throw new GogPlaytimeQueueException(GogPlaytimeQueueFailure.Read, ex);
         }
     }
 
     private async Task SaveQueueAsync(
         IReadOnlyCollection<PendingSession> sessions,
+        string operation, string? gameId, int previousCount,
         CancellationToken cancellationToken)
     {
-        if (sessions.Count == 0)
-        {
-            TryDeleteQueueFile();
-            return;
-        }
-
         var targetDirectory = Path.GetDirectoryName(_queuePath)!;
         var tempPath = _queuePath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (sessions.Count == 0)
+            {
+                // This is the commit for removal of the final uploaded session, not best-effort temp cleanup.
+                _deleteQueue(_queuePath);
+                return;
+            }
             Directory.CreateDirectory(targetDirectory);
             await using (var stream = new FileStream(
                              tempPath,
@@ -404,21 +469,19 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
             }
 
             RestrictQueuePermissionsBestEffort(tempPath);
-            File.Move(tempPath, _queuePath, overwrite: true);
-        }
-        catch (OperationCanceledException)
-        {
-            TryDeleteFile(tempPath);
-            throw;
+            cancellationToken.ThrowIfCancellationRequested();
+            _replaceQueue(tempPath, _queuePath);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
+            ReportFailure("GogPlaytime.QueueWriteFailed", ErrorSeverity.Error, operation, gameId, previousCount, ex);
+            throw new GogPlaytimeQueueException(GogPlaytimeQueueFailure.Write, ex);
+        }
+        finally
+        {
             TryDeleteFile(tempPath);
-            Debug.WriteLine($"[GOG] Could not persist the playtime queue: {ex.Message}");
         }
     }
-
-    private void TryDeleteQueueFile() => TryDeleteFile(_queuePath);
 
     private static void RestrictQueuePermissionsBestEffort(string path)
     {
@@ -450,14 +513,14 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
 
     private static bool IsValidSession(PendingSession? session) =>
         session != null &&
-        session.AccountIdentifierHash.Length == 64 &&
-        session.AccountIdentifierHash.All(character =>
+        session.AccountIdentifierHash is { Length: 64 } hash &&
+        hash.All(character =>
             character is >= '0' and <= '9' or >= 'a' and <= 'f') &&
         IsPositiveNumericIdentifier(session.GameId) &&
         session.SessionDate > 0 &&
         session.TimeMinutes is >= 1 and <= MaximumSessionMinutes;
 
-    private static bool IsPositiveNumericIdentifier(string value) =>
+    private static bool IsPositiveNumericIdentifier(string? value) =>
         !string.IsNullOrWhiteSpace(value) &&
         value.Length <= 32 &&
         value.All(character => character is >= '0' and <= '9') &&
@@ -469,10 +532,85 @@ internal sealed class GogPlaytimeSyncService : IGogPlaytimeSyncService
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
+    private static SessionIdentity GetIdentity(PendingSession session) =>
+        new(session.AccountIdentifierHash, session.GameId, session.SessionDate);
+
+    private static HttpStatusCode? GetHttpStatus(Exception exception) => exception switch
+    {
+        GogPlaytimeApiException apiException => apiException.StatusCode,
+        HttpRequestException requestException => requestException.StatusCode,
+        _ => null
+    };
+
+    private static bool IsTransientFailure(Exception exception)
+    {
+        var status = GetHttpStatus(exception);
+        if (status.HasValue)
+            return status is HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests || (int)status.Value >= 500;
+        return exception is GogPlaytimeApiException or HttpRequestException or OperationCanceledException or TimeoutException;
+    }
+
+    private void ReportFailure(string code, ErrorSeverity severity, string operation, string? gameId = null,
+        int? pendingCount = null, Exception? exception = null, HttpStatusCode? httpStatus = null,
+        bool uploadConfirmed = false, bool throttleTransient = false)
+    {
+        try
+        {
+            var suppressed = 0;
+            if (throttleTransient)
+            {
+                lock (_diagnosticLock)
+                {
+                    var now = _timeProvider.GetTimestamp();
+                    if (_transientUploadDiagnostics.TryGetValue(operation, out var previous))
+                    {
+                        if (_timeProvider.GetElapsedTime(previous.Timestamp, now) < TimeSpan.FromMinutes(1))
+                        {
+                            _transientUploadDiagnostics[operation] = (previous.Timestamp, Math.Min(previous.Suppressed + 1, int.MaxValue - 1));
+                            return;
+                        }
+                        suppressed = previous.Suppressed;
+                    }
+                    _transientUploadDiagnostics[operation] = (now, 0);
+                }
+            }
+
+            var context = new Dictionary<string, string> { ["Operation"] = operation };
+            if (gameId != null) context["GameId"] = gameId;
+            if (pendingCount.HasValue) context["PendingSessionCount"] = pendingCount.Value.ToString(CultureInfo.InvariantCulture);
+            if (httpStatus.HasValue) context["HttpStatus"] = ((int)httpStatus.Value).ToString(CultureInfo.InvariantCulture);
+            if (exception != null) context["ExceptionType"] = exception.GetType().Name;
+            if (exception is GogPlaytimeQueueException queueException) context["QueueFailure"] = queueException.Failure.ToString();
+            if (suppressed > 0) context["SuppressedReports"] = suppressed.ToString(CultureInfo.InvariantCulture);
+            if (uploadConfirmed)
+            {
+                context["UploadConfirmed"] = "True";
+                context["RetryPolicy"] = "LocalQueueUpdateOnlyUntilRestart";
+            }
+
+            _errorService.Report(new ErrorReport(code, severity, nameof(GogPlaytimeSyncService), code switch
+            {
+                "GogPlaytime.QueueReadFailed" => "The existing GOG playtime queue could not be read or validated. It was preserved.",
+                "GogPlaytime.QueueWriteFailed" => "The GOG playtime queue could not be saved or deleted. The previous queue was preserved.",
+                "GogPlaytime.QueueCapacityExceeded" => "The GOG playtime queue is full. The new session was not queued; no existing sessions were discarded.",
+                "GogPlaytime.QueueUpdateAfterUploadFailed" => "GOG confirmed the upload, but the local queue update failed. This instance will retry only the local update. Restarting can upload the session again.",
+                _ => "GOG playtime synchronization was not confirmed. Pending sessions were preserved."
+            }, Context: context));
+            // Deliberately omit exception payloads: HTTP/auth exceptions can embed account IDs,
+            // access tokens, URLs containing either, or untrusted JSON property paths.
+        }
+        catch
+        {
+            // Output must never replace the original persistence failure or affect queue state.
+        }
+    }
+
+    private readonly record struct SessionIdentity(string AccountIdentifierHash, string GameId, long SessionDate);
+
     private sealed class QueueDocument
     {
         public int SchemaVersion { get; set; }
-        public List<PendingSession>? Sessions { get; set; } = [];
+        public List<PendingSession>? Sessions { get; set; }
     }
 
     private sealed class PendingSession

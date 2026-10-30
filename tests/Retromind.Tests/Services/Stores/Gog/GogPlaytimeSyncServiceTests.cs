@@ -54,7 +54,7 @@ public sealed class GogPlaytimeSyncServiceTests
                 return Task.FromResult<string?>("46988829925743611");
             },
             apiClient,
-            temp.GetPath("pending.json"));
+            temp.GetPath("pending.json"), new RecordingErrorService());
 
         await service.EnqueueSessionAsync(
             CreateGogItem("1994983163"),
@@ -79,7 +79,7 @@ public sealed class GogPlaytimeSyncServiceTests
             },
             _ => Task.FromResult<string?>(null),
             new StubApiClient(),
-            temp.GetPath("missing-pending.json"));
+            temp.GetPath("missing-pending.json"), new RecordingErrorService());
 
         await service.TrySyncPendingAsync();
 
@@ -248,7 +248,7 @@ public sealed class GogPlaytimeSyncServiceTests
                 new GogGameplayCredentials(accessToken, userId)),
             _ => Task.FromResult<string?>(userId),
             apiClient,
-            queuePath);
+            queuePath, new RecordingErrorService());
 
     private static MediaItem CreateGogItem(string gameId)
     {

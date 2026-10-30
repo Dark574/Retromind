@@ -898,6 +898,27 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task TryReportGogPlaytimeSessionAsync_QueueFailureDoesNotEscapeOrRequestSync()
+    {
+        using var temp = new TemporaryDirectory();
+        var playtimeService = new StubGogPlaytimeSyncService
+        {
+            EnqueueFailure = new GogPlaytimeQueueException(GogPlaytimeQueueFailure.Write)
+        };
+        var launcher = CreateLauncherWithComet(temp,
+            new AppSettings { EnableGogGalaxyIntegration = true },
+            new StubGogCometSessionService(), playtimeService);
+
+        await launcher.TryReportGogPlaytimeSessionAsync(
+            CreateGogItem("GOG game", temp.GetPath("game")),
+            recordStatistics: true, wasSessionTracked: true,
+            DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5));
+
+        Assert.Single(playtimeService.Reports);
+        Assert.Equal(0, playtimeService.SyncRequests);
+    }
+
+    [Fact]
     public async Task LaunchAsync_DoesNotReportGogPlaytimeForTestLaunch()
     {
         if (!OperatingSystem.IsLinux())
@@ -1031,6 +1052,7 @@ public sealed class LauncherServiceTests
     {
         internal List<ReportCall> Reports { get; } = [];
         internal int SyncRequests { get; private set; }
+        internal Exception? EnqueueFailure { get; init; }
 
         public Task EnqueueSessionAsync(
             MediaItem item,
@@ -1039,6 +1061,8 @@ public sealed class LauncherServiceTests
             CancellationToken cancellationToken = default)
         {
             Reports.Add(new ReportCall(item, startedAtUtc, duration));
+            if (EnqueueFailure != null)
+                return Task.FromException(EnqueueFailure);
             return Task.CompletedTask;
         }
 
