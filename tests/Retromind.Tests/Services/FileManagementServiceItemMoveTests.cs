@@ -15,7 +15,7 @@ public sealed class FileManagementServiceItemMoveTests
 
         var sourceFile = CreateAsset(temp, "Source", "Game__12345678_Cover_01.jpg");
         var item = CreateItemWithCover(sourceFile);
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
 
         var result = service.MoveItemAssets(item, ["Source"], ["Target"], [item]);
 
@@ -42,7 +42,7 @@ public sealed class FileManagementServiceItemMoveTests
         var movedItem = CreateItemWithCover(sourceFile);
         var otherItem = CreateItemWithCover(sourceFile);
         var originalRelativePath = otherItem.Assets[0].RelativePath;
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
 
         var result = service.MoveItemAssets(
             movedItem,
@@ -70,7 +70,7 @@ public sealed class FileManagementServiceItemMoveTests
         var originalRelativePath = item.Assets[0].RelativePath;
         Directory.CreateDirectory(AppPaths.LibraryRoot);
         File.WriteAllText(Path.Combine(AppPaths.LibraryRoot, "BlockedTarget"), "not a directory");
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
 
         var result = service.MoveItemAssets(item, ["Source"], ["BlockedTarget"], [item]);
 

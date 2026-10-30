@@ -102,7 +102,7 @@ public sealed class EditMediaViewModelPlayStatisticsTests
         return new EditMediaViewModel(
             item,
             new AppSettings(),
-            new FileManagementService(temp.CreateDirectory("Library")),
+            new FileManagementService(temp.CreateDirectory("Library"), new RecordingErrorService()),
             new WinetricksService(temp.GetPath("Library"), new RecordingErrorService()),
             [parent.Name],
             new UnexpectedIdentificationService(),

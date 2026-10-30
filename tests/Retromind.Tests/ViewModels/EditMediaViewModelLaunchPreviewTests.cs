@@ -40,7 +40,7 @@ public sealed class EditMediaViewModelLaunchPreviewTests
         using var viewModel = new EditMediaViewModel(
             item,
             new AppSettings(),
-            new FileManagementService(AppPaths.LibraryRoot),
+            new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService()),
             new WinetricksService(AppPaths.LibraryRoot, new RecordingErrorService()),
             [parent.Name],
             new UnexpectedIdentificationService(),

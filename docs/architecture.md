@@ -329,7 +329,49 @@ change the caller's return/throw/recovery policy; no additional services are mig
   files in place and surfaces their affected locations to the user
 - media-editor and node-settings artwork changes remain detached until Save; imports are copied first and
   item deletions are quarantined until the model update succeeds, so Cancel and failed file operations leave
-  the original files and assignments intact
+  the original files and assignments intact when rollback succeeds. Failed restoration retains the quarantined
+  originals for recovery rather than discarding them
+
+### Asset import and editor transactions
+
+`FileManagementService` receives the singleton `IErrorService` through DI. Single imports and
+`PrepareAssetTransactionAsync` share a local copy routine: create a unique `.retromind-asset-<guid>.tmp`
+file with `CreateNew` in the destination directory, copy and flush all bytes, close both streams, then
+publish with `File.Move(..., overwrite: false)`. An existing destination, including one created during the
+copy, is preserved and the import fails. Only a temporary file actually created by that attempt is cleaned
+up in `finally`, including partial-copy and publication failures. Temporary names do not match the asset
+scanner's naming convention. Existing counters, title/ID and Manual/Music display prefixes, DataRoot-relative
+references, single-import null results, and editor exception handling remain unchanged.
+Renaming uses the existing best-effort image-cache invalidation helper so cache/render initialization failures
+cannot prevent the underlying filesystem rename.
+
+All mutation destinations use `AppPaths.TryResolveDataPathForMutation`; staging, publication, rollback, and
+cleanup revalidate containment and symbolic-link/reparse-point components. Selected source files may remain
+external and are read only, as before. These are managed path checks, not descriptor-relative filesystem
+operations: a concurrent external replacement of path components between validation and IO remains a race.
+
+`PreparedAssetTransaction` retains its quarantine-until-commit contract. Rollback removes imports before
+restoring originals, never overwrites a conflicting original path, and removes only successful steps from
+its pending work. If a step fails, `Rollback()` reports and throws an aggregate exception, keeps the transaction
+unfinished and its remaining quarantine intact, and permits a later explicit `Rollback()` retry. `Commit()`
+is rejected after rollback has started, preventing recursive cleanup from destroying recovery files.
+`Dispose()` attempts rollback only if none was attempted yet; after a failed explicit/disposal rollback it
+neither silently retries nor emits a duplicate report. Successfully completed steps are not repeated on retry.
+Commit and successful rollback remain complete even if final quarantine-directory cleanup fails.
+
+Diagnostic codes are `FileManagement.AssetImportFailed` and `FileManagement.AssetRollbackFailed` (`Error`),
+`FileManagement.AssetRenameFailed` (`Warning`), and `FileManagement.AssetCleanupFailed` (`Diagnostic`). Reports
+include the operation, asset type (or `Multiple` for a mixed transaction), relevant source/target or quarantine
+paths, and the exception, using central redaction. There are no notification callbacks or new dialogs. The
+failure is reported where handled; wrapper exceptions and `Dispose()` do not report it again, and failures
+inside diagnostic output cannot affect file cleanup or the caller's result.
+
+Recovery limits: filesystem permissions or device failures can also prevent temporary-file cleanup; the
+remaining path is diagnosed. Quarantine remaining after a failed preparation or after application exit must
+be recovered manually; there is no persistent transaction journal or automatic startup recovery. Atomic
+publication does not promise recovery from power loss, and transactions remain single-owner objects rather
+than a cross-process locking protocol. General item-move staging and rollback are unchanged.
+
 ## Theme subsystem
 Themes are external runtime XAML loaded through `ThemeLoader`:
 - resolves theme files against portable `ThemesRoot` and theme assets against their individual theme directory;

@@ -120,7 +120,7 @@ public sealed class EditMediaViewModelRetroAchievementsTests
         return new EditMediaViewModel(
             item,
             settings,
-            new FileManagementService(temp.CreateDirectory("Library")),
+            new FileManagementService(temp.CreateDirectory("Library"), new RecordingErrorService()),
             new WinetricksService(temp.GetPath("Library"), new RecordingErrorService()),
             [parent.Name],
             identificationService,

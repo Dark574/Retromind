@@ -24,7 +24,7 @@ public sealed class FileManagementServiceSymlinkSafetyTests
                 AppPaths.DataRoot,
                 Path.Combine(linkPath, Path.GetFileName(externalFile)))
         };
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
 
         await Assert.ThrowsAsync<IOException>(() => service.PrepareAssetTransactionAsync(
             new MediaItem("Game"),
@@ -47,7 +47,7 @@ public sealed class FileManagementServiceSymlinkSafetyTests
             externalRoot.RootPath);
         var sourcePath = dataRoot.CreateFile("Incoming/manual.pdf", "manual");
         var item = new MediaItem("Game") { Id = "12345678-rest" };
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
 
         var imported = await service.ImportAssetAsync(
             sourcePath,
@@ -76,7 +76,7 @@ public sealed class FileManagementServiceSymlinkSafetyTests
             Type = AssetType.Cover,
             RelativePath = Path.GetRelativePath(AppPaths.DataRoot, sourcePath)
         });
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
 
         var result = service.MoveItemAssets(item, ["Source"], ["Target"], [item]);
 

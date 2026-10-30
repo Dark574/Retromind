@@ -30,10 +30,24 @@ public partial class FileManagementService
         RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
     private readonly string libraryRootPath; // Readonly for immutability
+    private readonly IErrorService _errorService;
+    private readonly Func<string, Stream> _openAssetSource;
+    private readonly Action<string> _deleteQuarantineDirectory;
 
-    public FileManagementService(string libraryRootPath)
+    public FileManagementService(string libraryRootPath, IErrorService errorService)
+        : this(libraryRootPath, errorService, null)
     {
+    }
+
+    internal FileManagementService(string libraryRootPath, IErrorService errorService,
+        Func<string, Stream>? openAssetSource, Action<string>? deleteQuarantineDirectory = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(libraryRootPath);
         this.libraryRootPath = libraryRootPath;
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
+        _openAssetSource = openAssetSource ?? (path => new FileStream(path, FileMode.Open, FileAccess.Read,
+            FileShare.Read, 64 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan));
+        _deleteQuarantineDirectory = deleteQuarantineDirectory ?? (path => Directory.Delete(path, recursive: true));
     }
 
     public event Action? LibraryChanged;
@@ -112,46 +126,24 @@ public partial class FileManagementService
     {
         if (!File.Exists(sourceFilePath)) return null;
 
-        string assetPrefix = entity switch
-        {
-            MediaItem item => BuildItemAssetPrefixForAsset(
-                item,
-                type,
-                Path.GetFileNameWithoutExtension(sourceFilePath)),
-            MediaNode node => SanitizeForFilename(node.Name),
-            _ => "Unknown"
-        };
+        string? fullDestPath = null;
         try
         {
-            string nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePathStack));
-            string extension = Path.GetExtension(sourceFilePath);
-            string fullDestPath = GetNextAssetFileName(
-                nodeFolder,
-                assetPrefix,
-                type,
-                extension,
-                prefixIsSanitized: true);
-
-            string? dir = Path.GetDirectoryName(fullDestPath);
-            if (dir != null && !Directory.Exists(dir))
-            {
-                Directory.CreateDirectory(dir);
-            }
-
-            await Task.Run(() => File.Copy(sourceFilePath, fullDestPath, overwrite: true)); // Async offload for IO
-
+            fullDestPath = GetAssetImportDestinationPath(sourceFilePath, entity, nodePathStack, type);
             var newAsset = new MediaAsset
             {
                 Type = type,
                 RelativePath = Path.GetRelativePath(AppPaths.DataRoot, fullDestPath)
             };
 
+            await CopyAssetAtomicallyAsync(sourceFilePath, fullDestPath, type);
             RaiseLibraryChanged();
             return newAsset;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error importing asset: {ex.Message}");
+            ReportAssetFailure("FileManagement.AssetImportFailed", ErrorSeverity.Error,
+                "ImportAsset", type, ex, sourceFilePath, fullDestPath);
             return null;
         }
     }
@@ -168,14 +160,16 @@ public partial class FileManagementService
         if (FileSystemPathIdentity.Equals(oldPrefix, newPrefix))
             return false;
 
-        string nodeFolder;
+        string? nodeFolder = null;
         try
         {
-            nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePathStack));
+            nodeFolder = ResolveNodeFolder(nodePathStack);
+            nodeFolder = RequireSafeAssetMutationPath(nodeFolder);
         }
-        catch (IOException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error renaming assets: {ex.Message}");
+            ReportAssetFailure("FileManagement.AssetRenameFailed", ErrorSeverity.Warning,
+                "ResolveRenameFolder", null, ex, targetPath: nodeFolder);
             return false;
         }
 
@@ -190,50 +184,50 @@ public partial class FileManagementService
             if (asset == null || string.IsNullOrWhiteSpace(asset.RelativePath))
                 continue;
 
-            if (!AppPaths.TryResolveDataPathForMutation(asset.RelativePath, out var fullPath))
-                continue;
-
-            if (!File.Exists(fullPath))
-                continue;
-
-            var extension = Path.GetExtension(fullPath);
-            if (string.IsNullOrEmpty(extension))
-                extension = ".bin";
-
-            var fileName = Path.GetFileName(fullPath);
-            var match = AssetRegex.Match(fileName);
-
-            string targetFileName;
-            var targetPrefix = BuildItemAssetPrefixForRename(item, asset.Type, newTitle, match.Success ? match.Groups[1].Value : Path.GetFileNameWithoutExtension(fileName));
-            if (match.Success)
-            {
-                var number = match.Groups[3].Value;
-                targetFileName = $"{targetPrefix}_{asset.Type}_{number}{extension}";
-            }
-            else
-            {
-                targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true));
-            }
-
-            var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
-            var targetFullPath = Path.Combine(targetFolder, targetFileName);
-
-            if (!AppPaths.TryResolveDataPathForMutation(targetFullPath, out targetFullPath))
-                continue;
-
-            if (FileSystemPathIdentity.Equals(fullPath, targetFullPath))
-                continue;
-
-            if (File.Exists(targetFullPath))
-                targetFullPath = GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true);
-
+            string? targetFullPath = null;
+            var fullPath = asset.RelativePath;
             try
             {
+                fullPath = RequireSafeAssetMutationPath(fullPath);
+
+                if (!File.Exists(fullPath))
+                    continue;
+
+                var extension = Path.GetExtension(fullPath);
+                if (string.IsNullOrEmpty(extension))
+                    extension = ".bin";
+
+                var fileName = Path.GetFileName(fullPath);
+                var match = AssetRegex.Match(fileName);
+
+                string targetFileName;
+                var targetPrefix = BuildItemAssetPrefixForRename(item, asset.Type, newTitle, match.Success ? match.Groups[1].Value : Path.GetFileNameWithoutExtension(fileName));
+                if (match.Success)
+                {
+                    var number = match.Groups[3].Value;
+                    targetFileName = $"{targetPrefix}_{asset.Type}_{number}{extension}";
+                }
+                else
+                {
+                    targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true));
+                }
+
+                var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
+                targetFullPath = Path.Combine(targetFolder, targetFileName);
+
+                targetFullPath = RequireSafeAssetMutationPath(targetFullPath);
+
+                if (FileSystemPathIdentity.Equals(fullPath, targetFullPath))
+                    continue;
+
+                if (File.Exists(targetFullPath))
+                    targetFullPath = GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true);
+
                 var targetDir = Path.GetDirectoryName(targetFullPath);
                 if (!string.IsNullOrWhiteSpace(targetDir) && !Directory.Exists(targetDir))
                     Directory.CreateDirectory(targetDir);
 
-                AsyncImageHelper.InvalidateCache(fullPath);
+                TryInvalidateImageCache(fullPath);
                 File.Move(fullPath, targetFullPath);
 
                 asset.RelativePath = Path.GetRelativePath(AppPaths.DataRoot, targetFullPath);
@@ -241,7 +235,8 @@ public partial class FileManagementService
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error renaming asset: {ex.Message}");
+                ReportAssetFailure("FileManagement.AssetRenameFailed", ErrorSeverity.Warning,
+                    "RenameAsset", asset.Type, ex, fullPath, targetFullPath);
             }
         }
 
@@ -368,6 +363,87 @@ public partial class FileManagementService
     }
 
     // --- Private Helpers ---
+    private string GetAssetImportDestinationPath(
+        string sourceFilePath, object entity, List<string> nodePathStack, AssetType type)
+    {
+        var assetPrefix = entity switch
+        {
+            MediaItem item => BuildItemAssetPrefixForAsset(item, type, Path.GetFileNameWithoutExtension(sourceFilePath)),
+            MediaNode node => SanitizeForFilename(node.Name),
+            _ => "Unknown"
+        };
+        var nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePathStack));
+        return GetNextAssetFileName(nodeFolder, assetPrefix, type, Path.GetExtension(sourceFilePath), prefixIsSanitized: true);
+    }
+
+    private async Task CopyAssetAtomicallyAsync(string sourcePath, string destinationPath, AssetType type)
+    {
+        destinationPath = RequireSafeAssetMutationPath(destinationPath);
+        var directory = Path.GetDirectoryName(destinationPath)!;
+        Directory.CreateDirectory(directory);
+        var tempPath = RequireSafeAssetMutationPath(Path.Combine(directory, $".retromind-asset-{Guid.NewGuid():N}.tmp"));
+        var ownsTempFile = false;
+        try
+        {
+            await using (var source = _openAssetSource(sourcePath))
+            await using (var destination = new FileStream(tempPath, FileMode.CreateNew, FileAccess.Write,
+                             FileShare.None, 64 * 1024, FileOptions.Asynchronous))
+            {
+                ownsTempFile = true;
+                await source.CopyToAsync(destination).ConfigureAwait(false);
+                await destination.FlushAsync().ConfigureAwait(false);
+            }
+
+            // Revalidate after the asynchronous copy; a collision must never replace an existing asset.
+            RequireSafeAssetMutationPath(tempPath);
+            RequireSafeAssetMutationPath(destinationPath);
+            File.Move(tempPath, destinationPath, overwrite: false);
+            ownsTempFile = false;
+        }
+        finally
+        {
+            if (ownsTempFile)
+            {
+                try
+                {
+                    RequireSafeAssetMutationPath(tempPath);
+                    File.Delete(tempPath);
+                }
+                catch (Exception ex)
+                {
+                    ReportAssetFailure("FileManagement.AssetCleanupFailed", ErrorSeverity.Diagnostic,
+                        "DeleteImportTemporaryFile", type, ex, tempPath, destinationPath);
+                }
+            }
+        }
+    }
+
+    private void ReportAssetFailure(string code, ErrorSeverity severity, string operation, AssetType? type,
+        Exception exception, string? sourcePath = null, string? targetPath = null)
+    {
+        try
+        {
+            var context = new Dictionary<string, string>
+            {
+                ["Operation"] = operation,
+                ["AssetType"] = type?.ToString() ?? "Multiple"
+            };
+            if (sourcePath != null) context["SourcePath"] = sourcePath;
+            if (targetPath != null) context["TargetPath"] = targetPath;
+            _errorService.Report(new ErrorReport(code, severity, nameof(FileManagementService), code switch
+            {
+                "FileManagement.AssetImportFailed" => "Asset file changes could not be prepared.",
+                "FileManagement.AssetRollbackFailed" => "Asset rollback did not complete. Remaining files were preserved for recovery.",
+                "FileManagement.AssetRenameFailed" => "The asset could not be renamed.",
+                _ => "Asset cleanup did not complete. The remaining file or directory was preserved."
+            }, exception, Context: context));
+        }
+        catch
+        {
+            // Diagnostic output must not change import, rollback, or cleanup outcomes.
+        }
+    }
+
     private string ResolveNodeFolder(List<string> nodePathStack)
         => PathHelper.ResolveNodeFolder(nodePathStack, libraryRootPath);
 

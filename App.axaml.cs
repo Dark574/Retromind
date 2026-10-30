@@ -286,7 +286,8 @@ public partial class App : Application
         services.AddSingleton<LibraryHealthService>();
         services.AddSingleton<IErrorService>(_ => new ErrorService(
             Path.Combine(AppPaths.DataRoot, "Logs", "Exceptions")));
-        services.AddSingleton<FileManagementService>(_ => new FileManagementService(libraryPath));
+        services.AddSingleton<FileManagementService>(provider => new FileManagementService(
+            libraryPath, provider.GetRequiredService<IErrorService>()));
         services.AddSingleton(_ => new LaunchLogService(
             Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));
         services.AddSingleton(_ => new LaunchPlaylistService(libraryPath));

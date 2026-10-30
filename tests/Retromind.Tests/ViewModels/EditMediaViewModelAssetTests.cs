@@ -111,7 +111,7 @@ public sealed class EditMediaViewModelAssetTests
         return new EditMediaViewModel(
             item,
             settings ?? new AppSettings(),
-            new FileManagementService(AppPaths.LibraryRoot),
+            new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService()),
             new WinetricksService(AppPaths.LibraryRoot, new RecordingErrorService()),
             [parent.Name],
             new UnexpectedIdentificationService(),

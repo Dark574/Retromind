@@ -21,7 +21,7 @@ public sealed class FileManagementServiceBatchAssetScanTests
             "Library/Games/Cover/unrelated.png");
         var game = new MediaItem("Game") { Id = "12345678-rest" };
         var other = new MediaItem("Other") { Id = "87654321-rest" };
-        var service = new FileManagementService(libraryRoot);
+        var service = new FileManagementService(libraryRoot, new RecordingErrorService());
 
         var results = service.ScanItemsAssets([game, other], ["Games"]);
 
@@ -39,7 +39,7 @@ public sealed class FileManagementServiceBatchAssetScanTests
     {
         using var temporaryDirectory = new TemporaryDirectory();
         var libraryRoot = temporaryDirectory.CreateDirectory("Library");
-        var service = new FileManagementService(libraryRoot);
+        var service = new FileManagementService(libraryRoot, new RecordingErrorService());
         using var cancellation = new CancellationTokenSource();
         cancellation.Cancel();
 

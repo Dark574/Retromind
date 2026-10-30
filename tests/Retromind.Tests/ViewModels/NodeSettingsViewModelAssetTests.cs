@@ -76,7 +76,7 @@ public sealed class NodeSettingsViewModelAssetTests
             node,
             roots,
             settings ?? new AppSettings(),
-            new FileManagementService(AppPaths.LibraryRoot),
+            new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService()),
             [node.Name]);
     }
 

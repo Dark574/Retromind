@@ -12,7 +12,7 @@ public sealed class FileManagementServiceAssetTransactionTests
     {
         using var temp = new TemporaryDirectory();
         using var environment = UseDataRoot(temp.RootPath);
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
         var originalPath = temp.CreateFile(
             Path.Combine("Library", "Games", "Cover", "Old__12345678_Cover_01.jpg"),
             "old");
@@ -40,7 +40,7 @@ public sealed class FileManagementServiceAssetTransactionTests
     {
         using var temp = new TemporaryDirectory();
         using var environment = UseDataRoot(temp.RootPath);
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
         var originalPath = temp.CreateFile(
             Path.Combine("Library", "Games", "Cover", "Old__12345678_Cover_01.jpg"),
             "old");
@@ -66,7 +66,7 @@ public sealed class FileManagementServiceAssetTransactionTests
     {
         using var temp = new TemporaryDirectory();
         using var environment = UseDataRoot(temp.RootPath);
-        var service = new FileManagementService(AppPaths.LibraryRoot);
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
         var sourcePath = temp.CreateFile(Path.Combine("Incoming", "new.png"), "new");
         var item = new MediaItem("Game") { Id = "12345678-rest" };
         var unsafeAsset = new MediaAsset
