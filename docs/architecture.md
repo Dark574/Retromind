@@ -753,8 +753,9 @@ the report never mutates JSON or deletes files.
   Legendary with its freshly loaded Windows catalog version; available updates reuse the owned install root and
   the same cancelable progress pipeline. Epic installations can be uninstalled independently while retaining the
   library item, media, metadata, and store identity; the generated launch configuration and installation state are
-  cleared only after Legendary is unregistered and the marker-owned directory has been removed. Deleting a managed
-  item reuses that physical cleanup before removing the item. Safely contained Wine/Proton prefixes are revalidated
+  cleared as soon as Legendary confirms that the main game's registration is removed, independently of later
+  filesystem cleanup. Deleting a managed item first persists that state and keeps the library item when cleanup
+  is incomplete or persistence fails. Safely contained Wine/Proton prefixes are revalidated
   immediately before link-safe recursive removal, while prefixes shared by another item or rejected by the path-safety
   checks are preserved. Missing legacy install
   roots are unregistered without touching files when a later installation selects a new destination. Before each
@@ -766,6 +767,47 @@ the report never mutates JSON or deletes files.
   being copied into the Retromind library model. The DLC manager installs and updates them into the main game's
   shared, marker-owned directory and removes only their Legendary-managed files; deleting the main game first
   unregisters its installed DLCs before removing that shared directory
+  - `EpicInstallService.UninstallAsync` retains the existing `EpicUninstallResult` with `PrefixPreserved` and
+    `PreservedInstallDirectory`, adding `CleanupFailed` and `CleanupCancelled`. Returning this result always means
+    Legendary verified removal of the main game through `list-installed`; backend failures before that point
+    still throw and retain the main game's local install/launch state. DLCs removed before a main-game failure
+    remain removed in Legendary, whose catalog is still authoritative; the entire game is not marked uninstalled.
+  - Immediately after confirmation, generated launch fields, files, runner assignment, and install/update metadata
+    are cleared before any cleanup or cancellation check. `PrefixPath` is retained in its original LibraryRoot-relative
+    or absolute form until deletion is confirmed. `Store.UninstallRemainingInstallPath` separately preserves the
+    current operation's original DataRoot-relative or absolute install path, without implying an installed state.
+    It remains when the directory cannot be inspected/removed or cleanup is canceled, and is removed once the
+    directory is confirmed absent. This is recovery metadata for the current uninstall, not a complete history of
+    earlier installations; explicit item deletion or later metadata changes can remove it.
+  - Cleanup retains all ownership-marker, dangerous-root, containment, and symlink checks. Only Retromind's marker
+    and an empty install directory may be removed; unrecognized files are preserved without recursive game-folder
+    deletion. Prefix removal still uses `StoreDirectoryDeletionHelper` and additionally refuses a prefix that is
+    the install directory or its ancestor, so it cannot erase retained game-folder contents indirectly. Failed
+    cleanup stops further cleanup and returns the confirmed result; cancellation after confirmation does the same.
+    A partially deleted prefix retains its path for manual recovery, with no automatic retry or aggressive sweep.
+  - Both standalone uninstall and delete-item flows use `MainWindowViewModel.UninstallEpicAndPersistAsync`.
+    It awaits the result and then always runs the normal persistence callback without the cleanup cancellation token.
+    The callback marks the library dirty, calls `SaveData()`, and only then refreshes action availability. Standalone
+    uninstall reports cleanup warnings/cancellation in its existing process log. Item deletion retains and saves
+    the now-uninstalled item when cleanup is incomplete and reuses its existing information-dialog path. A successful
+    uninstall is persisted before any later library-item removal, so failures in subsequent UI/deletion steps cannot
+    leave the stored item falsely installed. A `false` save result retains the in-memory changes and existing dirty/error
+    handling, stops item deletion, and never claims that uninstall was undone; no extra persistence-error dialog is added.
+  - The injected `IErrorService` reports `Epic.UninstallFailed` (`Error`) for validation/backend failures and
+    `Epic.UninstallCleanupFailed` (`Warning`) for post-confirmation cleanup failures. Expected cancellation is distinct:
+    `Epic.UninstallInterrupted` (`Diagnostic`) records already removed DLCs before main-game confirmation, while
+    `Epic.UninstallCleanupCancelled` (`Diagnostic`) records canceled cleanup after confirmation. Reports contain the
+    operation, app identity, install/prefix paths, confirmed-main-game flag, removed-DLC count, and exception type.
+    Exception messages/stacks and Legendary stdout/stderr are omitted because they can embed credentials. Each
+    failure is reported at its handling boundary; callers retain presentation/persistence handling without logging
+    the same backend failure again. Reporting failures cannot change cleanup or model outcomes; there are no
+    automatic error-service notifications.
+  - Remaining limits: cancellation/process failure between actual CLI removal and the verification query leaves
+    the backend outcome unconfirmed; local state is retained rather than guessing, and may require manual reconciliation.
+    A crash between backend confirmation and a durable library save is not an atomic cross-system transaction.
+    Unwritable storage can prevent persistence despite the required save attempt. Native path checks also retain
+    their existing race with external path replacement between inspection and IO. No startup repair, persistent
+    uninstall journal, automatic DLC rollback, or deferred cleanup worker is introduced.
 - the prepared GOG Galaxy sidecar boundary resolves Comet only from Retromind's packaged locations and never from
   `PATH`. It starts Comet without a shell, supplies the four transient account values through bounded JSON on
   standard input, and keeps its replaceable configuration, gameplay database, components, and cache below

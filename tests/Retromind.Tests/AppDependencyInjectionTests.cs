@@ -6,6 +6,7 @@ using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Gog.Playtime;
 using Retromind.Services.Stores.Gog.Comet;
 using Retromind.Services.Stores.Security;
+using Retromind.Services.Stores.Epic;
 using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests;
@@ -33,6 +34,7 @@ public sealed class AppDependencyInjectionTests
         Assert.IsType<AudioService>(provider.GetRequiredService<AudioService>());
         Assert.IsType<WinetricksService>(provider.GetRequiredService<WinetricksService>());
         Assert.IsType<FileManagementService>(provider.GetRequiredService<FileManagementService>());
+        Assert.IsType<EpicInstallService>(provider.GetRequiredService<EpicInstallService>());
         Assert.IsType<GogPlaytimeSyncService>(provider.GetRequiredService<IGogPlaytimeSyncService>());
         errors.Report(new ErrorReport("Test", ErrorSeverity.Diagnostic, "Test", "Portable log"));
         Assert.True(File.Exists(temp.GetPath("Logs", "Exceptions", "errors.jsonl")));

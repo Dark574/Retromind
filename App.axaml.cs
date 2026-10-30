@@ -374,7 +374,7 @@ public partial class App : Application
         services.AddSingleton<LegendaryCliClient>();
         services.AddSingleton<EpicLibraryService>();
         services.AddSingleton(provider => new EpicInstallService(
-            provider.GetRequiredService<LegendaryCliClient>()));
+            provider.GetRequiredService<LegendaryCliClient>(), provider.GetRequiredService<IErrorService>()));
         services.AddSingleton(provider => new EpicLaunchService(
             provider.GetRequiredService<LegendaryCliClient>()));
         services.AddSingleton<EpicProvider>();

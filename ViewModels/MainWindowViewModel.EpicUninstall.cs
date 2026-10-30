@@ -1,11 +1,13 @@
 using System;
 using System.Diagnostics;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores;
+using Retromind.Services.Stores.Epic;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -77,19 +79,26 @@ public partial class MainWindowViewModel
                 T(
                     "Epic.Uninstall.Starting",
                     "Uninstalling the Epic Games title and removing its Legendary registration..."));
-            var result = await _epicInstallService.UninstallAsync(
-                item,
-                deletePrefix: !preserveSharedPrefix,
+            var (result, stateSaved) = await UninstallEpicAndPersistAsync(
+                _epicInstallService, item, deletePrefix: !preserveSharedPrefix,
+                PersistEpicUninstallStateAsync,
                 line => AppendProcessLog(progressVm, line),
                 progressVm.Token);
 
-            _libraryTracker.MarkDirty();
-            NotifyPlayAvailabilityChanged();
-            await SaveData();
+            if (!stateSaved)
+            {
+                AppendProcessLog(progressVm, T("Epic.Uninstall.StateSaveFailed",
+                    "The game was uninstalled, but its updated library state could not be saved. The changes remain pending."));
+                return false;
+            }
 
             AppendProcessLog(
                 progressVm,
-                result.PrefixPreserved
+                result.CleanupCancelled
+                    ? T("Epic.Uninstall.CleanupCancelled", "The game was uninstalled. Follow-up cleanup was cancelled; remaining paths were preserved.")
+                    : result.CleanupFailed
+                    ? T("Epic.Uninstall.CleanupFailed", "The game was uninstalled, but follow-up cleanup did not complete. Remaining paths were preserved.")
+                    : result.PrefixPreserved
                     ? T(
                         "Epic.Uninstall.SuccessPrefixPreserved",
                         "Game uninstalled successfully. The Wine/Proton prefix was preserved.")
@@ -105,6 +114,9 @@ public partial class MainWindowViewModel
                             "The game folder still contains files or could not be removed safely. It was preserved in:\n{0}"),
                         result.PreservedInstallDirectory));
             }
+            if (result.PrefixPreserved && !string.IsNullOrWhiteSpace(item.PrefixPath))
+                AppendProcessLog(progressVm, string.Format(CultureInfo.CurrentCulture,
+                    T("Epic.Uninstall.PrefixPathPreservedFormat", "Preserved Wine/Proton prefix: {0}"), item.PrefixPath));
 
             return true;
         }
@@ -131,5 +143,24 @@ public partial class MainWindowViewModel
             UiThreadHelper.Post(() => progressVm.IsRunning = false);
             IsLaunchInProgress = false;
         }
+    }
+
+    // Shared by standalone uninstall and item deletion. Once the service returns, the uninstall is confirmed;
+    // persist it even when cleanup was cancelled. The cleanup token must not cancel this required save.
+    internal static async Task<(EpicUninstallResult Result, bool StateSaved)> UninstallEpicAndPersistAsync(
+        EpicInstallService service, MediaItem item, bool deletePrefix, Func<Task<bool>> persistState,
+        Action<string>? outputReceived = null, CancellationToken ct = default)
+    {
+        var result = await service.UninstallAsync(item, deletePrefix, outputReceived, ct);
+        var saved = await persistState();
+        return (result, saved);
+    }
+
+    private async Task<bool> PersistEpicUninstallStateAsync()
+    {
+        _libraryTracker.MarkDirty();
+        var saved = await SaveData();
+        NotifyPlayAvailabilityChanged();
+        return saved;
     }
 }

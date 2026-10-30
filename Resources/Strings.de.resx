@@ -531,6 +531,11 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Epic.Uninstall.ProgressTitleFormat" xml:space="preserve"><value>Epic-Spiel deinstallieren – {0}</value></data>
     <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Das Epic-Spiel wird deinstalliert und seine Registrierung aus Legendary entfernt...</value></data>
     <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Spiel erfolgreich deinstalliert.</value></data>
+    <data name="Epic.Uninstall.StateSaveFailed" xml:space="preserve"><value>Das Spiel wurde deinstalliert, aber der aktualisierte Bibliothekszustand konnte nicht gespeichert werden. Die Änderungen stehen weiterhin zur Speicherung aus.</value></data>
+    <data name="Epic.Uninstall.CleanupFailed" xml:space="preserve"><value>Das Spiel wurde deinstalliert, aber die Nachbereinigung konnte nicht abgeschlossen werden. Verbleibende Pfade wurden beibehalten.</value></data>
+    <data name="Epic.Uninstall.CleanupCancelled" xml:space="preserve"><value>Das Spiel wurde deinstalliert. Die Nachbereinigung wurde abgebrochen; verbleibende Pfade wurden beibehalten.</value></data>
+    <data name="Epic.Uninstall.PrefixPathPreservedFormat" xml:space="preserve"><value>Beibehaltener Wine-/Proton-Prefix: {0}</value></data>
+    <data name="Epic.Delete.CleanupIncomplete" xml:space="preserve"><value>Das Spiel wurde deinstalliert. Der Bibliothekseintrag wurde beibehalten, da die Nachbereinigung nicht abgeschlossen werden konnte. Die verbleibenden Spieleordner- und Prefix-Pfade bleiben zur manuellen Bereinigung erhalten.</value></data>
     <data name="Epic.Uninstall.SuccessPrefixPreserved" xml:space="preserve"><value>Spiel erfolgreich deinstalliert. Der Wine-/Proton-Prefix wurde beibehalten.</value></data>
     <data name="Epic.Uninstall.RemainingFilesPreservedFormat" xml:space="preserve"><value>Der Spieleordner enthält noch Dateien oder konnte nicht sicher entfernt werden. Er wurde hier beibehalten:
 {0}</value></data>

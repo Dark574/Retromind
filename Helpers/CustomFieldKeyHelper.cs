@@ -18,6 +18,7 @@ public static class CustomFieldKeyHelper
     public const string StoreDlcUpdateAvailable = InternalStorePrefix + "DlcUpdateAvailable";
     public const string StoreUpdateLastCheckedUtc = InternalStorePrefix + "LastUpdateCheckUtc";
     public const string StoreUpdateLastStatus = InternalStorePrefix + "LastUpdateCheckStatus";
+    public const string StoreUninstallRemainingInstallPath = InternalStorePrefix + "UninstallRemainingInstallPath";
 
     public static bool IsInternal(string? key)
     {

@@ -534,6 +534,11 @@ This action cannot be undone.</value></data>
     <data name="Epic.Uninstall.ProgressTitleFormat" xml:space="preserve"><value>Uninstall Epic game - {0}</value></data>
     <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Uninstalling the Epic Games title and removing its Legendary registration...</value></data>
     <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
+    <data name="Epic.Uninstall.StateSaveFailed" xml:space="preserve"><value>The game was uninstalled, but its updated library state could not be saved. The changes remain pending.</value></data>
+    <data name="Epic.Uninstall.CleanupFailed" xml:space="preserve"><value>The game was uninstalled, but follow-up cleanup did not complete. Remaining paths were preserved.</value></data>
+    <data name="Epic.Uninstall.CleanupCancelled" xml:space="preserve"><value>The game was uninstalled. Follow-up cleanup was cancelled; remaining paths were preserved.</value></data>
+    <data name="Epic.Uninstall.PrefixPathPreservedFormat" xml:space="preserve"><value>Preserved Wine/Proton prefix: {0}</value></data>
+    <data name="Epic.Delete.CleanupIncomplete" xml:space="preserve"><value>The game was uninstalled. The library item was kept because follow-up cleanup did not complete. Its remaining game-folder and prefix paths are retained for manual cleanup.</value></data>
     <data name="Epic.Uninstall.SuccessPrefixPreserved" xml:space="preserve"><value>Game uninstalled successfully. The Wine/Proton prefix was preserved.</value></data>
     <data name="Epic.Uninstall.RemainingFilesPreservedFormat" xml:space="preserve"><value>The game folder still contains files or could not be removed safely. It was preserved in:
 {0}</value></data>

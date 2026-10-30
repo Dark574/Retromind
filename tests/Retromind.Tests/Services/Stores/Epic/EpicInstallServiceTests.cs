@@ -364,9 +364,11 @@ public sealed class EpicInstallServiceTests
         var service = CreateService(runner);
         service.WriteMarker(installPath, item);
 
-        var exception = await Assert.ThrowsAsync<IOException>(() => service.UninstallAsync(item));
+        var result = await service.UninstallAsync(item);
 
-        Assert.Contains("symbolic link", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(result.CleanupFailed);
+        Assert.True(result.PrefixPreserved);
+        Assert.False(item.CustomFields.ContainsKey(CustomFieldKeyHelper.StoreInstallPath));
         Assert.True(Directory.Exists(externalPrefix));
         Assert.True(File.Exists(externalSentinel));
         Assert.NotNull(item.PrefixPath);
@@ -594,10 +596,10 @@ public sealed class EpicInstallServiceTests
     };
 
     private static EpicInstallService CreateService() =>
-        new(new LegendaryCliClient(new UnusedProcessRunner()));
+        new(new LegendaryCliClient(new UnusedProcessRunner()), new RecordingErrorService());
 
     private static EpicInstallService CreateService(ILegendaryCliProcessRunner runner) =>
-        new(new LegendaryCliClient(runner));
+        new(new LegendaryCliClient(runner), new RecordingErrorService());
 
     private static QueueProcessRunner CreateSuccessfulUninstallRunner() => new(
         new LegendaryCliResult(0, CreateEmptyDlcCatalogJson(), string.Empty),

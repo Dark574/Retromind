@@ -54,16 +54,29 @@ internal sealed record EpicInstallSpaceAssessment(
 
 internal sealed record EpicUninstallResult(
     bool PrefixPreserved,
-    string? PreservedInstallDirectory);
+    string? PreservedInstallDirectory,
+    bool CleanupFailed = false,
+    bool CleanupCancelled = false);
 
 public sealed class EpicInstallService
 {
     private const string MarkerFileName = ".retromind-install.json";
     private readonly LegendaryCliClient _client;
+    private readonly IErrorService _errorService;
+    private readonly Action<string, CancellationToken> _deletePrefix;
+    private readonly Action<string> _deleteInstallMarker;
+    private readonly Action<string> _deleteEmptyInstallDirectory;
 
-    internal EpicInstallService(LegendaryCliClient client)
+    internal EpicInstallService(LegendaryCliClient client, IErrorService errorService,
+        Action<string, CancellationToken>? deletePrefix = null,
+        Action<string>? deleteInstallMarker = null,
+        Action<string>? deleteEmptyInstallDirectory = null)
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
+        _deletePrefix = deletePrefix ?? StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks;
+        _deleteInstallMarker = deleteInstallMarker ?? File.Delete;
+        _deleteEmptyInstallDirectory = deleteEmptyInstallDirectory ?? (path => Directory.Delete(path, recursive: false));
     }
 
     internal Task<LegendaryInstallEstimate> GetInstallEstimateAsync(
@@ -135,6 +148,7 @@ public sealed class EpicInstallService
         CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(item);
+        ct.ThrowIfCancellationRequested();
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(appName))
             throw new InvalidOperationException("The media item has no Epic Games identity.");
@@ -144,76 +158,157 @@ public sealed class EpicInstallService
             throw new InvalidOperationException("The Epic Games install path is missing or invalid.");
         }
 
-        if (Directory.Exists(installPath))
+        try
         {
-            var assessment = AssessDirectory(installPath, item);
-            if (assessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+            if (EntryExists(installPath))
             {
-                throw new InvalidOperationException(
-                    $"Retromind cannot safely remove the Epic Games install directory '{assessment.FullPath}'.");
+                var assessment = AssessDirectory(installPath, item);
+                if (assessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+                {
+                    throw new InvalidOperationException(
+                        $"Retromind cannot safely remove the Epic Games install directory '{assessment.FullPath}'.");
+                }
             }
+        }
+        catch (Exception ex)
+        {
+            ReportUninstallFailure("Epic.UninstallFailed", ErrorSeverity.Error, "ValidateInstallDirectory",
+                appName, installPath, item.PrefixPath, 0, mainGameRemoved: false, ex);
+            throw;
         }
 
         var hadPrefix = !string.IsNullOrWhiteSpace(item.PrefixPath);
         var prefixPath = ResolveSafePrefixForDeletion(item.PrefixPath, deletePrefix);
-        var prefixPreserved = hadPrefix && string.IsNullOrWhiteSpace(prefixPath);
-
-        var installedDlcs = (await _client.GetDlcCatalogAsync(appName, ct).ConfigureAwait(false))
-            .Where(static dlc => dlc.IsInstalled)
-            .ToArray();
-        foreach (var dlc in installedDlcs)
+        // A prefix must not recursively consume an install root whose unknown files must be preserved.
+        if (prefixPath != null && IsEqualToOrBelow(installPath, prefixPath))
+            prefixPath = null;
+        var prefixPreserved = hadPrefix;
+        var removedDlcCount = 0;
+        var operation = "LoadDlcCatalog";
+        try
         {
-            outputReceived?.Invoke($"[Retromind] Removing installed DLC '{dlc.Title}'...");
-            await _client
-                .UninstallAsync(dlc.AppName, keepFiles: false, outputReceived, ct)
-                .ConfigureAwait(false);
+            var installedDlcs = (await _client.GetDlcCatalogAsync(appName, ct).ConfigureAwait(false))
+                .Where(static dlc => dlc.IsInstalled)
+                .ToArray();
+            foreach (var dlc in installedDlcs)
+            {
+                operation = "UninstallDlc";
+                ct.ThrowIfCancellationRequested();
+                outputReceived?.Invoke($"[Retromind] Removing installed DLC '{dlc.Title}'...");
+                await _client.UninstallAsync(dlc.AppName, keepFiles: false, outputReceived, ct).ConfigureAwait(false);
+                removedDlcCount++;
+            }
+
+            operation = "UninstallMainGame";
+            ct.ThrowIfCancellationRequested();
+            await _client.UninstallAsync(appName, keepFiles: false, outputReceived, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            if (removedDlcCount > 0)
+                ReportUninstallFailure("Epic.UninstallInterrupted", ErrorSeverity.Diagnostic, operation,
+                    appName, installPath, item.PrefixPath, removedDlcCount, mainGameRemoved: false);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            ReportUninstallFailure("Epic.UninstallFailed", ErrorSeverity.Error, operation,
+                appName, installPath, item.PrefixPath, removedDlcCount, mainGameRemoved: false, ex);
+            throw;
         }
 
-        await _client
-            .UninstallAsync(appName, keepFiles: false, outputReceived, ct)
-            .ConfigureAwait(false);
-
-        string? preservedInstallDirectory = null;
-        if (Directory.Exists(installPath))
+        // Legendary verified that the main registration is gone. Commit this fact BEFORE any cancellation
+        // check or fallible filesystem cleanup. Keep recovery paths until their cleanup is confirmed.
+        ClearInstallState(item, prefixPreserved: hadPrefix, storedInstallPath);
+        string? preservedInstallDirectory = installPath;
+        var cleanupFailed = false;
+        var cleanupCancelled = false;
+        operation = "InspectRemainingInstallDirectory";
+        try
         {
-            // Legendary deletes the files from its manifest but intentionally leaves
-            // unknown files behind. Remove Retromind's marker, but preserve every
-            // remaining file because its ownership cannot be proven safely.
-            var remainingAssessment = AssessDirectory(installPath, item);
-            if (remainingAssessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+            ct.ThrowIfCancellationRequested();
+            if (EntryExists(installPath))
             {
-                throw new InvalidOperationException(
-                    $"Legendary was unregistered, but Retromind could not safely remove the remaining install directory '{remainingAssessment.FullPath}'.");
-            }
+                var remainingAssessment = AssessDirectory(installPath, item);
+                if (remainingAssessment.Status != EpicInstallDirectoryStatus.OwnedDirectory)
+                    throw new IOException("The remaining Epic install directory no longer passes ownership/path checks.");
 
-            File.Delete(Path.Combine(remainingAssessment.FullPath, MarkerFileName));
-            try
-            {
-                Directory.Delete(remainingAssessment.FullPath, recursive: false);
+                operation = "RemoveInstallMarker";
+                _deleteInstallMarker(Path.Combine(remainingAssessment.FullPath, MarkerFileName));
+                operation = "RemoveEmptyInstallDirectory";
+                // Nonempty remnants are expected, not an invitation to recursively delete unknown files.
+                if (!Directory.EnumerateFileSystemEntries(remainingAssessment.FullPath).Any())
+                    _deleteEmptyInstallDirectory(remainingAssessment.FullPath);
             }
-            catch (IOException) when (Directory.Exists(remainingAssessment.FullPath))
+            if (!EntryExists(installPath)) preservedInstallDirectory = null;
+
+            operation = "DeletePrefix";
+            ct.ThrowIfCancellationRequested();
+            if (prefixPath != null)
             {
-                preservedInstallDirectory = remainingAssessment.FullPath;
-            }
-            catch (UnauthorizedAccessException) when (Directory.Exists(remainingAssessment.FullPath))
-            {
-                preservedInstallDirectory = remainingAssessment.FullPath;
+                if (EntryExists(prefixPath))
+                {
+                    await Task.Run(() => _deletePrefix(prefixPath, ct), ct).ConfigureAwait(false);
+                    if (EntryExists(prefixPath))
+                        throw new IOException("The Epic prefix remains after the requested deletion.");
+                }
+                prefixPreserved = false;
+                item.PrefixPath = null;
             }
         }
-
-        if (!string.IsNullOrWhiteSpace(prefixPath) && Directory.Exists(prefixPath))
+        catch (OperationCanceledException)
         {
-            await Task.Run(
-                    () => StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(prefixPath, ct),
-                    ct)
-                .ConfigureAwait(false);
+            cleanupCancelled = true;
+            ReportUninstallFailure("Epic.UninstallCleanupCancelled", ErrorSeverity.Diagnostic, operation,
+                appName, installPath, item.PrefixPath, removedDlcCount, mainGameRemoved: true);
+        }
+        catch (Exception ex)
+        {
+            cleanupFailed = true;
+            ReportUninstallFailure("Epic.UninstallCleanupFailed", ErrorSeverity.Warning, operation,
+                appName, installPath, item.PrefixPath, removedDlcCount, mainGameRemoved: true, ex);
         }
 
-        ClearInstallState(item, prefixPreserved);
-        return new EpicUninstallResult(prefixPreserved, preservedInstallDirectory);
+        if (preservedInstallDirectory == null)
+        {
+            var fields = new Dictionary<string, string>(item.CustomFields, StringComparer.Ordinal);
+            fields.Remove(CustomFieldKeyHelper.StoreUninstallRemainingInstallPath);
+            item.CustomFields = fields;
+        }
+        return new EpicUninstallResult(prefixPreserved, preservedInstallDirectory, cleanupFailed, cleanupCancelled);
     }
 
-    private static void ClearInstallState(MediaItem item, bool prefixPreserved)
+    private static bool EntryExists(string path)
+    {
+        try { _ = File.GetAttributes(path); return true; }
+        catch (FileNotFoundException) { return false; }
+        catch (DirectoryNotFoundException) { return false; }
+    }
+
+    private void ReportUninstallFailure(string code, ErrorSeverity severity, string operation, string appName,
+        string installPath, string? prefixPath, int removedDlcCount, bool mainGameRemoved, Exception? exception = null)
+    {
+        try
+        {
+            var context = new Dictionary<string, string>
+            {
+                ["Operation"] = operation,
+                ["AppName"] = appName,
+                ["InstallPath"] = installPath,
+                ["RemovedDlcCount"] = removedDlcCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["MainGameUninstalled"] = mainGameRemoved.ToString()
+            };
+            if (prefixPath != null) context["PrefixPath"] = prefixPath;
+            if (exception != null) context["ExceptionType"] = exception.GetType().Name;
+            // Legendary exceptions may embed CLI output/credentials. Never forward their payloads.
+            _errorService.Report(new ErrorReport(code, severity, nameof(EpicInstallService), mainGameRemoved
+                ? "Legendary confirmed game removal, but follow-up cleanup did not complete. Recovery paths were preserved."
+                : "Epic game uninstallation was not confirmed. The local main-game install state was preserved.", Context: context));
+        }
+        catch { /* Diagnostic output must not replace the uninstall/cleanup outcome. */ }
+    }
+
+    private static void ClearInstallState(MediaItem item, bool prefixPreserved, string storedInstallPath)
     {
         var installFields = new HashSet<string>(StringComparer.Ordinal)
         {
@@ -229,9 +324,11 @@ public sealed class EpicInstallService
             CustomFieldKeyHelper.StoreUpdateLastStatus
         };
 
-        item.CustomFields = item.CustomFields
+        var fields = item.CustomFields
             .Where(entry => !installFields.Contains(entry.Key))
             .ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal);
+        fields[CustomFieldKeyHelper.StoreUninstallRemainingInstallPath] = storedInstallPath;
+        item.CustomFields = fields;
         item.Files = [];
         item.MediaType = MediaType.Command;
         item.EmulatorId = null;

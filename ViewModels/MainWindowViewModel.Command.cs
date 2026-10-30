@@ -1563,13 +1563,24 @@ public partial class MainWindowViewModel
 
                 try
                 {
+                    EpicUninstallResult uninstallResult;
+                    bool stateSaved;
                     using (BeginBusyCursor(owner))
                     {
                         await Task.Yield();
-                        var uninstallResult = await _epicInstallService.UninstallAsync(
-                            item,
-                            deletePrefix: !preserveSharedEpicPrefix);
+                        (uninstallResult, stateSaved) = await UninstallEpicAndPersistAsync(
+                            _epicInstallService, item,
+                            deletePrefix: !preserveSharedEpicPrefix, PersistEpicUninstallStateAsync);
                         preservedEpicInstallDirectory = uninstallResult.PreservedInstallDirectory;
+                    }
+                    // SaveData already owns persistence-error notification and keeps the model dirty.
+                    if (!stateSaved)
+                        return;
+                    if (uninstallResult.CleanupFailed || uninstallResult.CleanupCancelled)
+                    {
+                        await ShowInfoDialog(owner, T("Epic.Delete.CleanupIncomplete",
+                            "The game was uninstalled. The library item was kept because follow-up cleanup did not complete. Its remaining game-folder and prefix paths are retained for manual cleanup."));
+                        return;
                     }
                 }
                 catch (Exception ex)
