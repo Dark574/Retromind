@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
 using System.Security.Cryptography;
@@ -6,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
 using Retromind.Helpers;
+using Retromind.Models;
 using Retromind.Models.Stores;
 using Retromind.Services.Stores.Security;
 
@@ -32,21 +34,25 @@ public sealed class GogAuthService
     private readonly ISecretStore _secretStore;
     private readonly GogOAuthClient _oAuthClient;
     private readonly GogPkceService _pkceService;
+    private readonly IErrorService _errorService;
+    private readonly SemaphoreSlim _sessionGate = new(1, 1);
     private readonly string _clientId;
     private readonly string _clientSecret;
     private readonly Uri _redirectUri;
 
-    private GogTokenSet? _currentToken;
+    private volatile GogTokenSet? _currentToken;
     private StoreAccountInfo? _currentAccountInfo;
 
     /// <summary>Authentication can succeed for this session without a durable refresh token.</summary>
     public SecretStorageStatus RefreshTokenStorageStatus => _secretStore.GetStorageStatus(GogRefreshTokenKey);
 
-    public GogAuthService(ISecretStore secretStore, GogOAuthClient oAuthClient, GogPkceService pkceService)
+    public GogAuthService(ISecretStore secretStore, GogOAuthClient oAuthClient, GogPkceService pkceService,
+        IErrorService errorService)
     {
         _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
         _oAuthClient = oAuthClient ?? throw new ArgumentNullException(nameof(oAuthClient));
         _pkceService = pkceService ?? throw new ArgumentNullException(nameof(pkceService));
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
 
         _clientId = GetEnvironmentOrDefault(GogClientIdEnv, DefaultGogClientId);
         _clientSecret = GetEnvironmentOrDefault(GogClientSecretEnv, DefaultGogClientSecret);
@@ -55,37 +61,43 @@ public sealed class GogAuthService
 
     public Task<StoreAuthState> GetAuthStateAsync(CancellationToken ct = default)
     {
-        var isAuthenticated = _currentToken is { AccessTokenExpiresAtUtc: var expiry } &&
+        ct.ThrowIfCancellationRequested();
+        var token = _currentToken;
+        var isAuthenticated = token is { AccessTokenExpiresAtUtc: var expiry } &&
                               expiry > DateTimeOffset.UtcNow;
-        var expiresAt = isAuthenticated ? _currentToken?.AccessTokenExpiresAtUtc : null;
+        var expiresAt = isAuthenticated ? token?.AccessTokenExpiresAtUtc : null;
         return Task.FromResult(new StoreAuthState(isAuthenticated, expiresAt));
     }
 
     public async Task<string?> GetValidAccessTokenAsync(CancellationToken ct = default)
+        => (await GetValidTokenAsync(ct).ConfigureAwait(false))?.AccessToken;
+
+    private async Task<GogTokenSet?> GetValidTokenAsync(CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var currentToken = _currentToken;
         if (HasUsableAccessToken(currentToken, DateTimeOffset.UtcNow))
-            return currentToken!.AccessToken;
+            return currentToken;
 
         var refreshed = await TryRefreshSessionAsync(ct).ConfigureAwait(false);
         if (!refreshed)
             return null;
 
-        return _currentToken?.AccessToken;
+        return _currentToken;
     }
 
     internal async Task<GogGameplayCredentials?> GetGameplayCredentialsAsync(
         CancellationToken ct = default)
     {
-        var accessToken = await GetValidAccessTokenAsync(ct).ConfigureAwait(false);
-        var userId = _currentToken?.UserId;
-        return string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(userId)
+        var token = await GetValidTokenAsync(ct).ConfigureAwait(false);
+        return token == null || string.IsNullOrWhiteSpace(token.AccessToken) || string.IsNullOrWhiteSpace(token.UserId)
             ? null
-            : new GogGameplayCredentials(accessToken, userId);
+            : new GogGameplayCredentials(token.AccessToken, token.UserId);
     }
 
     internal async Task<string?> GetGameplayUserIdAsync(CancellationToken ct = default)
     {
+        ct.ThrowIfCancellationRequested();
         var currentUserId = _currentToken?.UserId?.Trim();
         if (!string.IsNullOrWhiteSpace(currentUserId))
             return currentUserId;
@@ -116,34 +128,44 @@ public sealed class GogAuthService
         if (string.IsNullOrWhiteSpace(accessToken))
             return null;
 
-        var galaxyUserId = _currentToken?.UserId;
-        if (string.IsNullOrWhiteSpace(galaxyUserId))
-            return null;
-
-        var refreshToken = await _secretStore
-            .GetAsync(GogRefreshTokenKey, ct)
-            .ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(refreshToken))
-            return null;
-
-        var accountInfo = _currentAccountInfo;
-        if (accountInfo == null)
+        await _sessionGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            accountInfo = await _oAuthClient
-                .GetAccountInfoAsync(accessToken, ct)
-                .ConfigureAwait(false);
-            _currentAccountInfo = accountInfo;
-        }
+            // Login/logout may have completed while waiting; use one committed token/account snapshot.
+            var token = _currentToken;
+            if (token == null)
+                return null;
+            var galaxyUserId = token.UserId;
+            if (string.IsNullOrWhiteSpace(galaxyUserId))
+                return null;
 
-        EnsureUsableAccountIdentity(accountInfo);
-        var username = !string.IsNullOrWhiteSpace(accountInfo.DisplayName)
-            ? accountInfo.DisplayName
-            : accountInfo.AccountId;
-        return new GogSessionCredentials(
-            accessToken,
-            refreshToken,
-            galaxyUserId,
-            username);
+            var refreshToken = await _secretStore
+                .GetAsync(GogRefreshTokenKey, ct)
+                .ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(refreshToken) ||
+                !string.Equals(refreshToken, token.RefreshToken, StringComparison.Ordinal))
+                return null;
+
+            var accountInfo = _currentAccountInfo;
+            if (accountInfo == null)
+            {
+                accountInfo = await _oAuthClient
+                    .GetAccountInfoAsync(token.AccessToken, ct)
+                    .ConfigureAwait(false);
+                _currentAccountInfo = accountInfo;
+            }
+
+            EnsureUsableAccountIdentity(accountInfo);
+            var username = !string.IsNullOrWhiteSpace(accountInfo.DisplayName)
+                ? accountInfo.DisplayName
+                : accountInfo.AccountId;
+            return new GogSessionCredentials(
+                token.AccessToken,
+                refreshToken,
+                galaxyUserId,
+                username);
+        }
+        finally { _sessionGate.Release(); }
     }
 
     public Task<StoreAccountInfo> SignInInteractiveAsync(
@@ -155,33 +177,41 @@ public sealed class GogAuthService
 
     public async Task<bool> TryRefreshSessionAsync(CancellationToken ct = default)
     {
-        if (HasUsableAccessToken(_currentToken, DateTimeOffset.UtcNow))
-            return true;
-
-        var refreshToken = await _secretStore.GetAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
-        if (string.IsNullOrWhiteSpace(refreshToken))
-            return false;
-
+        await _sessionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var token = await _oAuthClient
-                .RefreshAsync(_clientId, _clientSecret, refreshToken, ct)
-                .ConfigureAwait(false);
+            if (HasUsableAccessToken(_currentToken, DateTimeOffset.UtcNow))
+                return true;
 
-            _currentToken = token;
-            await StoreRefreshTokenAsync(token.RefreshToken, ct).ConfigureAwait(false);
-            await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
-            return true;
+            var refreshToken = await _secretStore.GetAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(refreshToken))
+                return false;
+
+            try
+            {
+                var token = await _oAuthClient
+                    .RefreshAsync(_clientId, _clientSecret, refreshToken, ct)
+                    .ConfigureAwait(false);
+
+                await StoreRefreshTokenAsync(token.RefreshToken, "Refresh", ct).ConfigureAwait(false);
+                await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
+                if (!string.Equals(_currentToken?.UserId, token.UserId, StringComparison.Ordinal))
+                    _currentAccountInfo = null;
+                _currentToken = token; // Commit: no fallible/awaited work follows activation.
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Refresh failed ({ex.GetType().Name}).");
+                return false;
+            }
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Refresh failed ({ex.GetType().Name}).");
-            return false;
-        }
+        finally { _sessionGate.Release(); }
     }
 
     internal static bool HasUsableAccessToken(GogTokenSet? token, DateTimeOffset utcNow)
@@ -192,28 +222,34 @@ public sealed class GogAuthService
 
     public async Task SignOutAsync(bool forgetPersistentToken, CancellationToken ct = default)
     {
-        _currentToken = null;
-        _currentAccountInfo = null;
-
-        if (forgetPersistentToken)
+        await _sessionGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            try
+            _currentToken = null;
+            _currentAccountInfo = null;
+
+            if (forgetPersistentToken)
             {
-                await _secretStore.DeleteAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
-            }
-            finally
-            {
-                // Keep the offline-cache identity and the persistent session in
-                // lockstep, even if deleting one key fails.
-                await _secretStore.DeleteAsync(GogGalaxyUserIdKey, ct).ConfigureAwait(false);
+                try
+                {
+                    await _secretStore.DeleteAsync(GogRefreshTokenKey, ct).ConfigureAwait(false);
+                }
+                finally
+                {
+                    // Keep the offline-cache identity and the persistent session in
+                    // lockstep, even if deleting one key fails.
+                    await _secretStore.DeleteAsync(GogGalaxyUserIdKey, ct).ConfigureAwait(false);
+                }
             }
         }
+        finally { _sessionGate.Release(); }
     }
 
     private async Task<StoreAccountInfo> SignInInteractiveInternalAsync(
         Func<StoreSignInChallenge, CancellationToken, Task<StoreSignInResponse?>>? challengeResolver,
         CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         var pkce = _pkceService.CreateChallenge();
         var state = CreateState();
 
@@ -266,37 +302,44 @@ public sealed class GogAuthService
         string? codeVerifier,
         CancellationToken ct)
     {
-        var token = await _oAuthClient
-            .ExchangeCodeAsync(
-                _clientId,
-                _clientSecret,
-                _redirectUri,
-                code,
-                codeVerifier,
-                ct)
-            .ConfigureAwait(false);
-
-        _currentToken = token;
-        await StoreRefreshTokenAsync(token.RefreshToken, ct).ConfigureAwait(false);
-        await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
-
+        await _sessionGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            var accountInfo = await _oAuthClient
-                .GetAccountInfoAsync(token.AccessToken, ct)
+            var token = await _oAuthClient
+                .ExchangeCodeAsync(
+                    _clientId,
+                    _clientSecret,
+                    _redirectUri,
+                    code,
+                    codeVerifier,
+                    ct)
                 .ConfigureAwait(false);
-            _currentAccountInfo = accountInfo;
-            return accountInfo;
+
+            await StoreRefreshTokenAsync(token.RefreshToken, "SignIn", ct).ConfigureAwait(false);
+            await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
+
+            StoreAccountInfo? accountInfo = null;
+            try
+            {
+                accountInfo = await _oAuthClient
+                    .GetAccountInfoAsync(token.AccessToken, ct)
+                    .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[GOG] Account info request failed ({ex.GetType().Name}).");
+            }
+            var result = accountInfo ?? new StoreAccountInfo("gog-user", null, null);
+            ct.ThrowIfCancellationRequested();
+            _currentAccountInfo = accountInfo; // Never retain an earlier account's profile on login fallback.
+            _currentToken = token;
+            return result;
         }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Account info request failed ({ex.GetType().Name}).");
-            return new StoreAccountInfo("gog-user", null, null);
-        }
+        finally { _sessionGate.Release(); }
     }
 
     private static async Task<Uri> ResolveCallbackUriAsync(
@@ -430,11 +473,43 @@ public sealed class GogAuthService
         }
     }
 
-    private async Task StoreRefreshTokenAsync(string token, CancellationToken ct)
+    private async Task StoreRefreshTokenAsync(string token, string operation, CancellationToken ct)
     {
-        var status = await _secretStore.SetWithStatusAsync(GogRefreshTokenKey, token, ct).ConfigureAwait(false);
-        if (status == SecretStorageStatus.Failed)
-            throw new InvalidOperationException("The GOG refresh token could not be stored.");
+        SecretStorageStatus status;
+        try
+        {
+            status = await _secretStore.SetWithStatusAsync(GogRefreshTokenKey, token, ct).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch
+        {
+            ReportTokenStorageFailure(operation, SecretStorageStatus.Failed);
+            throw new InvalidOperationException("The GOG refresh token could not be stored; the new session was not activated.");
+        }
+        if (status is SecretStorageStatus.Persistent or SecretStorageStatus.SessionOnly)
+            return;
+
+        ReportTokenStorageFailure(operation, status);
+        throw new InvalidOperationException("The GOG refresh token could not be stored; the new session was not activated.");
+    }
+
+    private void ReportTokenStorageFailure(string operation, SecretStorageStatus status)
+    {
+        // This concrete store already reports failed backend writes, without exposing their payloads.
+        if (status == SecretStorageStatus.Failed && _secretStore is CompositeSecretStore)
+            return;
+        try
+        {
+            _errorService.Report(new ErrorReport("GogAuth.TokenStorageFailed", ErrorSeverity.Error, nameof(GogAuthService),
+                "The new GOG session was not activated because refresh-token storage was not confirmed. An older refresh token may no longer be valid.",
+                Context: new Dictionary<string, string>
+                {
+                    ["Operation"] = operation,
+                    ["StorageStatus"] = status.ToString(),
+                    ["OAuthResponseReceived"] = "True"
+                }));
+        }
+        catch { /* Diagnostics must not activate a rejected token or mask the persistence failure. */ }
     }
 
     private static string GetEnvironmentOrDefault(string variableName, string fallback)

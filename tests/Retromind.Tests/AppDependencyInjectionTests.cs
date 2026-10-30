@@ -48,7 +48,7 @@ public sealed class AppDependencyInjectionTests
         services.AddSingleton(new GogAuthService(
             new InMemorySecretStore(),
             new GogOAuthClient(httpClient),
-            new GogPkceService()));
+            new GogPkceService(), new RecordingErrorService()));
 
         App.RegisterGogCometServices(services, dataRoot.RootPath);
 

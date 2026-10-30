@@ -177,6 +177,45 @@ The existing settings rollback is value-based, not an atomic transaction across 
 If a previous durable value could not be read, a later rollback cannot reconstruct it; keyring availability
 changes during a multi-key settings save therefore remain a reconciliation limitation.
 
+#### GOG token activation boundary
+
+`GogAuthService` stages OAuth responses locally. Refresh and interactive login accept a new active token only
+after `StoreRefreshTokenAsync` confirms `Persistent` or `SessionOnly`; `Unknown` is rejected along with `Failed`.
+Refresh returns `false` on a rejected write, while interactive login throws a fixed, credential-free exception.
+The previous active token and cached account profile remain unchanged on failure or cancellation. If that
+previous access token still has time remaining, `GetAuthStateAsync` may continue to report its original expiry;
+the rejected candidate is never returned by a later access-token lookup. The existing 30-second refresh buffer
+and account-info fallback remain in effect.
+
+Optional gameplay-identity storage and, for login, account-info retrieval complete before activation. Cancellation
+propagates and is checked again immediately before the commit. Nothing awaited/fallible follows token activation.
+Login prepares the profile in a local variable and clears any previous profile when the new account-info lookup
+falls back. Refresh invalidates the cached profile if the token's user ID changes. Best-effort identity-write
+failure alone still does not reject an otherwise saved session.
+
+A service-local semaphore serializes refresh, OAuth code exchange/activation, sign-out, and the full Comet
+credential snapshot. The interactive browser/callback wait remains outside this gate. Concurrent refresh callers
+recheck the active token after acquiring it and reuse a committed token instead of rotating the same refresh token
+in parallel. Sign-out cannot be overwritten by a refresh that was already in progress. Gameplay credentials use
+one immutable committed token snapshot. Comet checks that the stored refresh token matches the committed token
+before combining it with the access token, user ID, and profile; a mismatched pair is unavailable rather than mixed.
+
+`IErrorService` is injected into the auth service. `GogAuth.TokenStorageFailed` (`Error`) diagnoses a failed or
+unconfirmed write by a store without its own reporting, including `Unknown`. Reports contain only the fixed
+operation (`Refresh`/`SignIn`), storage status, and an OAuth-response-received flag. No exception, token, OAuth code,
+client secret, user ID, or server response enters this report. When the registered `CompositeSecretStore` returns
+`Failed`, its backend reports already describe that failure and no duplicate auth report is emitted. Diagnostic
+output cannot change the result or activate a rejected token. Expected cancellation is not logged as a failure;
+no dialogs are added.
+
+This is an in-memory activation boundary, not an OAuth/keyring rollback transaction. An OAuth refresh may already
+have invalidated the old refresh token server-side. Keeping the old local token does not guarantee another refresh
+will work; interactive sign-in may be necessary. Likewise, storage can commit before cancellation or an account-info
+request is canceled. Such a new refresh token may remain stored while the old session (or no session) remains active.
+The service never overwrites it with an old refresh token or automatically retries the failed operation. A later
+normal refresh can use whichever token the store actually retained. Neither server rotation nor independent
+keyring writers are coordinated across multiple Retromind processes.
+
 ### Versioned metadata backups (`Backups/`)
 - service: `MetadataBackupService`; UI: `MetadataBackupViewModel` / `MetadataBackupView`
 - each ZIP contains serialized snapshots of `retromind_tree.json` and `app_settings.json` plus a manifest

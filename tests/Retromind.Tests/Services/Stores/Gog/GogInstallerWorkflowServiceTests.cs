@@ -206,7 +206,7 @@ public sealed class GogInstallerWorkflowServiceTests
             new GogAuthService(
                 new InMemorySecretStore(),
                 new GogOAuthClient(new HttpClient()),
-                new GogPkceService()),
+                new GogPkceService(), new RecordingErrorService()),
             new HttpClient());
         var executionService = new GogInstallerExecutionService(
             new GogInstallerProcessService(),

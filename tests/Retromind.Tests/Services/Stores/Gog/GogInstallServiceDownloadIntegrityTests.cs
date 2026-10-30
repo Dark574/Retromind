@@ -300,7 +300,7 @@ public sealed class GogInstallServiceDownloadIntegrityTests
         var authService = new GogAuthService(
             new InMemorySecretStore(),
             new GogOAuthClient(providerClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         return new GogInstallService(
             authService,
             providerClient,

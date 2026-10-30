@@ -56,7 +56,7 @@ public sealed class GogAuthServiceTests
         var service = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
 
         Assert.True(await service.TryRefreshSessionAsync());
         var accessToken = await service.GetValidAccessTokenAsync();
@@ -94,7 +94,7 @@ public sealed class GogAuthServiceTests
         var service = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
 
         Assert.True(await service.TryRefreshSessionAsync());
         var accessToken = await service.GetValidAccessTokenAsync();
@@ -117,7 +117,7 @@ public sealed class GogAuthServiceTests
         var service = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
 
         await service.SignOutAsync(forgetPersistentToken: true);
 
@@ -142,7 +142,7 @@ public sealed class GogAuthServiceTests
                 Content = new StringContent(CreateTokenResponse("access", $"rotated-{forms.Count}", forms.Count == 1 ? 20 : 3600))
             };
         }));
-        var service = new GogAuthService(secrets, new GogOAuthClient(http), new GogPkceService());
+        var service = new GogAuthService(secrets, new GogOAuthClient(http), new GogPkceService(), new RecordingErrorService());
 
         Assert.True(await service.TryRefreshSessionAsync());
         Assert.Equal(SecretStorageStatus.SessionOnly, service.RefreshTokenStorageStatus);
@@ -169,7 +169,7 @@ public sealed class GogAuthServiceTests
                 ? CreateTokenResponse("login-access", "login-refresh", 3600)
                 : """{"userId":"galaxy-user-id","username":"TestUser"}""")
         }));
-        var service = new GogAuthService(secrets, new GogOAuthClient(http), new GogPkceService());
+        var service = new GogAuthService(secrets, new GogOAuthClient(http), new GogPkceService(), new RecordingErrorService());
 
         var account = await service.SignInInteractiveAsync((challenge, _) =>
         {
@@ -194,7 +194,7 @@ public sealed class GogAuthServiceTests
         await primary.Values.SetAsync(new SecretKey("retromind:gog", "galaxy-user-id"), "user-id");
         var secrets = new CompositeSecretStore(primary, new InMemorySecretStore(), new RecordingErrorService());
         using var http = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("No refresh request expected")));
-        var service = new GogAuthService(secrets, new GogOAuthClient(http), new GogPkceService());
+        var service = new GogAuthService(secrets, new GogOAuthClient(http), new GogPkceService(), new RecordingErrorService());
 
         await Assert.ThrowsAsync<InvalidOperationException>(() => service.SignOutAsync(forgetPersistentToken: true));
 

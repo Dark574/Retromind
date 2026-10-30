@@ -283,7 +283,7 @@ public sealed class GogInstallServicePortabilityTests
         var authService = new GogAuthService(
             new InMemorySecretStore(),
             new GogOAuthClient(oauthHttpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         return new GogInstallService(authService, providerHttpClient);
     }
 

@@ -1,3 +1,4 @@
+using Retromind.Tests.TestInfrastructure;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -49,7 +50,7 @@ public sealed class GogCometCredentialProviderTests
         var authService = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         var provider = new GogCometCredentialProvider(authService);
 
         var credentials = await provider.GetCredentialsAsync();
@@ -78,7 +79,7 @@ public sealed class GogCometCredentialProviderTests
         var authService = new GogAuthService(
             new InMemorySecretStore(),
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         var provider = new GogCometCredentialProvider(authService);
 
         var credentials = await provider.GetCredentialsAsync();
@@ -111,7 +112,7 @@ public sealed class GogCometCredentialProviderTests
         var authService = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         var provider = new GogCometCredentialProvider(authService);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(

@@ -102,7 +102,7 @@ public sealed class GogAchievementsProgressServiceTests : IDisposable
         var authService = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         var service = new GogAchievementsProgressService(
             new AppSettings { EnableGogGalaxyIntegration = false },
             authService,
@@ -145,7 +145,7 @@ public sealed class GogAchievementsProgressServiceTests : IDisposable
         var restartedAuthService = new GogAuthService(
             secretStore,
             new GogOAuthClient(offlineClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         var restartedService = new GogAchievementsProgressService(
             new AppSettings { EnableGogGalaxyIntegration = true },
             restartedAuthService,
@@ -186,7 +186,7 @@ public sealed class GogAchievementsProgressServiceTests : IDisposable
         var authService = new GogAuthService(
             otherAccountSecretStore,
             new GogOAuthClient(offlineClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         var restartedService = new GogAchievementsProgressService(
             new AppSettings { EnableGogGalaxyIntegration = true },
             authService,
@@ -210,7 +210,7 @@ public sealed class GogAchievementsProgressServiceTests : IDisposable
         var authService = new GogAuthService(
             secretStore,
             new GogOAuthClient(httpClient),
-            new GogPkceService());
+            new GogPkceService(), new RecordingErrorService());
         return new GogAchievementsProgressService(
             new AppSettings { EnableGogGalaxyIntegration = true },
             authService,
