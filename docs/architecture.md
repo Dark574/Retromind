@@ -1025,7 +1025,25 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   repairs relocated MojoSetup metadata, and validates that DLC installers actually changed the payload. Its
   Windows path owns prefix creation, installer architecture selection, silent/interactive Inno profiles, shortcut
   policy cleanup, Wine diagnostics, and target/prefix payload validation. Shared payload snapshots are provided by
-  `GogInstallPayloadTracker`
+  `GogInstallPayloadTracker`.
+  Before its portable games-drive mapping creates `dosdevices`, the Windows path creates `drive_c` and supplies
+  missing `C: -> ../drive_c` and `Z: -> /` mappings. Wine creates these defaults only when it creates `dosdevices`
+  itself; creating just the games-drive mapping beforehand can otherwise leave Wine unable to find Windows
+  system files. Existing mappings and prefix data are preserved. Missing mappings from an earlier interrupted
+  attempt are filled on the next explicit installation attempt; invalid existing mappings prevent installer
+  startup with an explanatory result rather than being overwritten. This is not general prefix repair.
+  Host Wine installer processes use the existing AppImage/portable-HOME environment sanitizer while retaining
+  the explicitly selected prefix and Wine settings.
+  Process exit and redirected-output draining use cancellation-aware `WaitForExitAsync` rather than a synchronous
+  final drain that can hang when a detached Wine child inherits the pipes. Cancel still kills the directly
+  launched process tree. The Windows execution path additionally requests `wineserver -k` for the exact
+  installer prefix, using only a sibling of the selected Wine executable and a five-second cleanup limit.
+  This also reaches Wine setup processes that outlived their original launcher. No global name-based kill or
+  fallback to an unrelated wineserver is used. Missing/failed/timed-out shutdown helpers are logged without
+  changing cancellation into an installation failure. Prefix contents and downloaded installers remain intact.
+  All Wine processes sharing the selected prefix belong to this shutdown scope; other prefixes are unaffected.
+  There is no new overall timeout for an interactive installer, automatic prefix deletion, or repair of arbitrary
+  existing prefix damage. Real Wine setup and host dependency failures still require runtime verification.
 - `GogInstallerWorkflowService` coordinates the common base-game and DLC pipeline above those platform paths:
   resumable package download, throttled progress reporting, detailed file logging, clean-install preparation,
   execution, cancellation classification, and guarded staging cleanup. It reports plain results and log lines;

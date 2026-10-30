@@ -54,6 +54,7 @@ public sealed class GogInstallerProcessService
     {
         ArgumentNullException.ThrowIfNull(startInfo);
         ArgumentNullException.ThrowIfNull(appendLog);
+        cancellationToken.ThrowIfCancellationRequested();
 
         var hasUnsupportedFlagsError = false;
         var hasShellParsingError = false;
@@ -83,15 +84,9 @@ public sealed class GogInstallerProcessService
 
         try
         {
-            while (!process.HasExited)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                await Task.Delay(500, cancellationToken).ConfigureAwait(false);
-            }
-
-            // WaitForExit also drains the asynchronous stdout/stderr handlers so
-            // the final installer lines are not lost immediately before disposal.
-            process.WaitForExit();
+            // This also drains stdout/stderr, but cancellation remains effective when a Wine
+            // descendant keeps a pipe open after the original launcher has already exited.
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

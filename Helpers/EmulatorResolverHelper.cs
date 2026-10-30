@@ -47,6 +47,7 @@ public static class EmulatorResolverHelper
             }
         };
 
+        HostProcessEnvironmentSanitizer.Sanitize(startInfo);
         return startInfo;
     }
 }

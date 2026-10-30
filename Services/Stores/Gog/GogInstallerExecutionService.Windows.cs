@@ -35,6 +35,7 @@ public sealed partial class GogInstallerExecutionService
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(appendLog);
+        cancellationToken.ThrowIfCancellationRequested();
 
         GogInstallerExecutionResult Fail(string message) => new(false, message);
 
@@ -46,11 +47,26 @@ public sealed partial class GogInstallerExecutionService
 
         var prefixRoot = ResolveOrCreatePrefixRoot(request);
         var prefixDrivePath = Path.Combine(prefixRoot, "drive_c");
+        var dosdevicesPath = Path.Combine(prefixRoot, "dosdevices");
         var windowsInstallDestinationPath = ToWineWindowsAbsolutePath(request.InstallPath);
+
+        // Wine only creates C: and Z: when it creates dosdevices itself. Our games-drive mapping
+        // scaffolds that directory first, so supply the defaults before starting Wine. Also fills
+        // missing mappings in a prefix left by an earlier failed attempt; never overwrite user mappings.
+        Directory.CreateDirectory(prefixDrivePath);
+        Exception? mappingFailure = null;
+        PrefixPathHelper.EnsureDosDeviceMapping(dosdevicesPath, "c:", "../drive_c", ex => mappingFailure ??= ex);
+        PrefixPathHelper.EnsureDosDeviceMapping(dosdevicesPath, "z:", "/", ex => mappingFailure ??= ex);
+        if (mappingFailure != null || !Directory.Exists(Path.Combine(dosdevicesPath, "c:")) ||
+            !Directory.Exists(Path.Combine(dosdevicesPath, "z:")))
+        {
+            return Fail("Could not prepare required Wine drive mappings C: and Z:. " +
+                        "Check prefix permissions and existing mappings. Existing files and mappings were preserved.");
+        }
 
         PrefixPathHelper.EnsurePortableGamesDriveMapping(
             prefixRoot,
-            Path.Combine(prefixRoot, "dosdevices"),
+            dosdevicesPath,
             _libraryRoot);
 
         appendLog($"Windows prefix root: {prefixRoot}");
@@ -119,6 +135,13 @@ public sealed partial class GogInstallerExecutionService
                     appendLog,
                     cancellationToken).ConfigureAwait(false);
             }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Wine setup can outlive/reparent away from its original launcher. A tree kill alone
+                // cannot stop that prefix's server once the launcher has exited.
+                await StopInstallerWinePrefixAsync(request.WinePath, prefixRoot, appendLog).ConfigureAwait(false);
+                throw;
+            }
             finally
             {
                 var removedShortcutExports = GogWindowsShortcutPolicy.RemoveUnwantedExports(
@@ -144,11 +167,21 @@ public sealed partial class GogInstallerExecutionService
                 $"shellParse={execution.HasShellParsingError}, " +
                 $"terminalSpawn={execution.HasTerminalSpawnError}");
 
-            var payloadDetected = await GogInstallPayloadTracker.WaitForChangeAsync(
-                request.InstallPath,
-                payloadBaseline,
-                TimeSpan.FromSeconds(25),
-                cancellationToken).ConfigureAwait(false);
+            bool payloadDetected;
+            try
+            {
+                payloadDetected = await GogInstallPayloadTracker.WaitForChangeAsync(
+                    request.InstallPath,
+                    payloadBaseline,
+                    TimeSpan.FromSeconds(25),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // Detached Wine setup may also remain after the launcher has closed its output pipes.
+                await StopInstallerWinePrefixAsync(request.WinePath, prefixRoot, appendLog).ConfigureAwait(false);
+                throw;
+            }
             if (payloadDetected)
             {
                 if (attemptIndex > 0)
@@ -179,6 +212,35 @@ public sealed partial class GogInstallerExecutionService
         }
 
         return Fail("Windows installer did not complete successfully.");
+    }
+
+    private async Task StopInstallerWinePrefixAsync(string winePath, string prefixRoot, Action<string> appendLog)
+    {
+        try
+        {
+            var wineDirectory = Path.IsPathRooted(winePath) ? Path.GetDirectoryName(winePath) : null;
+            var wineServerPath = wineDirectory == null ? null : Path.Combine(wineDirectory, "wineserver");
+            if (wineServerPath == null || !File.Exists(wineServerPath))
+            {
+                appendLog("[Windows prefix] Could not find wineserver beside the selected Wine executable. " +
+                          "Detached Wine processes may need to be stopped manually.");
+                return;
+            }
+
+            appendLog($"[Windows prefix] Stopping Wine processes for this prefix: {prefixRoot}");
+            var startInfo = EmulatorResolverHelper.BuildWineInstallStartInfo(wineServerPath, prefixRoot);
+            startInfo.WorkingDirectory = prefixRoot;
+            startInfo.ArgumentList.Add("-k");
+            using var stopTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var result = await _processService.ExecuteAsync(startInfo, appendLog, stopTimeout.Token).ConfigureAwait(false);
+            if (!result.Started || result.ExitCode != 0)
+                appendLog("[Windows prefix] Wine prefix shutdown failed. Detached Wine processes may still be running.");
+        }
+        catch (Exception ex)
+        {
+            try { appendLog($"[Windows prefix] Could not complete Wine prefix shutdown: {ex.Message}"); }
+            catch { /* A failed diagnostic callback must not replace the user's cancellation. */ }
+        }
     }
 
     internal static IReadOnlyList<string> BuildWindowsShortcutArguments(

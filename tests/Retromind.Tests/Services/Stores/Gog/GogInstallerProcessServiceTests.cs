@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using Retromind.Services.Stores.Gog;
 using Retromind.Tests.TestInfrastructure;
 
@@ -7,6 +8,63 @@ namespace Retromind.Tests.Services.Stores.Gog;
 public sealed class GogInstallerProcessServiceTests
 {
     private readonly GogInstallerProcessService _service = new();
+
+    [Fact]
+    public async Task ExecuteAsync_CancellationStillWorksAfterParentExitWithInheritedOutputPipes()
+    {
+        using var temp = new TemporaryDirectory();
+        using var cancellation = new CancellationTokenSource();
+        var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startInfo = _service.CreateStartInfo(temp.RootPath);
+        startInfo.FileName = "/bin/sh";
+        startInfo.ArgumentList.Add("-c");
+        startInfo.ArgumentList.Add("echo $$ > parent.pid; sleep 30 & echo $! > child.pid; echo child-holds-output; exit 0");
+        var execution = _service.ExecuteAsync(startInfo, line =>
+        {
+            if (line == "child-holds-output") ready.TrySetResult();
+        }, cancellation.Token);
+        try
+        {
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var parentId = int.Parse(File.ReadAllText(temp.GetPath("parent.pid")));
+            try
+            {
+                using var parent = Process.GetProcessById(parentId);
+                Assert.True(await Task.Run(() => parent.WaitForExit(5000)));
+            }
+            catch (ArgumentException) { /* Parent was already reaped. */ }
+
+            cancellation.Cancel();
+
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => execution.WaitAsync(TimeSpan.FromSeconds(3)));
+        }
+        finally
+        {
+            cancellation.Cancel();
+            // This deliberately detached test child is outside the exited parent's tree.
+            if (File.Exists(temp.GetPath("child.pid")))
+            {
+                try
+                {
+                    using var child = Process.GetProcessById(int.Parse(File.ReadAllText(temp.GetPath("child.pid"))));
+                    if (!child.HasExited) child.Kill();
+                }
+                catch (ArgumentException) { /* Already gone. */ }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_PreCancelledRequestDoesNotStartProcess()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var startInfo = _service.CreateStartInfo(Path.GetTempPath());
+        startInfo.FileName = "/not-an-installer";
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            _service.ExecuteAsync(startInfo, _ => { }, cancellation.Token));
+    }
 
     [Fact]
     public async Task ExecuteAsync_CapturesFinalOutputAndNonZeroExitCode()
