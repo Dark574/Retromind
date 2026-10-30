@@ -327,7 +327,8 @@ public partial class App : Application
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();
         services.AddSingleton(_ => new RunnerVersionService(AppPaths.DataRoot));
-        services.AddSingleton(_ => new WinetricksService(AppPaths.LibraryRoot));
+        services.AddSingleton(provider => new WinetricksService(
+            AppPaths.LibraryRoot, provider.GetRequiredService<IErrorService>()));
         
         // --- Store providers ---
         services.AddSingleton<SecretServiceSecretStore>();

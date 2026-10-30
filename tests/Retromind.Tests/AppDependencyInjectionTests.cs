@@ -25,6 +25,7 @@ public sealed class AppDependencyInjectionTests
         Assert.IsType<ErrorService>(errors);
         Assert.Same(errors, provider.GetRequiredService<IErrorService>());
         Assert.IsType<AudioService>(provider.GetRequiredService<AudioService>());
+        Assert.IsType<WinetricksService>(provider.GetRequiredService<WinetricksService>());
         errors.Report(new ErrorReport("Test", ErrorSeverity.Diagnostic, "Test", "Portable log"));
         Assert.True(File.Exists(temp.GetPath("Logs", "Exceptions", "errors.jsonl")));
         Assert.False(Directory.Exists(temp.GetPath("Logs", "Launch")));

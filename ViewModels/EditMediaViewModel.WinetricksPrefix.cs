@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Retromind.Helpers;
@@ -123,6 +124,8 @@ public partial class EditMediaViewModel
                 env[key] = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, env[key]);
 
             logVm = new ProcessLogViewModel("Winetricks", true);
+            logVm.EnableCancel();
+            var cancellationToken = logVm.Token;
             var logView = new ProcessLogView { DataContext = logVm };
 
             if (owner != null)
@@ -137,22 +140,57 @@ public partial class EditMediaViewModel
                 isProton,
                 isUmu,
                 ResolveUmuRunnerPath());
-            await _winetricksService.RunAsync(
-                    request,
-                    line => AppendLog(logVm, line))
+            await ExecuteWinetricksWithLogAsync(request, logVm, cancellationToken)
                 .ConfigureAwait(false);
         }
         finally
         {
             if (logVm != null)
-                UiThreadHelper.Post(() => logVm.IsRunning = false);
+                UiThreadHelper.Post(() => { logVm.IsRunning = false; logVm.MarkFinished(); });
             SetWinetricksRunning(false);
         }
     }
 
-    private static void AppendLog(ProcessLogViewModel logVm, string line)
+    // The editor owns presentation and running state; the service owns execution/results.
+    // An internal dispatcher seam keeps these lifecycle paths testable without opening a window.
+    internal async Task ExecuteWinetricksWithLogAsync(
+        WinetricksRequest request, ProcessLogViewModel logVm, CancellationToken cancellationToken,
+        Action<Action>? postToUiThread = null)
     {
-        UiThreadHelper.Post(() => logVm.AppendLine(line));
+        postToUiThread ??= UiThreadHelper.Post;
+        try
+        {
+            postToUiThread(() => { IsWinetricksRunning = true; logVm.EnableCancel(); });
+            var result = await _winetricksService.RunAsync(request,
+                line => postToUiThread(() => logVm.AppendLine(line)), cancellationToken).ConfigureAwait(false);
+            postToUiThread(() =>
+            {
+                if (result.IsCancelled)
+                    logVm.MarkCancelled("[CANCELLED] Winetricks execution cancelled.");
+                else if (!result.Success)
+                    logVm.AppendLine($"[ERROR] Winetricks failed ({result.FailureCategory}" +
+                        (result.ExitCode.HasValue ? $", exit code {result.ExitCode.Value}" : string.Empty) +
+                        $"). {result.ErrorMessage}");
+            });
+        }
+        catch (OperationCanceledException)
+        {
+            postToUiThread(() => logVm.MarkCancelled("[CANCELLED] Winetricks execution cancelled."));
+        }
+        catch
+        {
+            // Do not echo arbitrary exception payloads into the UI log. The service
+            // diagnoses execution failures; this is a last-resort presentation boundary.
+            postToUiThread(() => logVm.AppendLine("[ERROR] Winetricks execution could not be completed."));
+        }
+        finally
+        {
+            postToUiThread(() =>
+            {
+                try { logVm.IsRunning = false; logVm.MarkFinished(); }
+                finally { IsWinetricksRunning = false; }
+            });
+        }
     }
 
     private Dictionary<string, string> BuildEffectiveEnvironmentOverrides()

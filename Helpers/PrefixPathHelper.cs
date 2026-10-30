@@ -106,7 +106,8 @@ public static class PrefixPathHelper
     internal static void EnsureDosDeviceMapping(
         string dosDevicesDir,
         string driveName,
-        string relativeTarget)
+        string relativeTarget,
+        Action<Exception>? reportFailure = null)
     {
         if (string.IsNullOrWhiteSpace(driveName))
             throw new ArgumentException("Drive name must not be empty.", nameof(driveName));
@@ -129,8 +130,10 @@ public static class PrefixPathHelper
         }
         catch (Exception ex)
         {
-            Debug.WriteLine(
-                $"[Prefix] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
+            if (reportFailure == null)
+                Debug.WriteLine($"[Prefix] Failed to create dosdevices mapping {driveName} -> {relativeTarget}: {ex.Message}");
+            else
+                TryReportMappingFailure(reportFailure, ex);
         }
     }
 
@@ -142,7 +145,8 @@ public static class PrefixPathHelper
     internal static string? EnsurePortableGamesDriveMapping(
         string prefixRoot,
         string dosDevicesDirectory,
-        string libraryRoot)
+        string libraryRoot,
+        Action<Exception>? reportFailure = null)
     {
         if (string.IsNullOrWhiteSpace(prefixRoot) ||
             string.IsNullOrWhiteSpace(dosDevicesDirectory) ||
@@ -191,17 +195,26 @@ public static class PrefixPathHelper
                 if (FileSystemEntryExists(mappingPath) || FileSystemEntryExists(rawDevicePath))
                     continue;
 
-                EnsureDosDeviceMapping(dosDevicesDirectory, driveName, relativeTarget);
+                EnsureDosDeviceMapping(dosDevicesDirectory, driveName, relativeTarget, reportFailure);
                 if (MappingTargets(mappingPath, gamesRoot))
                     return driveName[..1].ToUpperInvariant();
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Prefix] Failed to create portable games drive mapping: {ex.Message}");
+            if (reportFailure == null)
+                Debug.WriteLine($"[Prefix] Failed to create portable games drive mapping: {ex.Message}");
+            else
+                TryReportMappingFailure(reportFailure, ex);
         }
 
         return null;
+    }
+
+    private static void TryReportMappingFailure(Action<Exception> reportFailure, Exception exception)
+    {
+        try { reportFailure(exception); }
+        catch { /* Optional diagnostics must not make a best-effort mapping mandatory. */ }
     }
 
     private static bool MappingTargets(string mappingPath, string expectedTarget)

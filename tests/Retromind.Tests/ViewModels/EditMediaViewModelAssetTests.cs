@@ -112,7 +112,7 @@ public sealed class EditMediaViewModelAssetTests
             item,
             settings ?? new AppSettings(),
             new FileManagementService(AppPaths.LibraryRoot),
-            new WinetricksService(AppPaths.LibraryRoot),
+            new WinetricksService(AppPaths.LibraryRoot, new RecordingErrorService()),
             [parent.Name],
             new UnexpectedIdentificationService(),
             rootNodes: new ObservableCollection<MediaNode> { parent },

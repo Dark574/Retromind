@@ -3,9 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Globalization;
+using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
+using Retromind.Models;
 
 namespace Retromind.Services;
 
@@ -32,13 +36,30 @@ internal sealed record WinetricksExecutionPlan(
 public sealed class WinetricksService
 {
     private readonly string _libraryRoot;
+    private readonly IErrorService _errorService;
+    private readonly Func<ProcessStartInfo, Process?> _startProcess;
+    private readonly Func<string, string[]> _readLog;
+    private readonly string? _processLogDirectory;
+    private readonly Func<string, Stream>? _openProcessLog;
 
-    public WinetricksService(string libraryRoot)
+    public WinetricksService(string libraryRoot, IErrorService errorService)
+        : this(libraryRoot, errorService, Process.Start, File.ReadAllLines)
+    {
+    }
+
+    internal WinetricksService(string libraryRoot, IErrorService errorService,
+        Func<ProcessStartInfo, Process?> startProcess, Func<string, string[]>? readLog = null,
+        string? processLogDirectory = null, Func<string, Stream>? openProcessLog = null)
     {
         if (string.IsNullOrWhiteSpace(libraryRoot))
             throw new ArgumentException("A library root is required.", nameof(libraryRoot));
 
         _libraryRoot = Path.GetFullPath(libraryRoot);
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
+        _startProcess = startProcess ?? throw new ArgumentNullException(nameof(startProcess));
+        _readLog = readLog ?? File.ReadAllLines;
+        _processLogDirectory = processLogDirectory;
+        _openProcessLog = openProcessLog;
     }
 
     public void PreparePrefix(string prefixRoot, bool isProton, bool isUmu)
@@ -46,10 +67,19 @@ public sealed class WinetricksService
         if (string.IsNullOrWhiteSpace(prefixRoot))
             throw new ArgumentException("A prefix root is required.", nameof(prefixRoot));
 
-        var (compatRoot, winePrefix) = ResolvePrefixPaths(prefixRoot, isProton, isUmu);
-        Directory.CreateDirectory(compatRoot);
-        Directory.CreateDirectory(winePrefix);
-        EnsurePortableGamesDriveMapping(compatRoot, winePrefix);
+        var runner = RunnerType(isProton, isUmu);
+        try
+        {
+            var (compatRoot, winePrefix) = ResolvePrefixPaths(prefixRoot, isProton, isUmu);
+            Directory.CreateDirectory(compatRoot);
+            Directory.CreateDirectory(winePrefix);
+            EnsurePortableGamesDriveMapping(compatRoot, winePrefix, runner);
+        }
+        catch (Exception ex)
+        {
+            ReportFailure("Winetricks.PreparationFailed", ErrorSeverity.Error, "PreparePrefix", runner, prefixRoot, ex);
+            throw; // GeneratePrefix retains its existing best-effort handling.
+        }
     }
 
     public bool TryOpenPrefixFolder(string prefixRoot)
@@ -79,12 +109,30 @@ public sealed class WinetricksService
         }
     }
 
-    public async Task RunAsync(
+    public async Task<WinetricksResult> RunAsync(
         WinetricksRequest request,
-        Action<string> appendLog)
+        Action<string> appendLog,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(appendLog);
+
+        var secrets = GetSensitiveValues(request.EnvironmentOverrides)
+            .Concat(GetSensitiveArgumentValues(SplitArguments(request.Verbs)))
+            // Process output arrives line by line; also protect fragments of known multiline secrets.
+            .SelectMany(value => new[] { value }.Concat(value.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries)))
+            .Distinct(StringComparer.Ordinal).ToArray();
+        var redactor = new ErrorReportRedactor(new ErrorReport(
+            "Winetricks.Output", ErrorSeverity.Diagnostic, nameof(WinetricksService), string.Empty,
+            SensitiveValues: secrets));
+        var originalAppendLog = appendLog;
+        appendLog = line =>
+        {
+            try { originalAppendLog(redactor.Redact(line) ?? string.Empty); }
+            catch { /* A closed log window or failed observer cannot break process monitoring. */ }
+        };
+        if (cancellationToken.IsCancellationRequested)
+            return new WinetricksResult(false, FailureCategory: WinetricksFailureCategory.Cancelled);
 
         WinetricksExecutionPlan plan;
         try
@@ -93,8 +141,11 @@ public sealed class WinetricksService
         }
         catch (Exception ex)
         {
-            appendLog($"Error while preparing Winetricks: {ex.Message}");
-            return;
+            var message = RedactFailureMessage(redactor, $"Error while preparing Winetricks: {ex.Message}");
+            appendLog(message);
+            ReportFailure("Winetricks.PreparationFailed", ErrorSeverity.Error, "PrepareExecution",
+                RunnerType(request.IsProton, request.IsUmu), request.PrefixRoot, ex, secrets: secrets);
+            return new WinetricksResult(false, FailureCategory: WinetricksFailureCategory.Preparation, ErrorMessage: message);
         }
 
         appendLog($"Prefix: {plan.CompatRoot}");
@@ -126,13 +177,34 @@ public sealed class WinetricksService
         var argsText = plan.Arguments.Count > 0 ? string.Join(' ', plan.Arguments) : string.Empty;
         appendLog($"> {plan.FileName} {argsText}".Trim());
 
-        await RunProcessWithLogAsync(
+        using var processLog = new WinetricksProcessLog(
+            _processLogDirectory ?? Path.Combine(AppPaths.DataRoot, "Logs", "Winetricks"),
+            RunnerType(request.IsProton, plan.UsesUmu), request.Verbs, plan.WinePrefix, redactor,
+            openFile: _openProcessLog);
+        var result = await RunProcessWithLogAsync(
                 plan.FileName,
                 plan.Arguments,
                 environment,
-                appendLog)
+                appendLog,
+                originalAppendLog,
+                exitCode =>
+                {
+                    // Trusted numeric metadata is not an OAuth "code" credential.
+                    // Keep the existing visible exit-code line without generic code-field redaction.
+                    try { originalAppendLog($"Exit code: {exitCode}"); }
+                    catch { /* A failed observer cannot change the process result. */ }
+                },
+                RunnerType(request.IsProton, plan.UsesUmu), plan.WinePrefix, redactor, secrets,
+                cancellationToken, processLog)
             .ConfigureAwait(false);
-        AppendWinetricksLogSummary(appendLog, plan.WinePrefix);
+        if (processLog.WriteFailure is { } logFailure)
+            ReportFailure("Winetricks.LogWriteFailed", ErrorSeverity.Diagnostic, "WriteProcessLog",
+                RunnerType(request.IsProton, plan.UsesUmu), plan.WinePrefix, logFailure,
+                secrets: secrets, processLog: processLog);
+        if (!result.IsCancelled)
+            AppendWinetricksLogSummary(appendLog, plan.WinePrefix,
+                RunnerType(request.IsProton, plan.UsesUmu), secrets);
+        return result;
     }
 
     internal WinetricksExecutionPlan PrepareExecution(WinetricksRequest request)
@@ -166,11 +238,12 @@ public sealed class WinetricksService
             useUmu);
 
         if (useUmu && request.IsProton)
-            EnsureUmuWinetricksDirectory(environment);
+            EnsureUmuWinetricksDirectory(environment, request);
 
         Directory.CreateDirectory(compatRoot);
         Directory.CreateDirectory(winePrefix);
-        EnsurePortableGamesDriveMapping(compatRoot, winePrefix);
+        EnsurePortableGamesDriveMapping(compatRoot, winePrefix, RunnerType(request.IsProton, useUmu),
+            GetSensitiveValues(request.EnvironmentOverrides));
         ApplyPrefixEnvironment(environment, compatRoot, winePrefix, request.IsProton);
 
         var arguments = SplitArguments(request.Verbs);
@@ -302,67 +375,141 @@ public sealed class WinetricksService
         return arguments;
     }
 
-    private async Task RunProcessWithLogAsync(
+    private async Task<WinetricksResult> RunProcessWithLogAsync(
         string fileName,
         IReadOnlyList<string> arguments,
         IReadOnlyDictionary<string, string> environmentOverrides,
-        Action<string> appendLog)
+        Action<string> appendLog,
+        Action<string> appendProcessOutput,
+        Action<int> appendExitCode,
+        string runnerType, string winePrefix, ErrorReportRedactor redactor, IReadOnlyCollection<string> secrets,
+        CancellationToken cancellationToken, WinetricksProcessLog processLog)
     {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = fileName,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-
-        HostProcessEnvironmentSanitizer.Sanitize(startInfo);
-
-        foreach (var argument in arguments)
-            startInfo.ArgumentList.Add(argument);
-
-        foreach (var pair in environmentOverrides)
-            startInfo.EnvironmentVariables[pair.Key] = pair.Value;
-
+        Process? process = null;
+        var started = false;
         try
         {
-            using var process = new Process { StartInfo = startInfo };
+            cancellationToken.ThrowIfCancellationRequested();
+            var startInfo = new ProcessStartInfo
+            {
+                FileName = fileName,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            HostProcessEnvironmentSanitizer.Sanitize(startInfo);
+            foreach (var argument in arguments)
+                startInfo.ArgumentList.Add(argument);
+            foreach (var pair in environmentOverrides)
+                startInfo.EnvironmentVariables[pair.Key] = pair.Value;
+
+            cancellationToken.ThrowIfCancellationRequested();
+            process = _startProcess(startInfo);
+            if (process == null)
+                throw new InvalidOperationException("Failed to start winetricks process.");
+            started = true;
 
             process.OutputDataReceived += (_, eventArgs) =>
             {
                 if (!string.IsNullOrWhiteSpace(eventArgs.Data))
-                    appendLog(eventArgs.Data);
+                {
+                    processLog.AppendOutput("stdout", eventArgs.Data, appendProcessOutput);
+                }
             };
             process.ErrorDataReceived += (_, eventArgs) =>
             {
                 if (!string.IsNullOrWhiteSpace(eventArgs.Data))
-                    appendLog(eventArgs.Data);
+                {
+                    processLog.AppendOutput("stderr", eventArgs.Data, appendProcessOutput);
+                }
             };
-
-            if (!process.Start())
-            {
-                appendLog("Failed to start winetricks process.");
-                return;
-            }
 
             process.BeginOutputReadLine();
             process.BeginErrorReadLine();
-            await process.WaitForExitAsync().ConfigureAwait(false);
-            appendLog($"Exit code: {process.ExitCode}");
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            var exitCode = process.ExitCode;
+            appendExitCode(exitCode);
+            if (exitCode == 0)
+            {
+                var success = new WinetricksResult(true, exitCode);
+                processLog.Complete(success);
+                return success;
+            }
+
+            var message = $"Winetricks failed with exit code {exitCode}.";
+            appendLog($"[ERROR] {message}");
+            var failure = new WinetricksResult(false, exitCode, WinetricksFailureCategory.ProcessExecution, message);
+            processLog.Complete(failure);
+            ReportFailure("Winetricks.ProcessFailed", ErrorSeverity.Warning, "Execute", runnerType,
+                winePrefix, exitCode: exitCode, secrets: secrets, processLog: processLog);
+            return failure;
         }
-        catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            appendLog($"Error: executable not found: {fileName}");
-            appendLog("Check that winetricks/umu-run is installed and in PATH.");
-        }
-        catch (Win32Exception ex) when (ex.NativeErrorCode == 13)
-        {
-            appendLog($"Error: permission denied when launching: {fileName}");
+            await StopProcessAsync(process, appendLog).ConfigureAwait(false);
+            var cancelled = new WinetricksResult(false, TryGetExitCode(process), WinetricksFailureCategory.Cancelled);
+            processLog.Complete(cancelled);
+            return cancelled;
         }
         catch (Exception ex)
         {
-            appendLog($"Error: {ex.Message}");
+            if (started)
+                await StopProcessAsync(process, appendLog).ConfigureAwait(false);
+            var message = !started && ex is Win32Exception { NativeErrorCode: 2 }
+                ? $"Error: executable not found: {fileName}. Check that winetricks/umu-run is installed and in PATH."
+                : !started && ex is Win32Exception { NativeErrorCode: 13 }
+                    ? $"Error: permission denied when launching: {fileName}"
+                    : $"Error: {ex.Message}";
+            message = RedactFailureMessage(redactor, message);
+            appendLog(message);
+            var exitCode = TryGetExitCode(process);
+            var failure = new WinetricksResult(false, exitCode,
+                started ? WinetricksFailureCategory.ProcessExecution : WinetricksFailureCategory.ProcessStart, message);
+            processLog.Complete(failure);
+            ReportFailure(started ? "Winetricks.ProcessFailed" : "Winetricks.StartFailed",
+                started ? ErrorSeverity.Warning : ErrorSeverity.Error,
+                started ? "MonitorProcess" : "Start", runnerType, winePrefix, ex, exitCode, secrets, processLog);
+            return failure;
+        }
+        finally
+        {
+            try { process?.Dispose(); }
+            catch (Exception ex)
+            {
+                ReportFailure("Winetricks.ProcessFailed", ErrorSeverity.Warning, "DisposeProcess", runnerType,
+                    winePrefix, ex, secrets: secrets, processLog: processLog);
+            }
+        }
+    }
+
+    private static int? TryGetExitCode(Process? process)
+    {
+        try { return process is { HasExited: true } ? process.ExitCode : null; }
+        catch { return null; }
+    }
+
+    private static string RedactFailureMessage(ErrorReportRedactor redactor, string message)
+    {
+        try { return redactor.Redact(message) ?? "Winetricks execution failed."; }
+        catch { return "Winetricks execution failed. Diagnostic details could not be sanitized."; }
+    }
+
+    private static async Task StopProcessAsync(Process? process, Action<string> appendLog)
+    {
+        if (process == null)
+            return;
+        try
+        {
+            if (!process.HasExited)
+                process.Kill(entireProcessTree: true);
+            // Reap the process and drain both redirected streams, but do not hang
+            // the editor indefinitely if the host refuses termination/pipe cleanup.
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            appendLog($"Warning: could not finish Winetricks process cleanup: {ex.Message}");
         }
     }
 
@@ -378,11 +525,14 @@ public sealed class WinetricksService
         environment["WINEPREFIX"] = winePrefix;
     }
 
-    private void EnsurePortableGamesDriveMapping(string compatRoot, string winePrefix)
+    private void EnsurePortableGamesDriveMapping(string compatRoot, string winePrefix, string runnerType,
+        IReadOnlyCollection<string>? secrets = null)
     {
         if (string.IsNullOrWhiteSpace(winePrefix))
             return;
 
+        Exception? failure = null;
+        void CaptureFailure(Exception ex) => failure ??= ex;
         try
         {
             var dosDevicesDirectory = Path.Combine(winePrefix, "dosdevices");
@@ -390,20 +540,25 @@ public sealed class WinetricksService
 
             var driveCPath = Path.Combine(winePrefix, "drive_c");
             Directory.CreateDirectory(driveCPath);
-            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "c:", "../drive_c");
+            PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "c:", "../drive_c", CaptureFailure);
 
             PrefixPathHelper.EnsurePortableGamesDriveMapping(
                 compatRoot,
                 dosDevicesDirectory,
-                _libraryRoot);
+                _libraryRoot, CaptureFailure);
         }
-        catch
+        catch (Exception ex)
         {
             // Missing drive mappings must not block prefix operations.
+            CaptureFailure(ex);
         }
+        if (failure != null)
+            ReportFailure("Winetricks.PrefixMappingFailed", ErrorSeverity.Warning, "PrepareDriveMappings",
+                runnerType, winePrefix, failure, secrets: secrets);
     }
 
-    private static void AppendWinetricksLogSummary(Action<string> appendLog, string winePrefix)
+    private void AppendWinetricksLogSummary(Action<string> appendLog, string winePrefix, string runnerType,
+        IReadOnlyCollection<string> secrets)
     {
         if (string.IsNullOrWhiteSpace(winePrefix))
             return;
@@ -417,7 +572,7 @@ public sealed class WinetricksService
                 return;
             }
 
-            var lines = File.ReadAllLines(logPath);
+            var lines = _readLog(logPath);
             if (lines.Length == 0)
             {
                 appendLog($"winetricks.log is empty: {logPath}");
@@ -433,10 +588,12 @@ public sealed class WinetricksService
         catch (Exception ex)
         {
             appendLog($"Failed to read winetricks.log: {ex.Message}");
+            ReportFailure("Winetricks.LogReadFailed", ErrorSeverity.Diagnostic, "ReadLogSummary", runnerType,
+                winePrefix, ex, secrets: secrets);
         }
     }
 
-    private static void EnsureUmuWinetricksDirectory(IReadOnlyDictionary<string, string> environment)
+    private void EnsureUmuWinetricksDirectory(IReadOnlyDictionary<string, string> environment, WinetricksRequest request)
     {
         if (!environment.TryGetValue("PROTONPATH", out var protonPath) ||
             string.IsNullOrWhiteSpace(protonPath))
@@ -448,9 +605,78 @@ public sealed class WinetricksService
         {
             Directory.CreateDirectory(Path.Combine(protonPath, "protonfixes"));
         }
-        catch
+        catch (Exception ex)
         {
             // Missing access should not block Winetricks entirely.
+            ReportFailure("Winetricks.PreparationFailed", ErrorSeverity.Error, "EnsureUmuWinetricksDirectory",
+                "UMU", request.PrefixRoot, ex, secrets: GetSensitiveValues(request.EnvironmentOverrides));
+        }
+    }
+
+    private void ReportFailure(string code, ErrorSeverity severity, string operation, string runnerType,
+        string prefixPath, Exception? exception = null, int? exitCode = null, IReadOnlyCollection<string>? secrets = null,
+        WinetricksProcessLog? processLog = null)
+    {
+        try
+        {
+            var context = new Dictionary<string, string>
+            {
+                ["Operation"] = operation,
+                ["RunnerType"] = runnerType,
+                ["PrefixPath"] = prefixPath
+            };
+            if (exitCode.HasValue)
+                context["ExitCode"] = exitCode.Value.ToString(CultureInfo.InvariantCulture);
+            if (processLog != null)
+            {
+                foreach (var pair in processLog.GetDiagnosticContext())
+                    context[pair.Key] = pair.Value;
+                if (code == "Winetricks.ProcessFailed" && !context.ContainsKey("ExitCode"))
+                    context["ExitCode"] = processLog.ExitCode?.ToString(CultureInfo.InvariantCulture) ?? "Unavailable";
+            }
+            _errorService.Report(new ErrorReport(code, severity, nameof(WinetricksService),
+                code switch
+                {
+                    "Winetricks.StartFailed" => "Winetricks could not be started.",
+                    "Winetricks.ProcessFailed" => "Winetricks execution failed.",
+                    "Winetricks.PrefixMappingFailed" => "An optional prefix drive mapping could not be prepared.",
+                    "Winetricks.LogReadFailed" => "The Winetricks log could not be read.",
+                    "Winetricks.LogWriteFailed" => "The Winetricks process transcript could not be written or retained.",
+                    _ => "The Winetricks prefix or execution could not be prepared."
+                }, exception, CorrelationId: processLog?.CorrelationId,
+                Context: context, SensitiveValues: secrets ?? GetSensitiveValues(null)));
+        }
+        catch
+        {
+            // Diagnostics never determine the execution result or prefix preparation policy.
+        }
+    }
+
+    private static string RunnerType(bool isProton, bool isUmu) => isUmu ? "UMU" : isProton ? "Proton" : "Wine";
+
+    private static string[] GetSensitiveValues(IReadOnlyDictionary<string, string>? environment)
+    {
+        var secrets = environment?.Where(pair => LaunchSecretRedactor.IsSensitiveName(pair.Key))
+            .Select(pair => pair.Value).ToList() ?? [];
+        foreach (System.Collections.DictionaryEntry variable in Environment.GetEnvironmentVariables())
+            if (variable.Key is string name && LaunchSecretRedactor.IsSensitiveName(name) && variable.Value is string value)
+                secrets.Add(value);
+        return secrets.Where(value => !string.IsNullOrEmpty(value)).Distinct(StringComparer.Ordinal).ToArray();
+    }
+
+    private static IEnumerable<string> GetSensitiveArgumentValues(IReadOnlyList<string> arguments)
+    {
+        for (var index = 0; index < arguments.Count; index++)
+        {
+            var argument = arguments[index].TrimStart('-', '/');
+            var separator = argument.IndexOf('=');
+            var name = separator >= 0 ? argument[..separator] : argument;
+            if (!LaunchSecretRedactor.IsSensitiveName(name))
+                continue;
+            if (separator >= 0 && separator + 1 < argument.Length)
+                yield return argument[(separator + 1)..];
+            else if (separator < 0 && index + 1 < arguments.Count)
+                yield return arguments[++index];
         }
     }
 

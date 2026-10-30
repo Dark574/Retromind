@@ -198,7 +198,7 @@ and dispatcher/notification failures are contained strictly inside the output bo
 reported or printed with potentially sensitive exception details, and do not replace the original failure
 or prevent an independently requested notification.
 
-### Persistence, audio, and video integration
+### Persistence, audio, video, and Winetricks integration
 
 `MainWindowViewModel.ReportPersistenceSaveFailure()` reports
 `Persistence.SaveFailed` with severity `Error`, the existing localized `Persistence.SaveFailedFormat`
@@ -277,6 +277,9 @@ lock to allocate after disposal; a coordinated callback/dispose regression test 
 ordering without real playback. Native error events carry no media-generation ID: guards reject known stale
 generations and replaced players, but attributing an event emitted only after reuse of the same player still
 depends on VLC's event ordering. No such late-error misattribution has been reproduced.
+
+Winetricks result categories, diagnostic codes, and cancellation behavior are described under
+[Winetricks results and diagnostics](#winetricks-results-and-diagnostics).
 
 Future callers should first perform their own business error handling, then report a stable code,
 appropriate severity, component, understandable message, and useful non-secret operation/correlation data:
@@ -757,6 +760,118 @@ item/emulator environment and owns the process-log window, while `WinetricksServ
 portable C: and collision-free games-drive mappings, Proton/UMU fallback selection, command construction, process execution, and the
 `winetricks.log` summary. The service receives plain request data and reports log lines through a callback; it has
 no dependency on Avalonia views or view models.
+
+### Winetricks results and diagnostics
+
+`WinetricksService` receives the existing singleton `IErrorService` through DI. `RunAsync(request,
+appendLog, cancellationToken)` returns the small, Winetricks-specific `WinetricksResult`: `Success`,
+nullable `ExitCode`, `FailureCategory`, optional sanitized `ErrorMessage`, and derived `IsCancelled`.
+Categories are `None`, `Preparation`, `ProcessStart`, `ProcessExecution`, and `Cancelled`; there is no
+general operation-result framework. Exit code 0 is success; an actual nonzero exit is an execution failure.
+Failure to obtain a started process is a start failure with no exit code, including missing/forbidden
+executables and a null `Process.Start` result. Failures while observing an already-started process are
+execution failures with an exit code only when it can be read reliably. Startup failures are reported
+once at the execution boundary; the caller does not report the returned failure a second time.
+
+Central diagnostic codes, all with component `WinetricksService`, are:
+
+- `Winetricks.PreparationFailed` (`Error`): prefix/execution preparation failed.
+- `Winetricks.StartFailed` (`Error`): process startup failed.
+- `Winetricks.ProcessFailed` (`Warning`): a nonzero exit, process-monitoring failure, or failed process-handle cleanup.
+- `Winetricks.PrefixMappingFailed` (`Warning`): optional drive preparation failed.
+- `Winetricks.LogReadFailed` (`Diagnostic`): an existing `winetricks.log` could not be read.
+- `Winetricks.LogWriteFailed` (`Diagnostic`): a process transcript could not be created, written, closed,
+  or retained. This is an output failure and never changes the execution result.
+
+Reports contain operation, effective runner type (`Wine`, `Proton`, or `UMU`), prefix path, and available exit
+code. Process failures also include bounded sanitized verbs, a stderr tail, the relative transcript path,
+transcript status, and its correlation ID. They never include a full environment or unredacted command-argument
+context and request no dialogs.
+The central writer remains responsible for persistent redaction. Sensitive environment values (including
+inherited host credentials) and credential-option values are supplied as `SensitiveValues`. The text
+callback and result messages are also sanitized using the existing redactor; trusted numeric exit metadata
+keeps its existing `Exit code: ...` presentation. stdout/stderr still stream while the process runs, both
+streams finish before normal result delivery, and a closed log observer cannot throw out of an output
+callback and break monitoring. A failed redactor replaces failure details with a generic message; a failed
+error service cannot change the result or prevent cleanup. Diagnostic logging never chooses retry or rollback.
+
+Required prefix-directory failures return `Preparation`; the separate `PreparePrefix()` API diagnoses and
+rethrows them so Generate Prefix retains its existing best-effort path-generation policy. Optional C:/games
+drive failures are collected once per mapping preparation, including exceptions previously caught inside
+`PrefixPathHelper`, without changing drive selection, preserving user mappings, or blocking execution.
+The helper's optional failure callback leaves existing Wine/GOG callers and their fallback behavior unchanged.
+The optional UMU `protonfixes` directory remains best-effort as before: an actual failure is diagnosed as
+`PreparationFailed` with operation `EnsureUmuWinetricksDirectory`, but does not itself prevent execution.
+Missing or empty summary logs are normal informational output. Reading an existing summary can fail without
+turning a successful Winetricks execution into a failed result. Wine/Proton/UMU selection, portable paths,
+prefix layout, fallback arguments, and host-environment sanitization are unchanged.
+
+The shared `ProcessLogViewModel` has no failure status; the Winetricks UI therefore appends a clearly marked
+`[ERROR]` completion line with category/exit code for failed results and adds no new dialog or shared status
+contract. Success retains the existing presentation. The editor finalizes the log and resets both
+`IsWinetricksRunning` and log `IsRunning` in `finally`, even after unexpected exceptions.
+
+The existing process-log Cancel button is now enabled for Winetricks. The log token is captured before
+showing the window, and both Cancel and the existing window-close `Dispose()` cancellation reach `RunAsync`.
+A cancelled operation has a separate result, no start/execution-error report solely for cancellation, and a
+`[CANCELLED]` completion line. Cancellation and monitoring failures attempt to kill the owned process tree,
+reap it, and drain output; the cleanup wait is limited to five seconds. This is not an installer rollback:
+changes already made to the prefix remain, interactive external windows may take time to disappear, and
+detached/reparented Wine/UMU descendants or denied termination may survive. Cleanup problems are shown as a
+warning in the text log. No new cancellation UI, global process tracking, automatic retry, or recovery
+architecture is introduced. Folder-opening convenience behavior remains best-effort and unchanged.
+
+### Winetricks process transcripts
+
+Each prepared process attempt (including failed starts) gets a new GUID correlation ID and a UTF-8 JSON
+Lines file at `AppPaths.DataRoot/Logs/Winetricks/winetricks-<id>.jsonl`. Pre-cancelled runs and preparation
+failures that never reach a process attempt retain their existing result/report behavior without a transcript.
+The portable root is resolved through `AppPaths`; central reports store the DataRoot-relative transcript
+path, so the files can still be located after moving portable data. Start metadata records the correlation
+ID, UTC time, effective runner, sanitized verbs, and prefix. Output records distinguish stdout/stderr;
+the end record retains the actual exit code, success/failure/cancelled status, and truncation flag. The
+prefix-owned `winetricks.log` and its existing UI summary are separate and remain unchanged.
+
+`WinetricksProcessLog` is a local diagnostic writer used by `WinetricksService`, not another execution
+service or logging dependency. stdout/stderr callbacks write complete records under a per-run lock and
+continue delivering the existing live output independently of transcript failures or limits. The default
+file budget is 1 MiB including metadata and a reserved end record; long individual output lines are limited
+to 8 KiB of sanitized UTF-8 text before JSON encoding. Sanitized verbs are limited to 1 KiB and prefix
+metadata to 2 KiB. Truncation is explicit, and output after the file budget is reached is omitted from the
+file while live output continues. A normal completion closes and flushes the file before the failure report
+links to it. A write/close failure can leave an incomplete transcript, which is identified in the central
+context instead of being presented as a Winetricks execution failure.
+
+At most 20 owned transcript files are retained. Creation and retention share a process-wide lock; oldest
+inactive files (ordered by last-write time, with filename tie breaking) are deleted before a new file is
+created. Active transcripts are never deleted. If all slots are active or retention deletion fails, the new
+transcript is unavailable and execution continues; storage does not grow past the limit. Only filenames
+matching Retromind's GUID transcript convention are managed; unrelated files are left alone. New Unix files
+use owner-only read/write permissions.
+
+For `Winetricks.ProcessFailed`, `StderrSummary` retains the last 16 nonblank stderr lines with a total
+UTF-8 budget of 4 KiB, including the tail of a single oversized line. There is no `error` keyword filter:
+Wine `err:`/`fixme:` output, warning formats, tracebacks, and otherwise unfamiliar stderr formats are all
+eligible. It is a bounded tail, not a claim to infer the root cause; noisy trailing output can displace an
+earlier message. The tail continues to update even after the file fills or becomes unwritable. `Verbs`,
+`ProcessLogPath`, and `ProcessLogStatus` (`Written`, `Truncated`, `Incomplete`, or `Unavailable`) accompany
+the summary. The same correlation ID appears in the central report, transcript filename, and start/end
+records. Central records contain this summary, never the full stdout/stderr transcript.
+
+Every process-output line and all metadata pass through the existing redactor **before** truncation,
+serialization, or any file write. Known credential values from inherited/overridden environments and
+credential arguments are removed even in free text; known multiline values also contribute individual
+line fragments. Existing handling covers labeled URL credentials, URL userinfo, authentication headers,
+JSON/key-value secrets, and command-line credentials. Redaction failure omits the content with a fixed
+placeholder, never a raw fallback. Full environments and secret lookup values are never serialized.
+Automatic redaction cannot recognize arbitrary unknown, unlabeled credentials, unrecognized credential
+names, or every encoded/transformed or split secret. Such data should not be emitted by the invoked tool;
+Retromind does not claim that arbitrary external output can be made secret-free by pattern matching alone.
+
+Transcript creation/write/retention failures produce only `Winetricks.LogWriteFailed` diagnostics. Exit
+code, cancellation, typed results, runner/prefix configuration, and UI notification policy are independent
+of this writer. Correlation and the in-memory stderr tail remain available even if the linked file cannot
+be written; abrupt process/application termination can still leave only a partial transcript.
 
 ## Runner management
 

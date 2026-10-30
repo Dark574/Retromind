@@ -121,7 +121,7 @@ public sealed class EditMediaViewModelRetroAchievementsTests
             item,
             settings,
             new FileManagementService(temp.CreateDirectory("Library")),
-            new WinetricksService(temp.GetPath("Library")),
+            new WinetricksService(temp.GetPath("Library"), new RecordingErrorService()),
             [parent.Name],
             identificationService,
             rootNodes: roots,
