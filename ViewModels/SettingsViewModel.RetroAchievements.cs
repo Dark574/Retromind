@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.Stores.Security;
 
 namespace Retromind.ViewModels;
 
@@ -95,9 +96,15 @@ public partial class SettingsViewModel
             var storedApiKey = await _retroAchievementsAccountService
                 .GetApiKeyAsync(cancellationToken)
                 .ConfigureAwait(true);
+            if (_retroAchievementsAccountService.ApiKeyStorageStatus == SecretStorageStatus.Failed)
+                throw new InvalidOperationException("The stored Web API key could not be read.");
 
             HasStoredRetroAchievementsApiKey = !string.IsNullOrWhiteSpace(storedApiKey);
-            RetroAchievementsStatusText = HasStoredRetroAchievementsApiKey
+            RetroAchievementsStatusText = HasStoredRetroAchievementsApiKey &&
+                                          _retroAchievementsAccountService.ApiKeyStorageStatus == SecretStorageStatus.SessionOnly
+                ? T("Settings_RetroAchievementsStatusSessionOnly",
+                    "The Web API key is available only for this session. It was not saved in the system keyring.")
+                : HasStoredRetroAchievementsApiKey
                 ? T(
                     "Settings_RetroAchievementsStatusStored",
                     "A Web API key is stored. You can test the connection or enter a replacement key.")
@@ -222,16 +229,21 @@ public partial class SettingsViewModel
                 HasStoredRetroAchievementsApiKey);
     }
 
-    private Task ApplyRetroAchievementsSecretChangeAsync()
+    private async Task ApplyRetroAchievementsSecretChangeAsync()
     {
         if (_removeRetroAchievementsApiKeyOnSave)
         {
-            return _retroAchievementsAccountService.DeleteApiKeyAsync();
+            await _retroAchievementsAccountService.DeleteApiKeyAsync();
+            return;
         }
 
-        return !string.IsNullOrWhiteSpace(RetroAchievementsApiKey)
-            ? _retroAchievementsAccountService.StoreApiKeyAsync(RetroAchievementsApiKey)
-            : Task.CompletedTask;
+        if (!string.IsNullOrWhiteSpace(RetroAchievementsApiKey))
+        {
+            await _retroAchievementsAccountService.StoreApiKeyAsync(RetroAchievementsApiKey);
+            if (_retroAchievementsAccountService.ApiKeyStorageStatus == SecretStorageStatus.SessionOnly)
+                RetroAchievementsStatusText = T("Settings_RetroAchievementsStatusSessionOnly",
+                    "The Web API key is available only for this session. It was not saved in the system keyring.");
+        }
     }
 
     private void ApplyRetroAchievementsSettings()

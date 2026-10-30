@@ -39,6 +39,9 @@ public sealed class GogAuthService
     private GogTokenSet? _currentToken;
     private StoreAccountInfo? _currentAccountInfo;
 
+    /// <summary>Authentication can succeed for this session without a durable refresh token.</summary>
+    public SecretStorageStatus RefreshTokenStorageStatus => _secretStore.GetStorageStatus(GogRefreshTokenKey);
+
     public GogAuthService(ISecretStore secretStore, GogOAuthClient oAuthClient, GogPkceService pkceService)
     {
         _secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
@@ -166,7 +169,7 @@ public sealed class GogAuthService
                 .ConfigureAwait(false);
 
             _currentToken = token;
-            await _secretStore.SetAsync(GogRefreshTokenKey, token.RefreshToken, ct).ConfigureAwait(false);
+            await StoreRefreshTokenAsync(token.RefreshToken, ct).ConfigureAwait(false);
             await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
             return true;
         }
@@ -274,7 +277,7 @@ public sealed class GogAuthService
             .ConfigureAwait(false);
 
         _currentToken = token;
-        await _secretStore.SetAsync(GogRefreshTokenKey, token.RefreshToken, ct).ConfigureAwait(false);
+        await StoreRefreshTokenAsync(token.RefreshToken, ct).ConfigureAwait(false);
         await TryStoreGameplayUserIdAsync(token.UserId, ct).ConfigureAwait(false);
 
         try
@@ -410,9 +413,10 @@ public sealed class GogAuthService
 
         try
         {
-            await _secretStore
-                .SetAsync(GogGalaxyUserIdKey, userId.Trim(), cancellationToken)
-                .ConfigureAwait(false);
+            var status = await _secretStore
+                .SetWithStatusAsync(GogGalaxyUserIdKey, userId.Trim(), cancellationToken).ConfigureAwait(false);
+            if (status == SecretStorageStatus.Failed)
+                Debug.WriteLine("[GOG] Gameplay identity could not be stored.");
         }
         catch (OperationCanceledException)
         {
@@ -424,6 +428,13 @@ public sealed class GogAuthService
             // lookup is unavailable until a later identity write succeeds.
             Debug.WriteLine($"[GOG] Gameplay identity could not be stored ({ex.GetType().Name}).");
         }
+    }
+
+    private async Task StoreRefreshTokenAsync(string token, CancellationToken ct)
+    {
+        var status = await _secretStore.SetWithStatusAsync(GogRefreshTokenKey, token, ct).ConfigureAwait(false);
+        if (status == SecretStorageStatus.Failed)
+            throw new InvalidOperationException("The GOG refresh token could not be stored.");
     }
 
     private static string GetEnvironmentOrDefault(string variableName, string fallback)

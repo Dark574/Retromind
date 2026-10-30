@@ -112,6 +112,71 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
   plus Steam and GOG progress and achievement-image caches, may follow portable-HOME migrations, while the
   corresponding credentials always remain in the host secret store or session memory
 
+#### Secret-store outcomes and session fallback
+
+The original `ISecretStore` availability/read/write/delete methods remain available. Additive
+`SetWithStatusAsync(key, value, ct)` returns a per-write `SecretStorageStatus`: `Persistent` confirms a
+successful durable-backend write, `SessionOnly` means only the current process retains the new value,
+and `Failed` means the write could not be completed. Cancellation propagates instead of returning `Failed`.
+`Unknown` makes no durability promise and also represents an absent/not-yet-observed value. Default interface
+implementations preserve existing implementers: only `IPersistentSecretStore` implies persistence;
+other legacy implementations return `Unknown`. `InMemorySecretStore` explicitly reports `SessionOnly`.
+`GetStorageStatus(key)` is a snapshot of the last observed value/outcome, not a fresh backend probe or a
+guarantee that an entry exists. The per-write result should be used for decisions about that write.
+`IsAvailableAsync()` still means that some backend is usable; it never promises durable storage.
+
+`CompositeSecretStore` serializes operations and tracks authoritative session overrides by `SecretKey`.
+When a primary write fails or the primary is unavailable, the new value remains in the existing in-memory
+fallback and is returned ahead of any older persisted value, even after the primary becomes available again.
+Reads never migrate credentials. Only a later explicit write attempts persistence again; successful primary
+writes invalidate the session override and clean up the stale fallback. A cleanup failure is diagnosed, but
+the stale fallback is no longer eligible for reads. `sessionOnly: true` intentionally bypasses the primary
+entirely and reports a diagnostic rather than a primary-store failure. This mode is an explicit constructor
+policy, not a new UI setting; its deletes affect only session data and make no claim about the bypassed backend.
+The fallback is owned by the composite and must not be mutated independently.
+
+Deletion of the persistent entry must be confirmed: an unavailable or failing primary cannot silently return
+success. Fallback deletion is still attempted, and a per-key in-memory tombstone prevents stale credentials
+from reappearing in this instance, even if either deletion failed. The caller receives a sanitized exception
+and can explicitly retry deletion or replace the value. Pre-canceled operations do not mutate state; expected
+cancellation is neither diagnosed as a backend fault nor converted into fallback writes.
+
+GOG login and token rotation use the per-write result; successful authentication is allowed with a session-only
+refresh token, exposed separately through `GogAuthService.RefreshTokenStorageStatus`. Authentication/refresh
+success does not imply persistence. Both-backend write failure is handled as a failed credential save.
+GOG sign-out with `forgetPersistentToken: false` retains its existing meaning: clear the active OAuth session
+while keeping the stored credential available; only `true` requests deletion of both token and cache identity.
+Steam and RetroAchievements account services expose `ApiKeyStorageStatus`; their existing settings status
+fields explicitly label session-only keys on save and reopen, in English and German, without new dialogs.
+Read failures reuse the existing read-error status. Existing settings rollback continues to use the same
+secret-store boundary. Scraper migration still requires the direct `IPersistentSecretStore` and verified
+read-back before removing legacy credentials; no session fallback qualifies for that migration.
+
+The composite receives `IErrorService` through DI and reports `SecretStore.PrimaryWriteFailed`,
+`SecretStore.PrimaryReadFailed`, and `SecretStore.PrimaryAvailabilityFailed` (`Warning`),
+`SecretStore.PrimaryDeleteFailed` and fallback availability/write/read/delete failures (`Error`), plus
+`SecretStore.FallbackCleanupFailed` and deliberate `SecretStore.SessionOnly` (`Diagnostic`). Context is restricted
+to operation, a fixed failure reason, and an exit code when available. Keys, service/account identifiers, values,
+backend exception messages/stacks/types, arguments, stdin, stdout, and stderr are never sent to diagnostics.
+Logging failures cannot alter credential outcomes. No notification callback is supplied.
+
+`SecretServiceSecretStore` retains trusted host/bundled `secret-tool` discovery and environment sanitization.
+Availability checks only locate the executable and do not unlock/probe a wallet. Failed reads and deletes now
+throw when the command cannot start instead of pretending that an entry is absent/deleted. Command failures
+expose only fixed messages and numeric exit metadata, without raw output or inner exceptions. Lookup/clear exit
+code 1 with empty stderr retains the existing missing-entry meaning. Output pipes drain before stdin is written;
+the ten-second timeout covers input, process waiting, and output reads. Cancellation/failure terminates the owned
+process tree and observes pipe tasks, with a bounded final exit wait.
+
+Limits: session overrides and deletion tombstones do not survive restart. After a failed persistent write an
+older durable credential may still exist, and after a failed delete it may become readable on restart. No
+automatic transfer, persistent reconciliation journal, or backend repair is performed. A canceled/timed-out
+command might already have changed the keyring before termination; cancellation cannot roll back that external
+commit. The component does not coordinate independent keyring writers or multiple application instances.
+The existing settings rollback is value-based, not an atomic transaction across the keyring and memory.
+If a previous durable value could not be read, a later rollback cannot reconstruct it; keyring availability
+changes during a multi-key settings save therefore remain a reconciliation limitation.
+
 ### Versioned metadata backups (`Backups/`)
 - service: `MetadataBackupService`; UI: `MetadataBackupViewModel` / `MetadataBackupView`
 - each ZIP contains serialized snapshots of `retromind_tree.json` and `app_settings.json` plus a manifest

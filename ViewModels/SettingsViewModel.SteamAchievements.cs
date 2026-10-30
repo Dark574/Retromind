@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
 using Retromind.Services.SteamAchievements;
+using Retromind.Services.Stores.Security;
 
 namespace Retromind.ViewModels;
 
@@ -127,6 +128,8 @@ public partial class SettingsViewModel
             var storedApiKey = await _steamAchievementsAccountService
                 .GetApiKeyAsync(cancellationToken)
                 .ConfigureAwait(true);
+            if (_steamAchievementsAccountService.ApiKeyStorageStatus == SecretStorageStatus.Failed)
+                throw new InvalidOperationException("The stored Steam Web API key could not be read.");
 
             HasStoredSteamApiKey =
                 !string.IsNullOrWhiteSpace(storedApiKey);
@@ -182,6 +185,11 @@ public partial class SettingsViewModel
             SteamAchievementsStatusText = T(
                 "Settings_SteamAchievementsStatusSecretReadFailed",
                 "The stored Steam Web API key could not be read.");
+        }
+        else if (HasStoredSteamApiKey && _steamAchievementsAccountService.ApiKeyStorageStatus == SecretStorageStatus.SessionOnly)
+        {
+            SteamAchievementsStatusText = T("Settings_SteamAchievementsStatusSessionOnly",
+                "The Steam Web API key is available only for this session. It was not saved in the system keyring.");
         }
         else if (accountDiscoveryFailed)
         {
@@ -320,16 +328,21 @@ public partial class SettingsViewModel
                 HasStoredSteamApiKey);
     }
 
-    private Task ApplySteamAchievementsSecretChangeAsync()
+    private async Task ApplySteamAchievementsSecretChangeAsync()
     {
         if (_removeSteamApiKeyOnSave)
         {
-            return _steamAchievementsAccountService.DeleteApiKeyAsync();
+            await _steamAchievementsAccountService.DeleteApiKeyAsync();
+            return;
         }
 
-        return !string.IsNullOrWhiteSpace(SteamAchievementsApiKey)
-            ? _steamAchievementsAccountService.StoreApiKeyAsync(SteamAchievementsApiKey)
-            : Task.CompletedTask;
+        if (!string.IsNullOrWhiteSpace(SteamAchievementsApiKey))
+        {
+            await _steamAchievementsAccountService.StoreApiKeyAsync(SteamAchievementsApiKey);
+            if (_steamAchievementsAccountService.ApiKeyStorageStatus == SecretStorageStatus.SessionOnly)
+                SteamAchievementsStatusText = T("Settings_SteamAchievementsStatusSessionOnly",
+                    "The Steam Web API key is available only for this session. It was not saved in the system keyring.");
+        }
     }
 
     private void ApplySteamAchievementsSettings()

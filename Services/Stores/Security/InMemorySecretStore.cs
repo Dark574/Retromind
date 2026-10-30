@@ -12,6 +12,12 @@ public sealed class InMemorySecretStore : ISecretStore
 {
     private readonly ConcurrentDictionary<string, string> _secrets = new(StringComparer.Ordinal);
 
+    public SecretStorageStatus GetStorageStatus(SecretKey key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        return _secrets.ContainsKey(BuildCompositeKey(key)) ? SecretStorageStatus.SessionOnly : SecretStorageStatus.Unknown;
+    }
+
     public Task<bool> IsAvailableAsync(CancellationToken ct = default)
     {
         ct.ThrowIfCancellationRequested();

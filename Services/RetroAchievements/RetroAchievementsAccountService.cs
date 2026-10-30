@@ -27,10 +27,14 @@ public sealed class RetroAchievementsAccountService
     public Task<string?> GetApiKeyAsync(CancellationToken cancellationToken = default)
         => _secretStore.GetAsync(WebApiKey, cancellationToken);
 
-    public Task StoreApiKeyAsync(string apiKey, CancellationToken cancellationToken = default)
+    public SecretStorageStatus ApiKeyStorageStatus => _secretStore.GetStorageStatus(WebApiKey);
+
+    public async Task StoreApiKeyAsync(string apiKey, CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
-        return _secretStore.SetAsync(WebApiKey, apiKey.Trim(), cancellationToken);
+        var status = await _secretStore.SetWithStatusAsync(WebApiKey, apiKey.Trim(), cancellationToken).ConfigureAwait(false);
+        if (status == SecretStorageStatus.Failed)
+            throw new InvalidOperationException("The RetroAchievements API key could not be stored.");
     }
 
     public Task DeleteApiKeyAsync(CancellationToken cancellationToken = default)

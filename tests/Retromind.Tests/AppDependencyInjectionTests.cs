@@ -25,6 +25,11 @@ public sealed class AppDependencyInjectionTests
         var errors = provider.GetRequiredService<IErrorService>();
         Assert.IsType<ErrorService>(errors);
         Assert.Same(errors, provider.GetRequiredService<IErrorService>());
+        var secrets = provider.GetRequiredService<ISecretStore>();
+        Assert.IsType<CompositeSecretStore>(secrets);
+        Assert.False(secrets is IPersistentSecretStore);
+        Assert.Same(provider.GetRequiredService<SecretServiceSecretStore>(),
+            provider.GetRequiredService<IPersistentSecretStore>());
         Assert.IsType<AudioService>(provider.GetRequiredService<AudioService>());
         Assert.IsType<WinetricksService>(provider.GetRequiredService<WinetricksService>());
         Assert.IsType<FileManagementService>(provider.GetRequiredService<FileManagementService>());

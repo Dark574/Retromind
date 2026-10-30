@@ -341,7 +341,7 @@ public partial class App : Application
         {
             var primary = provider.GetRequiredService<SecretServiceSecretStore>();
             var fallback = provider.GetRequiredService<InMemorySecretStore>();
-            return new CompositeSecretStore(primary, fallback);
+            return new CompositeSecretStore(primary, fallback, provider.GetRequiredService<IErrorService>());
         });
         services.AddSingleton<GogOAuthClient>();
         services.AddSingleton<GogPkceService>();

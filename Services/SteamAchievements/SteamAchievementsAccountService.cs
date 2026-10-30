@@ -32,16 +32,20 @@ public sealed class SteamAchievementsAccountService
         return _secretStore.GetAsync(WebApiKey, cancellationToken);
     }
 
-    public Task StoreApiKeyAsync(
+    public SecretStorageStatus ApiKeyStorageStatus => _secretStore.GetStorageStatus(WebApiKey);
+
+    public async Task StoreApiKeyAsync(
         string apiKey,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(apiKey);
 
-        return _secretStore.SetAsync(
+        var status = await _secretStore.SetWithStatusAsync(
             WebApiKey,
             apiKey.Trim(),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+        if (status == SecretStorageStatus.Failed)
+            throw new InvalidOperationException("The Steam Web API key could not be stored.");
     }
 
     public Task DeleteApiKeyAsync(

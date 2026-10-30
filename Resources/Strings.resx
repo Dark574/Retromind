@@ -1454,6 +1454,7 @@ The current application settings will be kept.</value></data>
     <data name="Settings_RetroAchievementsRemoveApiKey" xml:space="preserve"><value>Remove stored key</value></data>
     <data name="Settings_RetroAchievementsStatusChecking" xml:space="preserve"><value>Checking stored account data...</value></data>
     <data name="Settings_RetroAchievementsStatusStored" xml:space="preserve"><value>A Web API key is stored. You can test the connection or enter a replacement key.</value></data>
+    <data name="Settings_RetroAchievementsStatusSessionOnly" xml:space="preserve"><value>The Web API key is available only for this session. It was not saved in the system keyring.</value></data>
     <data name="Settings_RetroAchievementsStatusNotConfigured" xml:space="preserve"><value>No Web API key is stored yet.</value></data>
     <data name="Settings_RetroAchievementsStatusSecretReadFailed" xml:space="preserve"><value>The stored Web API key could not be read.</value></data>
     <data name="Settings_RetroAchievementsStatusConnecting" xml:space="preserve"><value>Connecting to RetroAchievements...</value></data>
@@ -1481,6 +1482,7 @@ The current application settings will be kept.</value></data>
     <data name="Settings_SteamRemoveApiKey" xml:space="preserve"><value>Remove stored key</value></data>
     <data name="Settings_SteamAchievementsStatusChecking" xml:space="preserve"><value>Checking stored Steam account data...</value></data>
     <data name="Settings_SteamAchievementsStatusStored" xml:space="preserve"><value>A Steam Web API key is stored. You can test the connection or enter a replacement key.</value></data>
+    <data name="Settings_SteamAchievementsStatusSessionOnly" xml:space="preserve"><value>The Steam Web API key is available only for this session. It was not saved in the system keyring.</value></data>
     <data name="Settings_SteamAchievementsStatusNotConfigured" xml:space="preserve"><value>No Steam Web API key is stored yet.</value></data>
     <data name="Settings_SteamAchievementsStatusSecretReadFailed" xml:space="preserve"><value>The stored Steam Web API key could not be read.</value></data>
     <data name="Settings_SteamAchievementsStatusDetectionFailed" xml:space="preserve"><value>Local Steam accounts could not be detected. You can enter the SteamID64 manually.</value></data>

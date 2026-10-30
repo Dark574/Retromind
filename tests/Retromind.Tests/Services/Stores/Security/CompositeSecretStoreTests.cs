@@ -1,4 +1,5 @@
 using Retromind.Services.Stores.Security;
+using Retromind.Tests.TestInfrastructure;
 
 namespace Retromind.Tests.Services.Stores.Security;
 
@@ -11,7 +12,7 @@ public sealed class CompositeSecretStoreTests
     {
         var primary = new TestSecretStore { CancelAvailability = true };
         var fallback = new TestSecretStore();
-        var store = new CompositeSecretStore(primary, fallback);
+        var store = new CompositeSecretStore(primary, fallback, new RecordingErrorService());
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => store.IsAvailableAsync());
 
@@ -23,7 +24,7 @@ public sealed class CompositeSecretStoreTests
     {
         var primary = new TestSecretStore { FailAvailability = true };
         var fallback = new TestSecretStore();
-        var store = new CompositeSecretStore(primary, fallback);
+        var store = new CompositeSecretStore(primary, fallback, new RecordingErrorService());
 
         var isAvailable = await store.IsAvailableAsync();
 
@@ -36,7 +37,7 @@ public sealed class CompositeSecretStoreTests
     {
         var primary = new TestSecretStore { CancelOperations = true };
         var fallback = new TestSecretStore();
-        var store = new CompositeSecretStore(primary, fallback);
+        var store = new CompositeSecretStore(primary, fallback, new RecordingErrorService());
 
         await Assert.ThrowsAsync<OperationCanceledException>(() => store.SetAsync(TestKey, "secret"));
         await Assert.ThrowsAsync<OperationCanceledException>(() => store.GetAsync(TestKey));
@@ -50,7 +51,7 @@ public sealed class CompositeSecretStoreTests
     {
         var primary = new TestSecretStore { FailOperations = true };
         var fallback = new TestSecretStore();
-        var store = new CompositeSecretStore(primary, fallback);
+        var store = new CompositeSecretStore(primary, fallback, new RecordingErrorService());
 
         await store.SetAsync(TestKey, "secret");
         var value = await store.GetAsync(TestKey);
@@ -64,7 +65,7 @@ public sealed class CompositeSecretStoreTests
     {
         var primary = new TestSecretStore { FailOperations = true };
         var fallback = new TestSecretStore();
-        var store = new CompositeSecretStore(primary, fallback);
+        var store = new CompositeSecretStore(primary, fallback, new RecordingErrorService());
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(
             () => store.DeleteAsync(TestKey));

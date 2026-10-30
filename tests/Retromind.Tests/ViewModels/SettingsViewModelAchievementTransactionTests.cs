@@ -6,6 +6,9 @@ using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Security;
 using Retromind.ViewModels;
+using Retromind.Resources;
+using Retromind.Tests.TestInfrastructure;
+using PrimaryStore = Retromind.Tests.Services.Stores.Security.SecretStoreSafetyTests.ControllableSecretStore;
 
 namespace Retromind.Tests.ViewModels;
 
@@ -67,6 +70,53 @@ public sealed class SettingsViewModelAchievementTransactionTests
         Assert.Equal("OldUser", settings.RetroAchievements.Username);
         Assert.Equal("01OLDUSER", settings.RetroAchievements.UserUlid);
         Assert.Equal("76561198000000001", settings.SteamAchievements.SteamId64);
+    }
+
+    [Fact]
+    public async Task SessionOnlyKeys_AreLabeledOnSaveAndWhenSettingsAreReopened()
+    {
+        var primary = new PrimaryStore { Available = false };
+        var secrets = new CompositeSecretStore(primary, new InMemorySecretStore(), new RecordingErrorService());
+        var settings = CreateInitialSettings();
+        using (var viewModel = CreateViewModel(settings, secrets))
+        {
+            ConfigureNewAccountValues(viewModel);
+            await viewModel.SaveCommand.ExecuteAsync(null);
+
+            Assert.True(viewModel.IsSaved);
+            Assert.Equal(Strings.ResourceManager.GetString("Settings_RetroAchievementsStatusSessionOnly", Strings.Culture),
+                viewModel.RetroAchievementsStatusText);
+            Assert.Equal(Strings.ResourceManager.GetString("Settings_SteamAchievementsStatusSessionOnly", Strings.Culture),
+                viewModel.SteamAchievementsStatusText);
+        }
+        primary.Available = true;
+        using var reopened = CreateViewModel(settings, secrets);
+        await reopened.InitializeRetroAchievementsAsync();
+        await reopened.InitializeSteamAchievementsAsync();
+
+        Assert.True(reopened.HasStoredRetroAchievementsApiKey);
+        Assert.True(reopened.HasStoredSteamApiKey);
+        Assert.Equal(Strings.ResourceManager.GetString("Settings_RetroAchievementsStatusSessionOnly", Strings.Culture),
+            reopened.RetroAchievementsStatusText);
+        Assert.Equal(Strings.ResourceManager.GetString("Settings_SteamAchievementsStatusSessionOnly", Strings.Culture),
+            reopened.SteamAchievementsStatusText);
+        Assert.Equal(0, primary.WriteCalls);
+    }
+
+    [Fact]
+    public async Task UnavailableKeyringRead_ShowsExistingReadFailureInsteadOfMissingKey()
+    {
+        var secrets = new CompositeSecretStore(new PrimaryStore { Available = false },
+            new InMemorySecretStore(), new RecordingErrorService());
+        using var viewModel = CreateViewModel(CreateInitialSettings(), secrets);
+
+        await viewModel.InitializeRetroAchievementsAsync();
+        await viewModel.InitializeSteamAchievementsAsync();
+
+        Assert.Equal(Strings.ResourceManager.GetString("Settings_RetroAchievementsStatusSecretReadFailed", Strings.Culture),
+            viewModel.RetroAchievementsStatusText);
+        Assert.Equal(Strings.ResourceManager.GetString("Settings_SteamAchievementsStatusSecretReadFailed", Strings.Culture),
+            viewModel.SteamAchievementsStatusText);
     }
 
     private static AppSettings CreateInitialSettings()
