@@ -844,6 +844,11 @@ the report never mutates JSON or deletes files.
     uninstall is persisted before any later library-item removal, so failures in subsequent UI/deletion steps cannot
     leave the stored item falsely installed. A `false` save result retains the in-memory changes and existing dirty/error
     handling, stops item deletion, and never claims that uninstall was undone; no extra persistence-error dialog is added.
+    When Legendary logs its specific nonempty-directory error but Retromind subsequently confirms removal of
+    the game folder, successful cleanup and persistence, the process log adds a localized explanation next to
+    the final success message. The original CLI output remains visible. This can happen because Retromind's
+    ownership marker remains during Legendary's removal attempt. Retained files, cleanup failures, cancellation
+    and failed saves do not receive the resolved-cleanup notice; no exit codes or uninstall outcomes are changed.
   - The injected `IErrorService` reports `Epic.UninstallFailed` (`Error`) for validation/backend failures and
     `Epic.UninstallCleanupFailed` (`Warning`) for post-confirmation cleanup failures. Expected cancellation is distinct:
     `Epic.UninstallInterrupted` (`Diagnostic`) records already removed DLCs before main-game confirmation, while

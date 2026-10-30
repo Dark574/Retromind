@@ -14,6 +14,52 @@ namespace Retromind.Tests.Services.Stores.Epic;
 
 public sealed class EpicUninstallSafetyTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task BackendNonemptyDirectoryMessageIsResolvedOnlyWhenFinalFolderIsGone(bool retainUserFile)
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp);
+        var item = CreateInstalledItem(temp);
+        const string backendMessage = "[LFS Utils] ERROR: Removing game directory failed with OSError(39, 'Directory not empty')";
+        var backend = new Backend { MainUninstallOutput = backendMessage };
+        var errors = new RecordingErrorService();
+        var service = CreateService(backend, errors);
+        service.WriteMarker(InstallPath(temp), item);
+        var userFile = Path.Combine(InstallPath(temp), "mod.dat");
+        if (retainUserFile) File.WriteAllText(userFile, "preserve");
+        var output = new List<string>();
+        var nonemptyDirectoryReported = false;
+
+        var (result, saved) = await MainWindowViewModel.UninstallEpicAndPersistAsync(
+            service, item, true, () => Task.FromResult(true), line =>
+            {
+                output.Add(line);
+                nonemptyDirectoryReported |= MainWindowViewModel.IsLegendaryNonemptyDirectoryMessage(line);
+            });
+
+        Assert.True(saved);
+        AssertUninstalled(item);
+        Assert.Contains(backendMessage, output); // The original backend diagnosis remains available.
+        Assert.True(nonemptyDirectoryReported);
+        Assert.False(result.CleanupFailed);
+        Assert.Equal(retainUserFile, Directory.Exists(InstallPath(temp)));
+        Assert.Empty(errors.Reports);
+        var notice = MainWindowViewModel.GetEpicUninstallDirectoryCleanupNotice(result, nonemptyDirectoryReported);
+        if (retainUserFile)
+        {
+            Assert.Null(notice);
+            Assert.Equal("preserve", File.ReadAllText(userFile));
+            Assert.Equal(InstallPath(temp), result.PreservedInstallDirectory);
+        }
+        else
+        {
+            Assert.NotNull(notice);
+            Assert.Null(result.PreservedInstallDirectory);
+        }
+    }
+
     [Fact]
     public async Task PrefixDeletionFailure_PreservesPrefixButCommitsUninstallBeforeCleanup()
     {
@@ -356,6 +402,7 @@ public sealed class EpicUninstallSafetyTests
         internal List<string> UninstallAttempts { get; } = [];
         internal bool FailMain { get; init; }
         internal bool KeepMainRegistered { get; init; }
+        internal string? MainUninstallOutput { get; init; }
         internal Action? AfterMainConfirmation { get; init; }
         internal Action? AfterDlcConfirmation { get; init; }
         private readonly bool _withDlc;
@@ -397,6 +444,7 @@ public sealed class EpicUninstallSafetyTests
                 _mainAttempted = true;
                 if (FailMain) return Task.FromResult(new LegendaryCliResult(1, "", "unlabeled-credential"));
                 if (!KeepMainRegistered) Installed.Remove(appName);
+                if (MainUninstallOutput != null) command.OutputReceived?.Invoke(MainUninstallOutput);
             }
             else
             {

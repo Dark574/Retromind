@@ -531,6 +531,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="Epic.Uninstall.ProgressTitleFormat" xml:space="preserve"><value>Epic-Spiel deinstallieren – {0}</value></data>
     <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Das Epic-Spiel wird deinstalliert und seine Registrierung aus Legendary entfernt...</value></data>
     <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Spiel erfolgreich deinstalliert.</value></data>
+    <data name="Epic.Uninstall.DirectoryCleanupCompleted" xml:space="preserve"><value>Legendary konnte den zunächst nicht leeren Spieleordner nicht entfernen. Nach der Nachbereinigung hat Retromind bestätigt, dass der Ordner jetzt vollständig entfernt ist.</value></data>
     <data name="Epic.Uninstall.StateSaveFailed" xml:space="preserve"><value>Das Spiel wurde deinstalliert, aber der aktualisierte Bibliothekszustand konnte nicht gespeichert werden. Die Änderungen stehen weiterhin zur Speicherung aus.</value></data>
     <data name="Epic.Uninstall.CleanupFailed" xml:space="preserve"><value>Das Spiel wurde deinstalliert, aber die Nachbereinigung konnte nicht abgeschlossen werden. Verbleibende Pfade wurden beibehalten.</value></data>
     <data name="Epic.Uninstall.CleanupCancelled" xml:space="preserve"><value>Das Spiel wurde deinstalliert. Die Nachbereinigung wurde abgebrochen; verbleibende Pfade wurden beibehalten.</value></data>

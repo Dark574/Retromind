@@ -72,6 +72,7 @@ public partial class MainWindowViewModel
         progressVm.EnableCancel();
 
         IsLaunchInProgress = true;
+        var nonemptyDirectoryReported = 0;
         try
         {
             AppendProcessLog(
@@ -82,7 +83,12 @@ public partial class MainWindowViewModel
             var (result, stateSaved) = await UninstallEpicAndPersistAsync(
                 _epicInstallService, item, deletePrefix: !preserveSharedPrefix,
                 PersistEpicUninstallStateAsync,
-                line => AppendProcessLog(progressVm, line),
+                line =>
+                {
+                    if (IsLegendaryNonemptyDirectoryMessage(line))
+                        Interlocked.Exchange(ref nonemptyDirectoryReported, 1);
+                    AppendProcessLog(progressVm, line);
+                },
                 progressVm.Token);
 
             if (!stateSaved)
@@ -91,6 +97,11 @@ public partial class MainWindowViewModel
                     "The game was uninstalled, but its updated library state could not be saved. The changes remain pending."));
                 return false;
             }
+
+            var directoryNotice = GetEpicUninstallDirectoryCleanupNotice(
+                result, Volatile.Read(ref nonemptyDirectoryReported) != 0);
+            if (directoryNotice != null)
+                AppendProcessLog(progressVm, directoryNotice);
 
             AppendProcessLog(
                 progressVm,
@@ -143,6 +154,23 @@ public partial class MainWindowViewModel
             UiThreadHelper.Post(() => progressVm.IsRunning = false);
             IsLaunchInProgress = false;
         }
+    }
+
+    internal static bool IsLegendaryNonemptyDirectoryMessage(string line) =>
+        line.Contains("[LFS Utils] ERROR: Removing game directory failed", StringComparison.OrdinalIgnoreCase) &&
+        line.Contains("Directory not empty", StringComparison.OrdinalIgnoreCase);
+
+    internal static string? GetEpicUninstallDirectoryCleanupNotice(
+        EpicUninstallResult result, bool nonemptyDirectoryReported)
+    {
+        // Explain this backend message only after the actual final outcome is known. Keep raw CLI output
+        // and the existing warnings for retained files, failed cleanup, cancellation and failed persistence.
+        if (!nonemptyDirectoryReported || result.CleanupFailed || result.CleanupCancelled ||
+            result.PreservedInstallDirectory != null)
+            return null;
+
+        return T("Epic.Uninstall.DirectoryCleanupCompleted",
+            "Legendary initially could not remove the nonempty game folder. After follow-up cleanup, Retromind has confirmed that the folder is now completely removed.");
     }
 
     // Shared by standalone uninstall and item deletion. Once the service returns, the uninstall is confirmed;

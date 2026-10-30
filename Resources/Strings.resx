@@ -534,6 +534,7 @@ This action cannot be undone.</value></data>
     <data name="Epic.Uninstall.ProgressTitleFormat" xml:space="preserve"><value>Uninstall Epic game - {0}</value></data>
     <data name="Epic.Uninstall.Starting" xml:space="preserve"><value>Uninstalling the Epic Games title and removing its Legendary registration...</value></data>
     <data name="Epic.Uninstall.Success" xml:space="preserve"><value>Game uninstalled successfully.</value></data>
+    <data name="Epic.Uninstall.DirectoryCleanupCompleted" xml:space="preserve"><value>Legendary initially could not remove the nonempty game folder. After follow-up cleanup, Retromind has confirmed that the folder is now completely removed.</value></data>
     <data name="Epic.Uninstall.StateSaveFailed" xml:space="preserve"><value>The game was uninstalled, but its updated library state could not be saved. The changes remain pending.</value></data>
     <data name="Epic.Uninstall.CleanupFailed" xml:space="preserve"><value>The game was uninstalled, but follow-up cleanup did not complete. Remaining paths were preserved.</value></data>
     <data name="Epic.Uninstall.CleanupCancelled" xml:space="preserve"><value>The game was uninstalled. Follow-up cleanup was cancelled; remaining paths were preserved.</value></data>
