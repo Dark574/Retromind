@@ -656,6 +656,174 @@ public sealed class RetroAchievementsProgressViewModelTests
         Assert.Null(viewModel.AchievementItems[1].BadgePath);
     }
 
+    [Theory]
+    [InlineData("gog", false)]
+    [InlineData("gog", true)]
+    [InlineData("steam", false)]
+    [InlineData("steam", true)]
+    [InlineData("retro", false)]
+    [InlineData("retro", true)]
+    public async Task Visibility_StaysHiddenWhileLoadingAndForEmptyResultsWithoutRepeatingRequest(
+        string provider, bool cachedFallback)
+    {
+        var response = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var requestCount = 0;
+        using var viewModel = CreateVisibilityViewModel((_, _, _) =>
+        {
+            requestCount++;
+            return response.Task;
+        }, cachedFallback);
+        var visibilityChanges = new List<bool>();
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(viewModel.IsVisible)) visibilityChanges.Add(viewModel.IsVisible);
+        };
+        var item = CreateVisibilityItem(provider, 123);
+
+        var loading = viewModel.SelectItemAsync(item);
+        Assert.True(viewModel.IsLoading);
+        Assert.False(viewModel.IsVisible);
+        await viewModel.SelectItemAsync(item); // Hidden UI must not restart the in-flight request.
+        response.SetResult(0);
+        await loading;
+        await viewModel.SelectItemAsync(item); // A valid empty result is reusable too.
+
+        Assert.True(viewModel.HasProgress);
+        Assert.False(viewModel.HasAchievements);
+        Assert.False(viewModel.IsVisible);
+        Assert.False(viewModel.IsLoading);
+        Assert.Equal(1, requestCount);
+        Assert.DoesNotContain(true, visibilityChanges);
+    }
+
+    [Theory]
+    [InlineData("gog")]
+    [InlineData("steam")]
+    [InlineData("retro")]
+    public async Task Visibility_ConfirmedAchievementsStayVisibleDuringRefreshAndHideOnEmptyRefresh(string provider)
+    {
+        var response = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var viewModel = CreateVisibilityViewModel((_, refresh, _) =>
+            refresh ? response.Task : Task.FromResult(1));
+        var item = CreateVisibilityItem(provider, 123);
+        var visibilityChanges = new List<bool>();
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(viewModel.IsVisible)) visibilityChanges.Add(viewModel.IsVisible);
+        };
+
+        await viewModel.SelectItemAsync(item);
+        Assert.True(viewModel.IsVisible);
+        Assert.True(viewModel.HasAchievements);
+        Assert.Contains(true, visibilityChanges); // Existing theme bindings receive the completed-load update.
+        var refreshing = viewModel.SelectItemAsync(item, forceRefresh: true);
+        Assert.True(viewModel.IsLoading);
+        Assert.True(viewModel.IsVisible); // The known set remains available for this same selection.
+        response.SetResult(0);
+        await refreshing;
+
+        Assert.False(viewModel.IsVisible);
+        Assert.False(viewModel.HasAchievements);
+        Assert.False(visibilityChanges.Last());
+        Assert.True(viewModel.RefreshCommand.CanExecute(null));
+    }
+
+    [Theory]
+    [InlineData("gog")]
+    [InlineData("steam")]
+    [InlineData("retro")]
+    public async Task Visibility_SelectionChangeHidesPreviousSetAndIgnoresLateEmptyResponse(string provider)
+    {
+        var secondResponse = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var viewModel = CreateVisibilityViewModel((gameId, _, _) =>
+            gameId == 456 ? secondResponse.Task : Task.FromResult(1));
+        await viewModel.SelectItemAsync(CreateVisibilityItem(provider, 123));
+        Assert.True(viewModel.IsVisible);
+
+        var secondLoad = viewModel.SelectItemAsync(CreateVisibilityItem(provider, 456));
+        Assert.False(viewModel.IsVisible);
+        Assert.Empty(viewModel.AchievementItems);
+        await viewModel.SelectItemAsync(CreateVisibilityItem(provider, 789));
+        Assert.True(viewModel.IsVisible);
+        secondResponse.SetResult(0); // The service may complete despite selection cancellation.
+        await secondLoad;
+
+        Assert.True(viewModel.IsVisible);
+        Assert.Equal("Game 789", Assert.Single(viewModel.AchievementItems).Title);
+    }
+
+    [Theory]
+    [InlineData("gog")]
+    [InlineData("steam")]
+    [InlineData("retro")]
+    public async Task Visibility_InitialFailureStaysHiddenAndCanBeRefreshedLater(string provider)
+    {
+        using var viewModel = CreateVisibilityViewModel((_, refresh, _) => refresh
+            ? Task.FromResult(1)
+            : Task.FromException<int>(new InvalidOperationException("Temporarily unavailable")));
+
+        await viewModel.SelectItemAsync(CreateVisibilityItem(provider, 123));
+
+        Assert.False(viewModel.IsVisible);
+        Assert.False(viewModel.HasProgress);
+        Assert.True(viewModel.ShowStatus); // Keep the failure state even while the empty panel is hidden.
+        Assert.True(viewModel.RefreshCommand.CanExecute(null));
+        await viewModel.RefreshCommand.ExecuteAsync(null);
+        Assert.True(viewModel.IsVisible);
+        Assert.True(viewModel.HasAchievements);
+    }
+
+    private static MediaItem CreateVisibilityItem(string provider, int gameId) => provider switch
+    {
+        "gog" => CreateGogItem(gameId.ToString()),
+        "steam" => CreateSteamItem((uint)gameId),
+        _ => CreateIdentifiedItem(gameId)
+    };
+
+    private static RetroAchievementsProgressViewModel CreateVisibilityViewModel(
+        Func<int, bool, CancellationToken, Task<int>> getCount, bool cachedFallback = false)
+    {
+        var settings = CreateSettings();
+        settings.EnableGogGalaxyIntegration = true;
+        settings.SteamAchievements = new SteamAchievementsSettings { Enabled = true, SteamId64 = "76561198000000042" };
+        return new RetroAchievementsProgressViewModel(settings,
+            new StubProgressService(async (gameId, refresh, token) =>
+            {
+                var count = await getCount(gameId, refresh, token);
+                return new RetroAchievementsProgressSnapshot(new RetroAchievementsGameProgress
+                {
+                    GameId = gameId,
+                    AchievementCount = count,
+                    Achievements = count > 0
+                        ? [new RetroAchievementsAchievement { AchievementId = 1, Title = $"Game {gameId}" }]
+                        : []
+                }, DateTimeOffset.UtcNow, cachedFallback);
+            }),
+            new StubBadgeService((_, _, _) => Task.FromResult<string?>(null)),
+            new StubSteamProgressService(async (appId, refresh, token) =>
+            {
+                var count = await getCount((int)appId, refresh, token);
+                return new SteamProgressSnapshot(new SteamGameProgress
+                {
+                    AppId = appId,
+                    Achievements = count > 0
+                        ? [new SteamAchievement { ApiName = "FIRST", Title = $"Game {appId}" }]
+                        : []
+                }, DateTimeOffset.UtcNow, cachedFallback);
+            }),
+            new StubGogProgressService(async (gameId, refresh, token) =>
+            {
+                var count = await getCount(int.Parse(gameId), refresh, token);
+                return new GogProgressSnapshot(new GogGameProgress
+                {
+                    GameId = gameId,
+                    Achievements = count > 0
+                        ? [new GogAchievement { AchievementId = "1", Key = "FIRST", Title = $"Game {gameId}" }]
+                        : []
+                }, DateTimeOffset.UtcNow, cachedFallback);
+            }));
+    }
+
     private static RetroAchievementsProgressViewModel CreateViewModel(
         Func<int, bool, CancellationToken, Task<RetroAchievementsProgressSnapshot>> getProgress,
         Func<string?, bool, CancellationToken, Task<string?>>? getBadge = null,

@@ -36,7 +36,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
     private string? _selectedGogGameId;
     private string? _selectedUserIdentifier;
     private AchievementProvider _activeProvider;
-    private bool _isVisible;
+    private bool _isEligible;
     private bool _isLoading;
     private bool _isBadgeLoading;
     private bool _isAchievementsExpanded;
@@ -144,15 +144,14 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         AchievementItems.Count);
     public string AchievementsToggleGlyph => IsAchievementsExpanded ? "▾" : "▸";
 
-    public bool IsVisible
+    // Eligibility starts the request; only confirmed achievement data makes the shared UI visible.
+    public bool IsVisible => _isEligible && (_activeProvider switch
     {
-        get => _isVisible;
-        private set
-        {
-            if (SetProperty(ref _isVisible, value))
-                RefreshCommand.NotifyCanExecuteChanged();
-        }
-    }
+        AchievementProvider.Steam => (_steamSnapshot?.Progress.AchievementCount ?? 0) > 0,
+        AchievementProvider.Gog => (_gogSnapshot?.Progress.AchievementCount ?? 0) > 0,
+        AchievementProvider.RetroAchievements => (Snapshot?.Progress.AchievementCount ?? 0) > 0,
+        _ => false
+    });
 
     public bool IsLoading
     {
@@ -213,6 +212,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                 .Select(achievement => new RetroAchievementsAchievementItemViewModel(achievement))
                 .ToArray()
                 ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
+            OnPropertyChanged(nameof(IsVisible));
         }
     }
 
@@ -382,7 +382,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
                 : retroAchievementsVisible
                     ? AchievementProvider.RetroAchievements
                     : AchievementProvider.None;
-        var isVisible = provider != AchievementProvider.None;
+        var isEligible = provider != AchievementProvider.None;
         var userIdentifier = provider switch
         {
             AchievementProvider.Steam => steamAchievementsSettings?.SteamId64?.Trim(),
@@ -410,7 +410,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             _selectedSteamAppId == steamAppId &&
             string.Equals(_selectedGogGameId, gogGameId, StringComparison.Ordinal) &&
             _activeProvider == provider &&
-            IsVisible == isVisible &&
+            _isEligible == isEligible &&
             string.Equals(
                 _selectedUserIdentifier,
                 userIdentifier,
@@ -437,14 +437,14 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         _selectedGogGameId = gogGameId;
         _selectedUserIdentifier = userIdentifier;
         CancelCurrentLoad();
+        if (selectedGameChanged || !forceRefresh || !isEligible)
+            ClearSnapshots();
         SetActiveProvider(provider);
 
-        IsVisible = isVisible;
-        if (selectedGameChanged || !forceRefresh || !IsVisible)
-            ClearSnapshots();
+        SetEligibility(isEligible);
 
         StatusText = string.Empty;
-        if (!IsVisible)
+        if (!isEligible)
         {
             IsLoading = false;
             return;
@@ -627,8 +627,14 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
         GC.SuppressFinalize(this);
     }
 
+    private void SetEligibility(bool value)
+    {
+        if (SetProperty(ref _isEligible, value, nameof(IsVisible)))
+            RefreshCommand.NotifyCanExecuteChanged();
+    }
+
     private bool CanRefresh() =>
-        IsVisible &&
+        _isEligible &&
         !IsLoading &&
         (_activeProvider switch
         {
@@ -713,6 +719,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             .Select(achievement => new RetroAchievementsAchievementItemViewModel(achievement))
             .ToArray()
             ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
+        OnPropertyChanged(nameof(IsVisible));
     }
 
     private void SetGogSnapshot(GogProgressSnapshot? value)
@@ -739,6 +746,7 @@ public sealed class RetroAchievementsProgressViewModel : ViewModelBase, IDisposa
             .Select(achievement => new RetroAchievementsAchievementItemViewModel(achievement))
             .ToArray()
             ?? Array.Empty<RetroAchievementsAchievementItemViewModel>();
+        OnPropertyChanged(nameof(IsVisible));
     }
 
     private bool IsCurrentRequest(

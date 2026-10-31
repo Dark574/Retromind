@@ -740,6 +740,14 @@ the report never mutates JSON or deletes files.
   achievement list is first expanded, use bounded concurrency, and are cancelled when the selected game changes;
   unavailable images leave the remaining achievement card intact. The detailed achievement-card list is collapsed
   by default, retains its state across refreshes of the same game, and collapses again when the selected game changes
+  - The shared `IsVisible` presentation contract requires an enabled, eligible provider and a loaded snapshot
+    with a positive achievement count. Prism, Default, desktop details and existing theme bindings therefore
+    hide the entire section until achievements are known, including valid zero-achievement cached results.
+    Eligibility remains separate so invisible sections still load, in-flight and empty results are reused,
+    and explicit/session refreshes remain possible. A selection change clears old data before activating the
+    new provider; late responses cannot make another game's section appear. Refreshing the same known set
+    retains its display until a new result arrives. Load failures retain their diagnostic status; without a
+    previously known set the panel stays hidden, while a failed refresh of known data keeps its existing status UI.
 - BigMode owns a separate `RetroAchievementsProgressViewModel` so its selection cannot overwrite desktop detail
   state. Identified selections are debounced before loading, stale progress is cleared immediately, and Attract
   Mode never starts progress requests. Themes consume the compact summary through

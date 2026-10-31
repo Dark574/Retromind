@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - improve Linux display stability, HiDPI window sizing, native Wayland scrolling, and UI resource cleanup
 
 ### Fixed
+- hide achievement panels in supported themes and desktop details until the selected game has confirmed achievements, including GOG and Steam titles with no achievements
 - prevent GOG Windows installations from creating prefixes without their required C: and Z: drives, and keep cancellation responsive when Wine setup outlives the installer launcher
 - explain Epic uninstall messages about a nonempty game folder when Retromind confirms that subsequent cleanup removed the folder successfully
 - warn when assets cannot be fully restored after a failed item move, list the affected locations, and avoid deleting the only remaining copy during rollback
