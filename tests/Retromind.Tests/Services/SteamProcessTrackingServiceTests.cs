@@ -140,11 +140,18 @@ public sealed class SteamProcessTrackingServiceTests
         CreateFakeProcess(temp, 111, 1, 457140, "old-process", "old-process");
 
         var messages = new List<string>();
+        var confirmed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
         var service = new SteamProcessTrackingService(
             temp.RootPath,
-            messages.Add,
+            message =>
+            {
+                messages.Add(message);
+                if (message.Contains("likely game process group confirmed", StringComparison.Ordinal))
+                    confirmed.TrySetResult();
+            },
             enabled: true,
-            observationDuration: TimeSpan.FromMilliseconds(200),
+            observationDuration: TimeSpan.FromSeconds(10),
             initialPollInterval: TimeSpan.FromMilliseconds(5),
             steadyPollInterval: TimeSpan.FromMilliseconds(5),
             quietPeriod: TimeSpan.FromMilliseconds(10),
@@ -155,26 +162,36 @@ public sealed class SteamProcessTrackingServiceTests
             "Reused PID game",
             new HashSet<SteamProcessIdentity> { new(111, 111000) });
 
-        var observation = service.ObserveAsync(session, CancellationToken.None);
-        await Task.Delay(15);
-        Directory.Delete(temp.GetPath("111"), recursive: true);
-        CreateFakeProcess(
-            temp,
-            111,
-            1,
-            457140,
-            "new-game",
-            "new-game",
-            startTime: 222000);
-        await Task.Delay(30);
-        Directory.Delete(temp.GetPath("111"), recursive: true);
-        var result = await observation.WaitAsync(TimeSpan.FromSeconds(2));
+        var observation = service.ObserveAsync(session, cancellation.Token);
+        try
+        {
+            Directory.Delete(temp.GetPath("111"), recursive: true);
+            CreateFakeProcess(
+                temp,
+                111,
+                1,
+                457140,
+                "new-game",
+                "new-game",
+                startTime: 222000);
+            // Keep the new PID instance alive until the real confirmation path has observed it.
+            // A fixed 30 ms lifetime can disappear between polls on a busy CI runner.
+            await confirmed.Task.WaitAsync(cancellation.Token);
+            Directory.Delete(temp.GetPath("111"), recursive: true);
+            var result = await observation.WaitAsync(cancellation.Token);
 
-        Assert.True(result.WasTracked);
-        Assert.Contains(messages, message =>
-            message.Contains("PID=111", StringComparison.Ordinal) &&
-            message.Contains("Name=new-game", StringComparison.Ordinal) &&
-            message.Contains("appeared", StringComparison.Ordinal));
+            Assert.True(result.WasTracked);
+            Assert.Contains(messages, message =>
+                message.Contains("PID=111", StringComparison.Ordinal) &&
+                message.Contains("Name=new-game", StringComparison.Ordinal) &&
+                message.Contains("appeared", StringComparison.Ordinal));
+        }
+        finally
+        {
+            cancellation.Cancel();
+            try { await observation; }
+            catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        }
     }
 
     [Fact]
@@ -382,7 +399,9 @@ public sealed class SteamProcessTrackingServiceTests
         string commandName,
         ulong? startTime = null)
     {
-        var processDirectory = temp.CreateDirectory(processId.ToString());
+        // Publish a complete /proc fixture atomically, so the observer cannot reject a process
+        // while the test is still writing its stat/environment/command files.
+        var processDirectory = temp.CreateDirectory($".process-{processId}-{Guid.NewGuid():N}");
         File.WriteAllBytes(
             Path.Combine(processDirectory, "environ"),
             BuildEnvironment($"SteamAppId={appId}"));
@@ -395,5 +414,6 @@ public sealed class SteamProcessTrackingServiceTests
         File.WriteAllBytes(
             Path.Combine(processDirectory, "cmdline"),
             Encoding.UTF8.GetBytes($"/games/{commandName}\0"));
+        Directory.Move(processDirectory, temp.GetPath(processId.ToString()));
     }
 }
