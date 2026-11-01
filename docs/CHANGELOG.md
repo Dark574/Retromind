@@ -7,7 +7,17 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.2.3-alpha] - unreleased
+## [0.2.4-alpha] - unreleased
+
+### Added
+
+### Changed
+
+### Fixed
+
+---
+
+## [0.2.3-alpha] - 2026-11-01
 
 ### Added
 - optionally synchronize achievements and completed playtime for linked GOG games and display GOG progress, rarity, unlock times, and privacy-safe hidden achievements in the desktop details and BigMode
@@ -33,7 +43,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.2.2-alpha] - 2026-10-27
+## [0.2.2-alpha] - 2026-10-17
 
 ### Added
 - import owned Epic Games titles directly through bundled Legendary without requiring Heroic Games Launcher
@@ -540,7 +550,8 @@ also a lot of small fixes and changes
 
 ---
 
-[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.3-alpha...HEAD
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.4-alpha...HEAD
+[0.2.3-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.3-alpha
 [0.2.2-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.2-alpha
 [0.2.1-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.1-alpha
 [0.2.0-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.0-alpha
