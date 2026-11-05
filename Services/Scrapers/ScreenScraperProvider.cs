@@ -459,8 +459,70 @@ public sealed class ScreenScraperProvider : IMetadataProvider, IGameFileMetadata
             VideoUrl = SelectMediaUrl(game["medias"], language, "video"),
             MarqueeUrl = SelectMediaUrl(game["medias"], language, "marquee", "screenmarquee"),
             BezelUrl = SelectMediaUrl(game["medias"], language, "bezel-16-9", "bezel-16-10", "bezel-4-3"),
-            ControlPanelUrl = SelectMediaUrl(game["medias"], language, "cpanel", "controlpanel")
+            ControlPanelUrl = SelectMediaUrl(game["medias"], language, "cpanel", "controlpanel"),
+            Documents = ReadDocuments(game["medias"])
         };
+    }
+
+    private static List<ScraperDocument> ReadDocuments(JsonNode? medias)
+    {
+        var documents = new List<ScraperDocument>();
+        var urls = new HashSet<string>(StringComparer.Ordinal);
+
+        void AddDocument(JsonNode? node, string? region = null)
+        {
+            if (node is JsonArray variants)
+            {
+                foreach (var variant in variants)
+                    AddDocument(variant, region);
+                return;
+            }
+
+            var entry = node as JsonObject;
+            var url = entry != null ? ReadText(entry["url"]) : ReadText(node);
+            var format = entry != null ? ReadText(entry["format"]) : null;
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) ||
+                (uri.Scheme != Uri.UriSchemeHttps && uri.Scheme != Uri.UriSchemeHttp) ||
+                (!string.IsNullOrWhiteSpace(format) && !string.Equals(format, "pdf", StringComparison.OrdinalIgnoreCase)) ||
+                !urls.Add(url!))
+                return;
+
+            documents.Add(new ScraperDocument
+            {
+                Url = url!,
+                Title = entry != null
+                    ? ScraperText.Decode(ReadText(entry["nom"]) ?? ReadText(entry["name"]) ?? ReadText(entry["title"]))
+                    : null,
+                Region = entry != null ? ReadText(entry["region"]) ?? region : region,
+                Number = documents.Count + 1
+            });
+        }
+
+        if (medias is JsonArray entries)
+        {
+            foreach (var entry in entries.OfType<JsonObject>())
+            {
+                if (string.Equals(ReadText(entry["type"]), "manuel", StringComparison.OrdinalIgnoreCase))
+                    AddDocument(entry);
+            }
+        }
+        else if (medias is JsonObject mediaObject && mediaObject["media_manuel"] is JsonObject manuals)
+        {
+            const string prefix = "media_manuel_";
+            foreach (var pair in manuals)
+            {
+                // The documented object form also contains checksum fields, not download URLs.
+                if (!pair.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ||
+                    pair.Key.EndsWith("_crc", StringComparison.OrdinalIgnoreCase) ||
+                    pair.Key.EndsWith("_md5", StringComparison.OrdinalIgnoreCase) ||
+                    pair.Key.EndsWith("_sha1", StringComparison.OrdinalIgnoreCase))
+                    continue;
+
+                AddDocument(pair.Value, pair.Key[prefix.Length..]);
+            }
+        }
+
+        return documents;
     }
 
     private static string? ReadText(JsonNode? node)

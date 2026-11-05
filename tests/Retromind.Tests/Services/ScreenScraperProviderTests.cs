@@ -10,6 +10,70 @@ namespace Retromind.Tests.Services;
 public sealed class ScreenScraperProviderTests
 {
     [Fact]
+    public async Task SearchAsync_ReturnsEveryDistinctManualIncludingMultiplePdfsInOneRegion()
+    {
+        var result = await SearchWithMediaAsync("""
+            [
+              {"type":"manuel","region":"eu","nom":"Manual &amp; notes","format":"pdf","url":"https://media.example/mediaManuelJeu.php?media=manuel(eu)"},
+              {"type":"manuel","region":"eu","nom":"Keychart","format":"pdf","url":"https://media.example/keychart.pdf"},
+              {"type":"manuel","region":"de","url":"https://media.example/de.pdf"},
+              {"type":"manuel","region":"eu","url":"https://media.example/keychart.pdf"},
+              {"type":"maps","url":"https://media.example/map.jpg"},
+              {"type":"manuel","format":"jpg","url":"https://media.example/not-pdf.jpg"},
+              {"type":"manuel","url":"file:///etc/passwd"},
+              {"type":"manuel","url":""}
+            ]
+            """);
+
+        Assert.Equal(3, result.Documents.Count);
+        Assert.Equal("Manual & notes", result.Documents[0].Title);
+        Assert.Equal("eu", result.Documents[0].Region);
+        Assert.Equal("Keychart", result.Documents[1].Title);
+        Assert.Equal("eu", result.Documents[1].Region);
+        Assert.Null(result.Documents[2].Title);
+        Assert.Equal("de", result.Documents[2].Region);
+        Assert.Equal(new[] { 1, 2, 3 }, result.Documents.Select(document => document.Number));
+        Assert.All(result.Documents, document => Assert.Equal("pdf", document.Format));
+    }
+
+    [Fact]
+    public async Task SearchAsync_DocumentedManualObjectRetainsRegionsAndIgnoresChecksums()
+    {
+        var result = await SearchWithMediaAsync("""
+            {"media_manuel":{
+              "media_manuel_eu":"https://media.example/eu.php",
+              "media_manuel_eu_crc":"https://media.example/not-a-document",
+              "media_manuel_eu_md5":"1234",
+              "media_manuel_eu_sha1":"abcd",
+              "media_manuel_de":[
+                {"url":"https://media.example/de1.pdf","title":"Anleitung"},
+                {"url":"https://media.example/de2.pdf","title":"Referenz"}
+              ],
+              "media_manuel_us":"https://media.example/us.pdf"
+            }}
+            """);
+
+        Assert.Equal(4, result.Documents.Count);
+        Assert.Equal(new[] { "eu", "de", "de", "us" }, result.Documents.Select(document => document.Region));
+        Assert.Equal("Referenz", result.Documents[2].Title);
+    }
+
+    [Fact]
+    public async Task SearchAsync_NoManualsLeavesDocumentsEmpty()
+    {
+        Assert.Empty((await SearchWithMediaAsync("{}")).Documents);
+    }
+
+    private static async Task<ScraperSearchResult> SearchWithMediaAsync(string mediaJson)
+    {
+        using var client = new HttpClient(new StubHandler(_ => JsonResponse(
+            "{\"response\":{\"jeux\":[{\"id\":\"7\",\"nom\":\"Game\",\"medias\":" + mediaJson + "}]}}")));
+        var provider = new ScreenScraperProvider(new ScraperConfig(), client,
+            new ScreenScraperApplicationCredentials("developer", "password"));
+        return Assert.Single(await provider.SearchAsync("Game"));
+    }
+
+    [Fact]
     public async Task IdentifyGameFileAsync_UsesSystemAndAllChecksums()
     {
         Uri? requestedUri = null;

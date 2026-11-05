@@ -10,10 +10,12 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.4-alpha] - unreleased
 
 ### Added
+- select and download available ScreenScraper PDF manuals individually, including regional variants, with optional bulk import and automatic skipping of identical documents
 
 ### Changed
 
 ### Fixed
+- keep metadata-import error messages readable below the results and explain when a manual download returns no valid PDF
 - display scraped quotation marks, apostrophes, umlauts and other HTML-encoded characters correctly in metadata previews and imports across scraper providers
 
 ---

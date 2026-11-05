@@ -412,7 +412,7 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = string.Format(Strings.Metadata_Search_FailedFormat, ex.Message);
+            StatusMessage = string.Format(T("ScrapeDialog.ApplyFailedFormat", "Import failed: {0}"), ex.Message);
         }
         finally
         {
@@ -467,6 +467,16 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
         AddArtworkChoice(AssetType.Marquee, T("NodeSettings_ArtworkMarqueeLabel", "Marquee"), result.MarqueeUrl, settings.ImportMarquee);
         AddArtworkChoice(AssetType.Bezel, T("Button.Bezel", "Bezel"), result.BezelUrl, settings.ImportBezel);
         AddArtworkChoice(AssetType.ControlPanel, T("Button.ControlPanel", "Control panel"), result.ControlPanelUrl, settings.ImportControlPanel);
+        foreach (var document in result.Documents)
+        {
+            ArtworkChoices.Add(new ScrapeArtworkChoice(
+                AssetType.Manual,
+                document.GetDisplayLabel(T("ScrapeDialog.Manual", "Manual")),
+                document.Url,
+                T("ScrapeDialog.DocumentAvailableStatus", "PDF document; no preview. Existing documents are retained; identical files are skipped."),
+                settings.ImportManuals,
+                document));
+        }
         RefreshChoiceCommandStates();
     }
 
@@ -640,6 +650,10 @@ public partial class ScrapeDialogViewModel : ViewModelBase, IDisposable
             MaxPlayers = IsSelected(ScrapeMetadataField.MaxPlayers) ? source.MaxPlayers : null,
             Source = IsSelected(ScrapeMetadataField.Source) ? source.Source : string.Empty,
             CustomFields = customFields,
+            Documents = ArtworkChoices
+                .Where(choice => choice.IsSelected && choice.Document != null)
+                .Select(choice => choice.Document!)
+                .ToList(),
             CoverUrl = selectedArtwork.Contains(AssetType.Cover) ? source.CoverUrl : null,
             WallpaperUrl = selectedArtwork.Contains(AssetType.Wallpaper) ? source.WallpaperUrl : null,
             ScreenshotUrl = selectedArtwork.Contains(AssetType.Screenshot) ? source.ScreenshotUrl : null,

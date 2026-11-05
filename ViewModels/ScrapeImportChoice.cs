@@ -56,19 +56,22 @@ public partial class ScrapeArtworkChoice : ObservableObject
         string label,
         string url,
         string statusText,
-        bool isSelected)
+        bool isSelected,
+        ScraperDocument? document = null)
     {
         Type = type;
         Label = label;
         Url = url;
         StatusText = statusText;
         _isSelected = isSelected;
+        Document = document;
     }
 
     public AssetType Type { get; }
     public string Label { get; }
     public string Url { get; }
-    public string? ImagePreviewUrl => Type == AssetType.Video ? null : Url;
+    public ScraperDocument? Document { get; }
+    public string? ImagePreviewUrl => Type is AssetType.Video or AssetType.Manual ? null : Url;
     public bool HasImagePreview => !string.IsNullOrWhiteSpace(ImagePreviewUrl);
     public string StatusText { get; }
 

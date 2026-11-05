@@ -957,6 +957,39 @@ the report never mutates JSON or deletes files.
   exhausted instead of repeating rejected requests
 - the manual metadata dialog presents changed fields individually; artwork imports are additive and never
   silently replace existing files
+- scraper results also carry a provider-neutral `Documents` list of `ScraperDocument` entries (transient URL,
+  optional title/region, format and fallback number). ScreenScraper reads every distinct HTTP(S) `manuel` PDF
+  entry from both array and regional-object responses, including multiple entries in the same region when
+  supplied. It does not choose a single preferred manual or infer language/content from a region code.
+  Source titles are decoded once like other metadata; unnamed entries receive a localized numbered label.
+  The selection dialog lists documents individually without downloading PDF/image previews. The optional
+  `ScraperImportSettings.ImportManuals` switch is off by default and enables all returned variants for bulk
+  import; manual selection can import individual documents regardless of that default. Existing Manual assets
+  and the artwork append policy do not suppress additional documents.
+- `ScrapedDocumentImporter` streams selected PDFs with a three-minute download timeout and a 100 MiB limit,
+  enforced even without Content-Length, and checks the `%PDF-` signature and declared download length. This is
+  format screening, not a full PDF parser or malware scan. Each attempt owns a temporary directory; source
+  filenames use bounded, sanitized display labels and `.pdf` even for PHP download endpoints. Best-effort cleanup
+  runs after success, failure or cancellation. The existing `FileManagementService` publishes complete files
+  atomically as Manual assets with DataRoot-relative paths; existing document buttons/system viewers open them.
+  SHA-256 comparisons against readable, same-size local Manual files skip identical content even when names or
+  URLs differ; distinct contents are retained. Existing symlink/containment checks protect duplicate reads, and
+  download URLs/credentials are never persisted as provenance. Deduplication requires downloading the candidate;
+  unreadable existing files cannot be compared. Simultaneous imports are not a transactional deduplication gate.
+  Downloader failures emit `Scraper.DocumentImportFailed` warnings with operation/exception type and, where known,
+  a fixed validation reason (`NotPdf`, `SizeLimitExceeded`, `IncompleteDownload`), HTTP status, byte counts and
+  a coarse response classification. Raw HTTP exceptions, response bodies and credential-bearing URLs are
+  excluded. A catalogued PDF can return HTML with HTTP 200 and `application/force-download`; the content signature
+  remains authoritative, and web pages are not saved as manuals or followed for arbitrary embedded downloads.
+  Publication failures use FileManagement's existing report. Partial successful changes remain dirty/saveable;
+  failures show a localized reason in the manual dialog or bulk log, without additional dialogs. Dialog status
+  occupies a separate bounded, wrapping row below the results so artwork cannot cover it. A failed application
+  retains the selections for another attempt and uses an import-specific status rather than a search error.
+  The importer accepts cancellation, but the existing scrape callback contract does
+  not forward the bulk cancellation token during asset downloads; cancellation is observed between items and
+  document downloads remain bounded by their timeout. Separate maps/flyers, generated control sheets and PDF
+  content classification are outside this integration. Multiple PDFs per region are accepted defensively;
+  their availability has not been verified against an authenticated live ScreenScraper response.
 - `ScraperMatchEvaluator` gates automatic bulk imports by normalized title similarity, optional platform/year
   signals, a minimum confidence, and a lead over the runner-up. Platform bonuses require equal canonical names or
   explicit unambiguous aliases; sharing a vendor or family word is insufficient. Ambiguous or unsafe results are

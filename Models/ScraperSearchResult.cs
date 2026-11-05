@@ -91,6 +91,11 @@ public class ScraperSearchResult
     /// URL to the control panel artwork (joysticks/buttons layout).
     /// </summary>
     public string? ControlPanelUrl { get; set; }
+
+    /// <summary>
+    /// All available companion documents, including regional variants.
+    /// </summary>
+    public List<ScraperDocument> Documents { get; set; } = new();
     
     // --- Additional Metadata ---
 

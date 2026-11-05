@@ -17,6 +17,7 @@ using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.GameSystems;
+using Retromind.Services.Scrapers;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -1371,7 +1372,8 @@ public partial class MainWindowViewModel
         {
             ExistingDataMode = ScraperExistingDataMode.OverwriteAlways,
             AppendAssetsDuringBulkScrape = true,
-            ImportVideo = true
+            ImportVideo = true,
+            ImportManuals = true
         };
 
         var vm = new ScrapeDialogViewModel(
@@ -1391,12 +1393,13 @@ public partial class MainWindowViewModel
             if (ApplyScrapedMetadata(item, result, manualImportSettings))
                 changed = true;
 
-            if (await ApplyScrapedAssetsAsync(
+            var assets = await ApplyScrapedAssetsAsync(
                     item,
                     result,
                     nodePath,
                     manualImportSettings,
-                    appendAssetsWhenTypeExists: true))
+                    appendAssetsWhenTypeExists: true);
+            if (assets.Changed)
                 changed = true;
 
             if (changed)
@@ -1404,6 +1407,10 @@ public partial class MainWindowViewModel
                 _libraryTracker.MarkDirty();
                 await SaveData();
             }
+
+            if (assets.DocumentImportError is { } documentError)
+                throw new InvalidOperationException(string.Format(T("ScrapeDialog.DocumentImportFailed",
+                    "{0}\nOther changes are retained. See the diagnostic log for details."), documentError));
             
             // Close dialog manually if needed (finding window by DataContext)
             if (owner.OwnedWindows.FirstOrDefault(w => w.DataContext == vm) is Window dlg) dlg.Close();
@@ -1452,16 +1459,21 @@ public partial class MainWindowViewModel
             if (ApplyScrapedMetadata(item, result, importSettings))
                 changed = true;
 
-            if (await ApplyScrapedAssetsAsync(
+            var assets = await ApplyScrapedAssetsAsync(
                     item,
                     result,
                     nodePath,
                     importSettings,
-                    appendAssetsWhenTypeExists: importSettings.AppendAssetsDuringBulkScrape))
+                    appendAssetsWhenTypeExists: importSettings.AppendAssetsDuringBulkScrape);
+            if (assets.Changed)
                 changed = true;
             
             if (changed)
                 _libraryTracker.MarkDirty();
+
+            if (assets.DocumentImportError is { } documentError)
+                throw new InvalidOperationException(string.Format(T("ScrapeDialog.DocumentImportFailed",
+                    "{0}\nOther changes are retained. See the diagnostic log for details."), documentError));
         };
     
         await dialog.ShowDialog(owner);
@@ -1634,7 +1646,7 @@ public partial class MainWindowViewModel
         return changed;
     }
 
-    private async Task<bool> ApplyScrapedAssetsAsync(
+    private async Task<(bool Changed, string? DocumentImportError)> ApplyScrapedAssetsAsync(
         MediaItem item,
         ScraperSearchResult result,
         List<string> nodePath,
@@ -1667,7 +1679,60 @@ public partial class MainWindowViewModel
         if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, appendAssetsWhenTypeExists))
             changed = true;
 
-        return changed;
+        string? documentImportError = null;
+        if (settings.ImportManuals)
+        {
+            var importer = new ScrapedDocumentImporter(_httpClient, _fileService);
+            foreach (var document in result.Documents)
+            {
+                try
+                {
+                    var existing = await UiThreadHelper.InvokeAsync(() => item.Assets.ToList());
+                    var imported = await importer.ImportAsync(document,
+                        document.GetDisplayLabel(T("ScrapeDialog.Manual", "Manual")), item, nodePath, existing);
+                    if (imported.Asset != null)
+                    {
+                        await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported.Asset));
+                        changed = true;
+                    }
+                    else if (!imported.IsDuplicate)
+                    {
+                        // FileManagementService has already diagnosed the failed publication.
+                        documentImportError ??= T("ScrapeDialog.DocumentSaveFailed", "The document could not be saved.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    documentImportError ??= DescribeDocumentImportFailure(ex);
+                    try
+                    {
+                        // HTTP exceptions can contain credential-bearing download URLs.
+                        _errorService.Report(new ErrorReport("Scraper.DocumentImportFailed", ErrorSeverity.Warning,
+                            nameof(MainWindowViewModel), "A scraper PDF document could not be downloaded or imported.",
+                            Context: ScrapedDocumentImporter.GetFailureContext(ex)));
+                    }
+                    catch { /* Diagnostics must not interrupt remaining imports or saving. */ }
+                }
+            }
+        }
+
+        return (changed, documentImportError);
+    }
+
+    internal static string DescribeDocumentImportFailure(Exception exception)
+    {
+        return exception switch
+        {
+            ScrapedDocumentDownloadException { Reason: "NotPdf" } =>
+                T("ScrapeDialog.DocumentNotPdf", "The provider returned no valid PDF file."),
+            ScrapedDocumentDownloadException { Reason: "SizeLimitExceeded" } =>
+                T("ScrapeDialog.DocumentTooLarge", "The document exceeds the 100 MiB limit."),
+            ScrapedDocumentDownloadException { Reason: "IncompleteDownload" } =>
+                T("ScrapeDialog.DocumentIncomplete", "The document download is incomplete."),
+            HttpRequestException { StatusCode: { } status } =>
+                string.Format(T("ScrapeDialog.DocumentHttpFailedFormat", "The server returned HTTP {0}."), (int)status),
+            _ => T("ScrapeDialog.DocumentDownloadFailed", "The document could not be downloaded or processed.")
+        };
     }
 
     private async Task<bool> TryImportScrapedAssetAsync(

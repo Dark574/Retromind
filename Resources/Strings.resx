@@ -1049,6 +1049,18 @@ This action cannot be undone.</value></data>
     <data name="ScrapeDialog.ArtworkExistingStatus" xml:space="preserve"><value>Existing media is retained; this file will be added.</value></data>
     <data name="ScrapeDialog.ArtworkMissingStatus" xml:space="preserve"><value>No media of this type is currently stored in Retromind.</value></data>
     <data name="ScrapeDialog.VideoAvailableStatus" xml:space="preserve"><value>A video is available from the scraper; video previews are not displayed.</value></data>
+    <data name="ScrapeDialog.Manual" xml:space="preserve"><value>Manual</value></data>
+    <data name="ScrapeDialog.DocumentAvailableStatus" xml:space="preserve"><value>PDF document; no preview. Existing documents are retained; identical files are skipped.</value></data>
+    <data name="ScrapeDialog.DocumentImportFailed" xml:space="preserve"><value>{0}
+Other changes are retained. See the diagnostic log for details.</value></data>
+    <data name="ScrapeDialog.ApplyFailedFormat" xml:space="preserve"><value>Import failed: {0}</value></data>
+    <data name="ScrapeDialog.DocumentNotPdf" xml:space="preserve"><value>The provider returned no valid PDF file.</value></data>
+    <data name="ScrapeDialog.DocumentTooLarge" xml:space="preserve"><value>The document exceeds the 100 MiB limit.</value></data>
+    <data name="ScrapeDialog.DocumentIncomplete" xml:space="preserve"><value>The document download is incomplete.</value></data>
+    <data name="ScrapeDialog.DocumentHttpFailedFormat" xml:space="preserve"><value>The server returned HTTP {0}.</value></data>
+    <data name="ScrapeDialog.DocumentDownloadFailed" xml:space="preserve"><value>The document could not be downloaded or processed.</value></data>
+    <data name="ScrapeDialog.DocumentSaveFailed" xml:space="preserve"><value>The document could not be saved.</value></data>
+    <data name="Settings_ScraperManuals" xml:space="preserve"><value>Manuals (PDF; all available variants)</value></data>
     <data name="ScrapeDialog.GameSystemFilter" xml:space="preserve"><value>System</value></data>
     <data name="ScrapeDialog.AllGameSystems" xml:space="preserve"><value>All systems</value></data>
     <data name="Metadata.ScrapeArea" xml:space="preserve"><value>Scraping area</value></data>

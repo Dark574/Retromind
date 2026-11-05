@@ -12,7 +12,7 @@
         CanResize="False"
         CanMaximize="False">
 
-    <Grid RowDefinitions="Auto, *, Auto" Margin="20">
+    <Grid RowDefinitions="Auto, *, Auto, Auto" Margin="20">
 
         <!-- Header / Search -->
         <Grid Grid.Row="0" RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, 10, Auto" Margin="0,0,0,20">
@@ -109,16 +109,6 @@
                     </ListBox.ItemTemplate>
                 </ListBox>
             </Border>
-
-            <!-- Status message overlay (no Grid.Row to avoid undefined row issues) -->
-            <TextBlock Grid.Column="0" Grid.ColumnSpan="5"
-                       Text="{Binding StatusMessage}"
-                       Foreground="Red"
-                       HorizontalAlignment="Center"
-                       VerticalAlignment="Center"
-                       IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                       Background="#CCFFFFFF"
-                       Padding="10"/>
 
             <!-- Selectable metadata comparison (middle) -->
             <ScrollViewer Grid.Column="2">
@@ -241,8 +231,26 @@
             </Border>
         </Grid>
 
+        <!-- Status has its own bounded row so artwork cannot cover it or affect text wrapping. -->
+        <Border Grid.Row="2"
+                Margin="0,12,0,0"
+                Padding="10"
+                BorderBrush="#CCBB5555"
+                BorderThickness="1"
+                CornerRadius="4"
+                Background="#20CC4444"
+                IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <ScrollViewer MaxHeight="110"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <TextBlock Text="{Binding StatusMessage}"
+                           TextWrapping="Wrap"
+                           Foreground="Red"/>
+            </ScrollViewer>
+        </Border>
+
         <!-- Footer buttons -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,20,0,0">
             <Button Content="{x:Static p:Strings.Button_Cancel}" Click="CloseWindow"/>
             <Button Content="{x:Static p:Strings.Button_TakeOver}"
                     Command="{Binding ApplyCommand}"

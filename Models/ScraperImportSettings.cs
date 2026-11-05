@@ -38,6 +38,9 @@ public class ScraperImportSettings
     public bool ImportBezel { get; set; } = true;
     public bool ImportControlPanel { get; set; } = true;
 
+    // Documents can be large and have several regional variants. Bulk import is opt-in.
+    public bool ImportManuals { get; set; } = false;
+
     /// <summary>
     /// Default behavior for an artwork type that already exists:
     /// false = skip it, true = add the downloaded image as another variant.

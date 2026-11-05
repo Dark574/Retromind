@@ -711,6 +711,7 @@
                                             <CheckBox Content="{x:Static p:Strings.NodeSettings_ArtworkMarqueeLabel}" IsChecked="{Binding ScraperImportMarquee}" />
                                             <CheckBox Content="{x:Static p:Strings.Button_Bezel}" IsChecked="{Binding ScraperImportBezel}" />
                                             <CheckBox Content="{x:Static p:Strings.Button_ControlPanel}" IsChecked="{Binding ScraperImportControlPanel}" />
+                                            <CheckBox Content="{Binding ScraperManualsText}" IsChecked="{Binding ScraperImportManuals}" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>

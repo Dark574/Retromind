@@ -441,6 +441,13 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
         get => ScraperImportSettings.ImportControlPanel;
         set { if (ScraperImportSettings.ImportControlPanel != value) { ScraperImportSettings.ImportControlPanel = value; OnPropertyChanged(); } }
     }
+    public string ScraperManualsText =>
+        T("Settings_ScraperManuals", "Manuals (PDF; all available variants)");
+    public bool ScraperImportManuals
+    {
+        get => ScraperImportSettings.ImportManuals;
+        set { if (ScraperImportSettings.ImportManuals != value) { ScraperImportSettings.ImportManuals = value; OnPropertyChanged(); } }
+    }
     public bool ScraperAppendAssetsDuringBulkScrape
     {
         get => ScraperImportSettings.AppendAssetsDuringBulkScrape;
