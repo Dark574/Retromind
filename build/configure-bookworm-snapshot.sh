@@ -33,16 +33,22 @@ rm -f /etc/apt/sources.list
 find /etc/apt/sources.list.d -maxdepth 1 -type f \
   \( -name '*.list' -o -name '*.sources' \) -delete
 
+# CVE-2026-109518 requires download retries. Set this before the first APT
+# request, including when an older base image still contains vulnerable APT.
+cat > /etc/apt/apt.conf.d/99retromind-security <<EOF
+Acquire::Retries "0";
+EOF
+
 cat > /etc/apt/sources.list.d/retromind-bookworm.sources <<EOF
 Types: deb
-URIs: http://snapshot.debian.org/archive/debian/${main_snapshot}/
+URIs: https://snapshot.debian.org/archive/debian/${main_snapshot}/
 Suites: bookworm bookworm-updates
 Components: main
 Check-Valid-Until: no
 Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
 
 Types: deb
-URIs: http://snapshot.debian.org/archive/debian-security/${security_snapshot}/
+URIs: https://snapshot.debian.org/archive/debian-security/${security_snapshot}/
 Suites: bookworm-security
 Components: main
 Check-Valid-Until: no

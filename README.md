@@ -171,7 +171,9 @@ The Wayland/X11 note below still applies because it affects how video is embedde
 - `curl` (to download `appimagetool` if missing)
 - `sha256sum` (normally provided by GNU coreutils)
 
-Updating the locked build environment additionally requires `jq`; normal AppImage builds do not.
+Updating the locked build environment additionally requires `jq` and a trusted host CA bundle
+(`/etc/ssl/certs/ca-certificates.crt`, or an absolute path supplied through `SSL_CERT_FILE`);
+normal AppImage builds do not require `jq`.
 
 Verify that Buildx is available:
 
@@ -246,6 +248,13 @@ The update script first resolves and validates every candidate value, downloads 
 SDK archive, and tests the signed Bookworm snapshots in a disposable container. It keeps APT signature checking
 enabled while disabling the expired `Valid-Until` check required by historical snapshots. The existing lock is
 atomically replaced only after Debian 12, glibc 2.36, the FFmpeg 5 branch and all candidate values pass validation.
+Snapshot package downloads use HTTPS. Before the first APT request, download retries are disabled to mitigate
+CVE-2026-109518 in older base images. A shared upgrade gate requires both `apt` and `libapt-pkg6.0` to be at least
+2.6.2 before further package installation or lock publication; old snapshots without the fix deliberately fail.
+The disposable update container bootstraps HTTPS using the host CA bundle. Regular Docker builds copy the CA
+bundle from the already pinned Rust base image into minimal Debian stages, preserving locked build inputs without
+an initial HTTP package install or disabled TLS verification. All three package-installing AppImage stages use
+the same upgrade gate. Offline regression tests run with `python3 -B -m unittest discover -s build/tests -v`.
 If any step fails, the old lock remains in place. Review and commit the lock change only after testing the resulting
 AppImage. A tested AppImage is then the release artifact; the release process must upload that exact file rather
 than rebuilding it.

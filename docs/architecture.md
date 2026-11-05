@@ -1269,6 +1269,22 @@ Parental behavior is not isolated to one screen:
 - internal `Store.*` custom fields carry provider identity and installation state but are excluded from the
   user-facing custom-field list
 
+## AppImage build environment
+
+`build/appimage-environment.env` pins the Debian Bookworm OCI digest, signed Debian/security snapshot timestamps,
+and the SHA-512-verified .NET SDK/runtime artifact. Normal builds reuse these values; only the explicit
+`update-appimage-environment.sh` maintenance operation resolves and atomically publishes validated replacements.
+The shared snapshot configurator selects HTTPS sources and disables APT retries before the first download.
+`upgrade-bookworm-packages.sh` rejects incomplete index updates and requires installed `apt` and `libapt-pkg6.0`
+versions >= 2.6.2 (DLA-4880-1 / CVE-2026-109518) before further package installation or lock publication. This also
+gates the separate Comet, Legendary and final AppImage Docker stages. Initial HTTPS trust comes from the existing
+immutable Rust image in regular builds and a read-only host CA-bundle input copied into the disposable update
+container. No HTTP bootstrap or disabled TLS/signature verification is used; only snapshot `Valid-Until` expiry
+is disabled. Older locks without the APT fix deliberately stop at the version gate instead of silently building.
+These controls protect build-time package acquisition; they do not update the host OS or already released images.
+Offline shell behavior and lock-publication failure paths are tested with Python's standard-library `unittest`
+and command doubles in `build/tests`, including in CI. Real container validation remains part of environment updates.
+
 ## Automated tests
 
 `Retromind.sln` includes the `tests/Retromind.Tests` xUnit project. The main SDK project explicitly excludes

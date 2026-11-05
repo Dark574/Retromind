@@ -5,6 +5,8 @@ PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/build"
 LOCK_FILE="$BUILD_DIR/appimage-environment.env"
 SNAPSHOT_CONFIGURATOR="$BUILD_DIR/configure-bookworm-snapshot.sh"
+PACKAGE_UPGRADER="$BUILD_DIR/upgrade-bookworm-packages.sh"
+CA_BUNDLE="${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}"
 DOTNET_METADATA_URL="https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/10.0/releases.json"
 BASE_IMAGE_TAG="debian:bookworm"
 TEMP_DIR="$(mktemp -d "$BUILD_DIR/.appimage-environment-update.XXXXXX")"
@@ -27,6 +29,20 @@ if [ ! -x "$SNAPSHOT_CONFIGURATOR" ]; then
   exit 1
 fi
 
+if [ ! -x "$PACKAGE_UPGRADER" ]; then
+  echo "ERROR: Package upgrader is missing or not executable: $PACKAGE_UPGRADER" >&2
+  exit 1
+fi
+
+case "$CA_BUNDLE" in
+  /*) ;;
+  *) echo "ERROR: SSL_CERT_FILE must be an absolute path to a trusted CA bundle." >&2; exit 1 ;;
+esac
+if [ ! -s "$CA_BUNDLE" ]; then
+  echo "ERROR: Trusted host CA bundle unavailable: $CA_BUNDLE" >&2
+  exit 1
+fi
+
 timestamp_is_valid() {
   printf '%s\n' "$1" | grep -Eq '^[0-9]{8}T[0-9]{6}Z$'
 }
@@ -40,7 +56,7 @@ latest_snapshot() {
   curl --fail --silent --show-error --location \
     --retry 5 --retry-delay 2 --retry-connrefused \
     "https://snapshot.debian.org/mr/timestamp/?archive=${archive_name}&after=${after_timestamp}&before=${before_timestamp}" \
-    -o "$response_file"
+    -o "$response_file" || return 1
 
   jq -er --arg archive "$archive_name" '[.result[$archive][]] | max // empty' "$response_file"
 }
@@ -55,10 +71,15 @@ base_image="$BASE_IMAGE_TAG@$base_digest"
 
 before_snapshot="$(date -u +%Y%m%dT%H%M%SZ)"
 after_snapshot="$(date -u -d '21 days ago' +%Y%m%dT%H%M%SZ)"
+recent_snapshot="$(date -u -d '1 day ago' +%Y%m%dT%H%M%SZ)"
 
 echo "Resolve current Debian and Debian Security snapshot imports..."
-main_snapshot="$(latest_snapshot debian "$after_snapshot" "$before_snapshot")"
-security_snapshot="$(latest_snapshot debian-security "$after_snapshot" "$before_snapshot")"
+# Large timestamp queries can overload the snapshot service. Prefer the last
+# day, retaining the original 21-day fallback for archives with no recent import.
+main_snapshot="$(latest_snapshot debian "$recent_snapshot" "$before_snapshot")" ||
+  main_snapshot="$(latest_snapshot debian "$after_snapshot" "$before_snapshot")"
+security_snapshot="$(latest_snapshot debian-security "$recent_snapshot" "$before_snapshot")" ||
+  security_snapshot="$(latest_snapshot debian-security "$after_snapshot" "$before_snapshot")"
 if ! timestamp_is_valid "$main_snapshot" || ! timestamp_is_valid "$security_snapshot"; then
   echo "ERROR: Snapshot service returned invalid timestamps." >&2
   exit 1
@@ -90,13 +111,16 @@ curl --fail --silent --show-error --location \
   "$dotnet_sdk_url" -o "$dotnet_archive"
 printf '%s  %s\n' "$dotnet_sdk_sha512" "$dotnet_archive" | sha512sum --check --strict
 
-echo "Validate Debian 12, signed snapshot metadata, upgrades, glibc and FFmpeg major version..."
+echo "Validate Debian 12, signed HTTPS snapshots, patched APT, glibc and FFmpeg major version..."
 docker run --rm --platform linux/amd64 \
   -v "$SNAPSHOT_CONFIGURATOR:/usr/local/bin/configure-bookworm-snapshot:ro" \
+  -v "$PACKAGE_UPGRADER:/usr/local/bin/upgrade-bookworm-packages:ro" \
+  -v "$CA_BUNDLE:/run/retromind-bootstrap-ca.crt:ro" \
   "$base_image" sh -eu -c '
+    mkdir -p /etc/ssl/certs
+    cp /run/retromind-bootstrap-ca.crt /etc/ssl/certs/ca-certificates.crt
     /usr/local/bin/configure-bookworm-snapshot "$1" "$2"
-    apt-get update
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
+    /usr/local/bin/upgrade-bookworm-packages
     . /etc/os-release
     test "$ID" = debian
     test "$VERSION_ID" = 12

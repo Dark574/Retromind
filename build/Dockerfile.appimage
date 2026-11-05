@@ -7,16 +7,19 @@ ARG DEBIAN_SNAPSHOT_SECURITY
 # The canonical build script passes this value from build/comet-version.env.
 # Keep the same pinned default so direct Dockerfile builds remain valid.
 ARG COMET_RUST_IMAGE=rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f
-FROM ${COMET_RUST_IMAGE} AS comet-builder
+# Reuse the CA bundle from the existing immutable Rust image before any APT
+# network access. The minimal Debian image does not contain ca-certificates.
+FROM ${COMET_RUST_IMAGE} AS bookworm-certificates
+FROM bookworm-certificates AS comet-builder
 
 ARG DEBIAN_SNAPSHOT_MAIN
 ARG DEBIAN_SNAPSHOT_SECURITY
 COPY build/configure-bookworm-snapshot.sh /usr/local/bin/configure-bookworm-snapshot
+COPY build/upgrade-bookworm-packages.sh /usr/local/bin/upgrade-bookworm-packages
 COPY build/comet-version.env /tmp/comet-version.env
 
 RUN configure-bookworm-snapshot "$DEBIAN_SNAPSHOT_MAIN" "$DEBIAN_SNAPSHOT_SECURITY" \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && upgrade-bookworm-packages \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        curl \
@@ -72,11 +75,12 @@ FROM ${DEBIAN_BOOKWORM_IMAGE} AS legendary-builder
 ARG DEBIAN_SNAPSHOT_MAIN
 ARG DEBIAN_SNAPSHOT_SECURITY
 COPY build/configure-bookworm-snapshot.sh /usr/local/bin/configure-bookworm-snapshot
+COPY build/upgrade-bookworm-packages.sh /usr/local/bin/upgrade-bookworm-packages
+COPY --from=bookworm-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY build/legendary-version.env /tmp/legendary-version.env
 
 RUN configure-bookworm-snapshot "$DEBIAN_SNAPSHOT_MAIN" "$DEBIAN_SNAPSHOT_SECURITY" \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && upgrade-bookworm-packages \
     && apt-get install -y --no-install-recommends \
        binutils \
        ca-certificates \
@@ -161,9 +165,10 @@ ENV DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 ENV DOTNET_NOLOGO=1
 
 COPY build/configure-bookworm-snapshot.sh /usr/local/bin/configure-bookworm-snapshot
+COPY build/upgrade-bookworm-packages.sh /usr/local/bin/upgrade-bookworm-packages
+COPY --from=bookworm-certificates /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN configure-bookworm-snapshot "$DEBIAN_SNAPSHOT_MAIN" "$DEBIAN_SNAPSHOT_SECURITY" \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get upgrade -y \
+    && upgrade-bookworm-packages \
     && apt-get install -y --no-install-recommends \
        ca-certificates \
        binutils \
