@@ -7,6 +7,31 @@ namespace Retromind.Tests.ViewModels;
 public sealed class ScrapeDialogViewModelTests
 {
     [Fact]
+    public async Task ApplyCommand_PreservesAlreadyDecodedTextWithoutDecodingAgain()
+    {
+        var settings = new AppSettings();
+        using var client = new HttpClient();
+        var existing = new MediaItem("Existing game") { Description = "Existing &quot;description&quot;" };
+        using var vm = new ScrapeDialogViewModel(existing, settings, new MetadataService(settings, client));
+        vm.SelectedResult = new ScraperSearchResult
+        {
+            Title = "Literal &quot; and normal \"quotes\"",
+            Description = "Already decoded <3 &lt;tag&gt;"
+        };
+        var descriptionChoice = Assert.Single(vm.MetadataChoices, choice => choice.Field == ScrapeMetadataField.Description);
+        descriptionChoice.IsSelected = true;
+        ScraperSearchResult? applied = null;
+        vm.OnResultSelectedAsync += result => { applied = result; return Task.CompletedTask; };
+
+        await vm.ApplyCommand.ExecuteAsync(null);
+
+        Assert.NotNull(applied);
+        Assert.Equal(vm.SelectedResult.Title, applied.Title);
+        Assert.Equal("Already decoded <3 &lt;tag&gt;", applied.Description);
+        Assert.Equal("Existing &quot;description&quot;", existing.Description);
+    }
+
+    [Fact]
     public void ChangingProvider_ClearsResultsFromPreviousProvider()
     {
         var firstProvider = new ScraperConfig { Type = ScraperType.IGDB };

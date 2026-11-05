@@ -114,11 +114,11 @@ public sealed class TheGamesDbProviderTests
             requests.Add(request.RequestUri!);
             var path = request.RequestUri!.AbsolutePath;
             if (path.EndsWith("/Genres/ByGenreID", StringComparison.Ordinal))
-                return JsonResponse(NamePayload("genres", "10", "Action"));
+                return JsonResponse(NamePayload("genres", "10", "Action &amp; Adventure"));
             if (path.EndsWith("/Developers/ByDeveloperID", StringComparison.Ordinal))
-                return JsonResponse(NamePayload("developers", "20", "Developer"));
+                return JsonResponse(NamePayload("developers", "20", "M&uuml;ller &amp; S&ouml;hne"));
             if (path.EndsWith("/Publishers/ByPublisherID", StringComparison.Ordinal))
-                return JsonResponse(NamePayload("publishers", "30", "Publisher"));
+                return JsonResponse(NamePayload("publishers", "30", "Publisher &amp;quot;Press&amp;quot;"));
 
             return JsonResponse(SearchPayload(remaining: 100));
         }));
@@ -126,15 +126,16 @@ public sealed class TheGamesDbProviderTests
 
         var first = Assert.Single(await provider.SearchForBulkAsync("First"));
         await provider.EnrichAsync(first);
+        await provider.EnrichAsync(first); // Reusing an enriched result must not decode literal entities again.
         var second = Assert.Single(await provider.SearchForBulkAsync("Second"));
         await provider.EnrichAsync(second);
 
-        Assert.Equal("Action", first.Genre);
-        Assert.Equal("Developer", first.Developer);
-        Assert.Equal("Publisher", first.Publisher);
-        Assert.Equal("Action", second.Genre);
-        Assert.Equal("Developer", second.Developer);
-        Assert.Equal("Publisher", second.Publisher);
+        Assert.Equal("Action & Adventure", first.Genre);
+        Assert.Equal("Müller & Söhne", first.Developer);
+        Assert.Equal("Publisher &quot;Press&quot;", first.Publisher);
+        Assert.Equal("Action & Adventure", second.Genre);
+        Assert.Equal("Müller & Söhne", second.Developer);
+        Assert.Equal("Publisher &quot;Press&quot;", second.Publisher);
         Assert.Equal(2, requests.Count(uri => uri.AbsolutePath.EndsWith("/Games/ByGameName", StringComparison.Ordinal)));
         Assert.Equal(1, requests.Count(uri => uri.AbsolutePath.EndsWith("/Genres/ByGenreID", StringComparison.Ordinal)));
         Assert.Equal(1, requests.Count(uri => uri.AbsolutePath.EndsWith("/Developers/ByDeveloperID", StringComparison.Ordinal)));

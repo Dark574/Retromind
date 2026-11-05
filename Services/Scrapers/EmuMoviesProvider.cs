@@ -175,11 +175,11 @@ public class EmuMoviesProvider : IMetadataProvider, IMetadataResultEnricher
             {
                 Source = "EmuMovies",
                 Id = id,
-                Title = title,
-                DisplayTitle = string.IsNullOrWhiteSpace(system) ? title : $"{title} ({system})",
-                Description = game?["Description"]?.ToString() ?? "",
-                MaxPlayers = game?["Players"]?.ToString(),
-                Platform = system
+                Title = ScraperText.Decode(title),
+                DisplayTitle = ScraperText.Decode(string.IsNullOrWhiteSpace(system) ? title : $"{title} ({system})"),
+                Description = ScraperText.Decode(game?["Description"]?.ToString()) ?? "",
+                MaxPlayers = ScraperText.Decode(game?["Players"]?.ToString()),
+                Platform = ScraperText.Decode(system)
             };
 
             return res;

@@ -71,12 +71,12 @@ public class OpenLibraryProvider : IMetadataProvider
                 {
                     Source = "OpenLibrary",
                     Id = key,
-                    Title = title,
-                    DisplayTitle = string.IsNullOrEmpty(author) ? title : $"{title} ({author})",
+                    Title = ScraperText.Decode(title),
+                    DisplayTitle = ScraperText.Decode(string.IsNullOrEmpty(author) ? title : $"{title} ({author})"),
                     Description = "",
-                    SortTitle = book?["title_sort"]?.ToString(),
-                    Publisher = book?["publisher"]?.AsArray()?[0]?.ToString(),
-                    Series = book?["series"]?.AsArray()?[0]?.ToString(),
+                    SortTitle = ScraperText.Decode(book?["title_sort"]?.ToString()),
+                    Publisher = ScraperText.Decode(book?["publisher"]?.AsArray()?[0]?.ToString()),
+                    Series = ScraperText.Decode(book?["series"]?.AsArray()?[0]?.ToString()),
                     ReleaseType = "Book"
                 };
 

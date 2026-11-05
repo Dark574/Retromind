@@ -23,7 +23,7 @@ public sealed class ScreenScraperProviderTests
                     "jeu": {
                       "id": "99",
                       "nom": "Internal title",
-                      "noms": { "nom_de": "Erkanntes Spiel" },
+                      "noms": { "nom_de": "Erkanntes &quot;Spiel&quot; &amp; mehr" },
                       "systeme": { "id": "12", "nom": "Game Boy Advance" },
                       "medias": {}
                     }
@@ -50,7 +50,7 @@ public sealed class ScreenScraperProviderTests
 
         Assert.NotNull(result);
         Assert.Equal("99", result.Id);
-        Assert.Equal("Erkanntes Spiel", result.Title);
+        Assert.Equal("Erkanntes \"Spiel\" & mehr", result.Title);
         Assert.Equal("Game Boy Advance", result.Platform);
         Assert.Equal("/games/Test Game.gba", fingerprintService.FilePath);
         Assert.NotNull(requestedUri);

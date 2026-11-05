@@ -209,12 +209,12 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                     {
                         Source = "TheGamesDB",
                         Id = id,
-                        Title = title,
-                        Description = game["overview"]?.ToString() ?? string.Empty,
-                        Developer = ResolveCompanyName(game, _developerNames, _publisherNames),
-                        Publisher = ResolvePublisher(game, _publisherNames),
-                        Genre = ResolveGenres(game, _genreNames),
-                        MaxPlayers = game["players"]?.ToString()
+                        Title = ScraperText.Decode(title),
+                        Description = ScraperText.Decode(game["overview"]?.ToString()) ?? string.Empty,
+                        Developer = ScraperText.Decode(ResolveCompanyName(game, _developerNames, _publisherNames)),
+                        Publisher = ScraperText.Decode(ResolvePublisher(game, _publisherNames)),
+                        Genre = ScraperText.Decode(ResolveGenres(game, _genreNames)),
+                        MaxPlayers = ScraperText.Decode(game["players"]?.ToString())
                     };
 
                     var rawRatingText = game["rating"]?.ToString();
@@ -228,7 +228,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                         result.ReleaseDate = releaseDate;
                     }
 
-                    result.Platform = ResolvePlatform(game, _platformNames);
+                    result.Platform = ScraperText.Decode(ResolvePlatform(game, _platformNames));
 
                     _pendingMetadata.Add(
                         result,
@@ -527,7 +527,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                 cancellationToken,
                 "platforms",
                 "platform").ConfigureAwait(false);
-            result.Platform ??= ResolveNames(pending.PlatformIds, _platformNames);
+            result.Platform ??= ScraperText.Decode(ResolveNames(pending.PlatformIds, _platformNames));
         }
 
         if (request.Genre)
@@ -540,7 +540,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                 cancellationToken,
                 "genres",
                 "genre").ConfigureAwait(false);
-            result.Genre ??= ResolveNames(pending.GenreIds, _genreNames);
+            result.Genre ??= ScraperText.Decode(ResolveNames(pending.GenreIds, _genreNames));
         }
 
         if (request.Developer)
@@ -561,8 +561,8 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                 cancellationToken,
                 "publishers",
                 "publisher").ConfigureAwait(false);
-            result.Developer ??= ResolveNames(pending.DeveloperIds, _developerNames)
-                                 ?? ResolveNames(pending.PublisherIds, _publisherNames);
+            result.Developer ??= ScraperText.Decode(ResolveNames(pending.DeveloperIds, _developerNames)
+                                 ?? ResolveNames(pending.PublisherIds, _publisherNames));
         }
 
         if (request.Publisher)
@@ -575,7 +575,7 @@ public class TheGamesDbProvider : IMetadataProvider, IBulkMetadataProvider, IMet
                 cancellationToken,
                 "publishers",
                 "publisher").ConfigureAwait(false);
-            result.Publisher ??= ResolveNames(pending.PublisherIds, _publisherNames);
+            result.Publisher ??= ScraperText.Decode(ResolveNames(pending.PublisherIds, _publisherNames));
         }
     }
 

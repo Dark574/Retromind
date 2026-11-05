@@ -84,7 +84,7 @@ public sealed class SteamGridDbProvider :
                 {
                     Source = "SteamGridDB",
                     Id = id,
-                    Title = title
+                    Title = ScraperText.Decode(title)
                 });
 
                 if (results.Count >= MaxSearchResults)

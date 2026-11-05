@@ -938,6 +938,13 @@ the report never mutates JSON or deletes files.
 - scraper providers implement `IMetadataProvider` and are selected via configured scraper profile
 - scraper search results keep their canonical `Title` separate from an optional UI-only `DisplayTitle`; provider
   details such as book authors, comic release years, or issue names must not weaken automatic bulk matching
+- All scraper providers decode HTML character entities in human-readable metadata through `ScraperText.Decode`
+  when mapping raw API fields, including titles, descriptions and supplemental metadata names loaded during
+  TheGamesDB enrichment. The normalized result is shared by matching, manual previews and bulk imports.
+  Named/numeric entities are decoded once; normal Unicode, line breaks and unknown entities are retained.
+  Provider-specific HTML-tag handling runs before entity decoding so escaped literal angle brackets survive.
+  IDs, URLs and protocol/custom-field values stay untouched. UI/result copies and library application do not
+  decode again, and existing library data is not migrated or rewritten automatically.
 - provider-owned request-rate gates space API calls independently of bulk-worker concurrency; IGDB, OpenLibrary,
   and TMDB therefore retain responsive parallel processing without exceeding their documented request cadence
 - providers with expensive per-result calls expose optional preview/result enrichment

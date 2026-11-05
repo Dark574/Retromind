@@ -224,13 +224,13 @@ public class ComicVineProvider : IMetadataProvider
             {
                 Source = "ComicVine",
                 Id = id,
-                Title = title,
-                DisplayTitle = displayTitle,
-                Description = StripHtml(desc),
-                Series = volumeName,
-                SortTitle = name,
+                Title = ScraperText.Decode(title),
+                DisplayTitle = ScraperText.Decode(displayTitle),
+                Description = ScraperText.Decode(StripHtml(desc)),
+                Series = ScraperText.Decode(volumeName),
+                SortTitle = ScraperText.Decode(name),
                 ReleaseType = resType,
-                Publisher = item?["publisher"]?["name"]?.ToString()
+                Publisher = ScraperText.Decode(item?["publisher"]?["name"]?.ToString())
             };
 
             if (!string.IsNullOrWhiteSpace(issueNumber))

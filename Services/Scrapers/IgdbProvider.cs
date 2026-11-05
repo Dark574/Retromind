@@ -193,15 +193,15 @@ public class IgdbProvider : IMetadataProvider, IGameSystemMetadataProvider
                 {
                     Source = "IGDB",
                     Id = node["id"]?.ToString() ?? "",
-                    Title = node["name"]?.ToString() ?? "Unknown",
-                    Description = node["summary"]?.ToString() ?? "",
+                    Title = ScraperText.Decode(node["name"]?.ToString()) ?? "Unknown",
+                    Description = ScraperText.Decode(node["summary"]?.ToString()) ?? "",
                     Rating = (double?)node["total_rating"],
-                    SortTitle = node["name"]?.ToString(),
+                    SortTitle = ScraperText.Decode(node["name"]?.ToString()),
                     ReleaseType = MapIgdbCategory(node["category"]),
-                    Series = FirstNonEmpty(
+                    Series = ScraperText.Decode(FirstNonEmpty(
                         node["collection"]?["name"]?.ToString(),
                         node["franchise"]?["name"]?.ToString(),
-                        node["franchises"]?[0]?["name"]?.ToString())
+                        node["franchises"]?[0]?["name"]?.ToString()))
                 };
 
                 // Parse release date
@@ -213,7 +213,7 @@ public class IgdbProvider : IMetadataProvider, IGameSystemMetadataProvider
                 // Flatten genres
                 if (node["genres"] is JsonArray genresArr)
                 {
-                    res.Genre = string.Join(", ", genresArr.Select(n => n?["name"]?.ToString()).Where(s => !string.IsNullOrEmpty(s)));
+                    res.Genre = ScraperText.Decode(string.Join(", ", genresArr.Select(n => n?["name"]?.ToString()).Where(s => !string.IsNullOrEmpty(s))));
                 }
 
                 if (node["involved_companies"] is JsonArray companiesArr && companiesArr.Count > 0)
@@ -237,21 +237,21 @@ public class IgdbProvider : IMetadataProvider, IGameSystemMetadataProvider
                     }
 
                     if (developers.Count > 0)
-                        res.Developer = string.Join(", ", developers.Distinct(StringComparer.OrdinalIgnoreCase));
+                        res.Developer = ScraperText.Decode(string.Join(", ", developers.Distinct(StringComparer.OrdinalIgnoreCase)));
                     else
-                        res.Developer = companiesArr[0]?["company"]?["name"]?.ToString();
+                        res.Developer = ScraperText.Decode(companiesArr[0]?["company"]?["name"]?.ToString());
 
                     if (publishers.Count > 0)
-                        res.Publisher = string.Join(", ", publishers.Distinct(StringComparer.OrdinalIgnoreCase));
+                        res.Publisher = ScraperText.Decode(string.Join(", ", publishers.Distinct(StringComparer.OrdinalIgnoreCase)));
                 }
 
                 // Platforms (comma-separated)
                 if (node["platforms"] is JsonArray platformsArr && platformsArr.Count > 0)
                 {
-                    res.Platform = string.Join(", ",
+                    res.Platform = ScraperText.Decode(string.Join(", ",
                         platformsArr
                             .Select(p => p?["name"]?.ToString())
-                            .Where(n => !string.IsNullOrWhiteSpace(n)));
+                            .Where(n => !string.IsNullOrWhiteSpace(n))));
                 }
 
                 if (node["game_modes"] is JsonArray modesArr && modesArr.Count > 0)
@@ -262,7 +262,7 @@ public class IgdbProvider : IMetadataProvider, IGameSystemMetadataProvider
                         .Distinct(StringComparer.OrdinalIgnoreCase)
                         .ToList();
                     if (modes.Count > 0)
-                        res.PlayMode = string.Join(", ", modes!);
+                        res.PlayMode = ScraperText.Decode(string.Join(", ", modes!));
                 }
 
                 var slug = node["slug"]?.ToString();

@@ -110,12 +110,12 @@ public class TmdbProvider : IMetadataProvider
                     {
                         Source = "TMDB",
                         Id = id,
-                        Title = title ?? "Unknown",
-                        Description = overview,
+                        Title = ScraperText.Decode(title) ?? "Unknown",
+                        Description = ScraperText.Decode(overview),
                         Rating = rating,
-                        SortTitle = mediaType == "movie"
+                        SortTitle = ScraperText.Decode(mediaType == "movie"
                             ? item?["original_title"]?.ToString()
-                            : item?["original_name"]?.ToString(),
+                            : item?["original_name"]?.ToString()),
                         ReleaseType = mediaType == "movie" ? "Movie" : "TV Series"
                     };
 

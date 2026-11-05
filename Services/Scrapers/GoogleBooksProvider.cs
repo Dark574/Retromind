@@ -95,11 +95,11 @@ public class GoogleBooksProvider : IMetadataProvider
                     {
                         Source = "GoogleBooks",
                         Id = id,
-                        Title = title,
-                        DisplayTitle = displayTitle,
-                        Description = desc,
-                        Publisher = info["publisher"]?.ToString(),
-                        SortTitle = info["title"]?.ToString(),
+                        Title = ScraperText.Decode(title),
+                        DisplayTitle = ScraperText.Decode(displayTitle),
+                        Description = ScraperText.Decode(desc),
+                        Publisher = ScraperText.Decode(info["publisher"]?.ToString()),
+                        SortTitle = ScraperText.Decode(info["title"]?.ToString()),
                         ReleaseType = "Book"
                     };
 

@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- display scraped quotation marks, apostrophes, umlauts and other HTML-encoded characters correctly in metadata previews and imports across scraper providers
 
 ---
 
