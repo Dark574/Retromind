@@ -164,8 +164,8 @@ APPIMAGE_PATH="$OUT_DIR/$APPIMAGE_NAME"
 MANIFEST_NAME="$APPIMAGE_NAME.manifest.tsv"
 MANIFEST_PATH="$OUT_DIR/$MANIFEST_NAME"
 ZSYNC_PATH="$APPIMAGE_PATH.zsync"
-LEGACY_ZSYNC_NAME="Retromind-$RETROMIND_VERSION-linux-x86_64.AppImage.zsync"
-LEGACY_ZSYNC_PATH="$OUT_DIR/$LEGACY_ZSYNC_NAME"
+# Remove an obsolete alias left by an earlier build of the same version.
+OBSOLETE_ZSYNC_PATH="$OUT_DIR/Retromind-$RETROMIND_VERSION-linux-x86_64.AppImage.zsync"
 APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|Dark574|Retromind|$APPIMAGE_UPDATE_CHANNEL|Retromind-*-x86_64.AppImage.zsync"
 BUILD_TIMESTAMP_UTC="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 GIT_COMMIT="$(git -C "$PROJECT_ROOT" rev-parse HEAD)"
@@ -563,7 +563,7 @@ echo "[8/8] Build AppImage..."
 cd "$WORK_DIR"
 # Extract-and-run keeps the packaging step independent of host FUSE support.
 # The generated Retromind AppImage still uses the explicitly pinned static runtime.
-rm -f "$APPIMAGE_PATH" "$ZSYNC_PATH" "$LEGACY_ZSYNC_PATH"
+rm -f "$APPIMAGE_PATH" "$ZSYNC_PATH" "$OBSOLETE_ZSYNC_PATH"
 ARCH=x86_64 VERSION="$RETROMIND_VERSION" APPIMAGE_EXTRACT_AND_RUN=1 \
   "$APPIMAGETOOL" \
   --runtime-file "$APPIMAGE_RUNTIME" \
@@ -582,13 +582,6 @@ if [ ! -f "$ZSYNC_PATH" ]; then
   exit 1
 fi
 
-# Retromind 0.1.9 and earlier search GitHub releases using the former
-# *-linux-x86_64.AppImage.zsync pattern. Keep a tiny metadata alias so those
-# AppImages can discover the first and later releases with the canonical name.
-# The copied zsync header still points to APPIMAGE_NAME, so no duplicate
-# AppImage asset is required.
-cp "$ZSYNC_PATH" "$LEGACY_ZSYNC_PATH"
-
 APPIMAGE_SHA256="$(sha256sum "$APPIMAGE_PATH" | awk '{print $1}')"
 cp "$MANIFEST_INTERNAL_PATH" "$MANIFEST_PATH"
 printf 'artifact\t%s\t%s\tSHA-256 of the release AppImage\n' \
@@ -597,7 +590,6 @@ printf 'artifact\t%s\t%s\tSHA-256 of the release AppImage\n' \
 echo "Done: $APPIMAGE_PATH"
 echo "Build manifest: $MANIFEST_PATH"
 echo "Delta metadata: $ZSYNC_PATH"
-echo "Legacy update metadata: $LEGACY_ZSYNC_PATH"
 echo "Run it with: $APPIMAGE_PATH"
 
 echo "Clean up obsolete Retromind builder images..."

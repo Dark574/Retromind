@@ -285,11 +285,6 @@ The Retromind-specific Comet fork revision, protocol submodule, and exact Rust b
 Update these pins together, rebuild the AppImage, and verify the secure stdin credential contract before changing
 the bundled Comet version. Runtime compatibility remains experimental and varies between games.
 
-It also creates the small compatibility metadata file
-`dist/Retromind-<version>-linux-x86_64.AppImage.zsync`. Upload it with the primary assets so AppImageUpdate
-clients from 0.1.9 and earlier can discover releases after the filename transition; it does not duplicate the
-AppImage itself.
-
 The script uses an isolated Buildx builder named `retromind-appimage-v2`. Its BuildKit configuration reserves a
 separate cache for downloaded and compiled Comet dependencies. After every build attempt, including a failed or
 interrupted one, the script removes its temporary export container and limits regular builder layers to 30 GB;

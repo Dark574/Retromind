@@ -13,6 +13,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - select and download available ScreenScraper PDF manuals individually, including regional variants, with optional bulk import and automatic skipping of identical documents
 
 ### Changed
+- publish only the current `Retromind-<version>-x86_64.AppImage.zsync` update metadata; retire the legacy filename containing `linux`
 
 ### Fixed
 - keep metadata-import error messages readable below the results and explain when a manual download returns no valid PDF
