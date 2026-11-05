@@ -22,6 +22,8 @@ class AppImageEnvironmentTests(unittest.TestCase):
         self.log = self.root / "commands.log"
         self.env = dict(os.environ, PATH=str(self.bin) + os.pathsep + os.environ["PATH"],
                         RETROMIND_TEST_LOG=str(self.log))
+        # Runner defaults must not select a test case implicitly.
+        self.env.pop("DEBIAN_FRONTEND", None)
 
     def executable(self, name, contents):
         path = self.bin / name
@@ -60,14 +62,20 @@ esac
 
     def test_fixed_versions_pass_with_retries_disabled_before_any_apt_request(self):
         self.prepare_apt()
-        result = self.upgrade()
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual([
-            "|-o Acquire::Retries=0 -o APT::Update::Error-Mode=any update",
-            "noninteractive|-o Acquire::Retries=0 upgrade -y",
-        ], self.log.read_text().splitlines())
-        self.assertIn("Validated apt=2.6.2", result.stdout)
-        self.assertIn("Validated libapt-pkg6.0=2.6.2", result.stdout)
+        for frontend in (None, "noninteractive", "dialog"):
+            with self.subTest(frontend=frontend):
+                self.log.unlink(missing_ok=True)
+                self.env.pop("DEBIAN_FRONTEND", None)
+                if frontend is not None:
+                    self.env["DEBIAN_FRONTEND"] = frontend
+                result = self.upgrade()
+                self.assertEqual(0, result.returncode, result.stderr)
+                self.assertEqual([
+                    f"{frontend or ''}|-o Acquire::Retries=0 -o APT::Update::Error-Mode=any update",
+                    "noninteractive|-o Acquire::Retries=0 upgrade -y",
+                ], self.log.read_text().splitlines())
+                self.assertIn("Validated apt=2.6.2", result.stdout)
+                self.assertIn("Validated libapt-pkg6.0=2.6.2", result.stdout)
 
     def test_old_apt_or_library_and_prerelease_are_rejected(self):
         for apt, library in [("2.6.1", "2.6.2"), ("2.6.2", "2.6.1"), ("2.6.2~rc1", "2.6.2")]:
