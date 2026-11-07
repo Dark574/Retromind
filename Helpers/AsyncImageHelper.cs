@@ -1,8 +1,12 @@
 using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Net.Http;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -10,6 +14,9 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using Retromind.Models;
+using Retromind.Services;
+using SkiaSharp;
 
 namespace Retromind.Helpers;
 
@@ -24,6 +31,17 @@ public class AsyncImageHelper : AvaloniaObject
     private const int MaxCacheSize = 200;
 
     private const int DesktopDecodeConcurrency = 4;
+    internal const int MaximumHttpImageBytes = 32 * 1024 * 1024;
+    internal const int MaximumImageDimension = 16_384;
+    internal const long MaximumImagePixels = 32L * 1024 * 1024;
+    private const int DownloadBufferBytes = 64 * 1024;
+
+    // Bounded, per-source/code suppression, independent of bitmap cache/ref-count lifetime.
+    private static readonly object FailureReportLock = new();
+    private static readonly Dictionary<string, long> LastFailureReports = new(StringComparer.Ordinal);
+    private static readonly Queue<string> FailureReportOrder = new();
+    private const int MaximumFailureReportKeys = 256;
+    private static readonly long FailureReportIntervalMs = (long)TimeSpan.FromMinutes(5).TotalMilliseconds;
 
     // Skia bitmap decoding and resizing is CPU-heavy and cannot be interrupted
     // once it has entered the native codec. BigMode therefore keeps its serial
@@ -234,59 +252,8 @@ public class AsyncImageHelper : AvaloniaObject
         try
         {
             var token = cts.Token;
-            var http = GetHttpClient();
-
-            var loadedBitmap = await Task.Run(async () =>
-            {
-                if (token.IsCancellationRequested) return null;
-
-                try
-                {
-                    if (url.StartsWith("http", StringComparison.OrdinalIgnoreCase))
-                    {
-                        using var response = await http.GetAsync(
-                            url,
-                            HttpCompletionOption.ResponseHeadersRead,
-                            token);
-                        response.EnsureSuccessStatusCode();
-
-                        await using var networkStream = await response.Content.ReadAsStreamAsync(token);
-                        using var bufferedStream = new MemoryStream();
-                        await networkStream.CopyToAsync(bufferedStream, token);
-                        return await DecodeBitmapUnlessCancelledAsync(
-                                bufferedStream,
-                                decodeWidth,
-                                token,
-                                useSerialDecode)
-                            .ConfigureAwait(false);
-                    }
-
-                    if (!File.Exists(url)) return null;
-
-                    await using var fileStream = new FileStream(
-                        url,
-                        FileMode.Open,
-                        FileAccess.Read,
-                        FileShare.Read,
-                        bufferSize: 64 * 1024,
-                        FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    return await DecodeBitmapUnlessCancelledAsync(
-                            fileStream,
-                            decodeWidth,
-                            token,
-                            useSerialDecode)
-                        .ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                    return null;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[AsyncImageHelper] Load error: {ex.Message}");
-                    return null;
-                }
-            }, token);
+            var loadedBitmap = await Task.Run(
+                () => LoadBitmapAsync(url, decodeWidth, useSerialDecode, token), token);
 
             if (loadedBitmap == null) return;
 
@@ -330,8 +297,133 @@ public class AsyncImageHelper : AvaloniaObject
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AsyncImageHelper] Critical error: {ex.Message}");
+            ReportLoadFailure(url, "Load", ex);
         }
+    }
+
+    // Narrow dependency overrides let tests exercise the real download/decode path without HTTP servers or UI.
+    internal static async Task<Bitmap?> LoadBitmapAsync(
+        string source, int? decodeWidth, bool useSerialDecode, CancellationToken cancellationToken,
+        HttpClient? httpClient = null, IErrorService? errorService = null)
+    {
+        var operation = "OpenLocalFile";
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (source.StartsWith("http", StringComparison.OrdinalIgnoreCase))
+            {
+                operation = "Download";
+                using var buffered = new MemoryStream();
+                using (var response = await (httpClient ?? GetHttpClient()).GetAsync(
+                           source, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false))
+                {
+                    response.EnsureSuccessStatusCode();
+                    if (response.Content.Headers.ContentLength > MaximumHttpImageBytes)
+                        throw new ImageLimitExceededException("Image.DownloadTooLarge");
+
+                    await using var network = await response.Content.ReadAsStreamAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    await BufferHttpImageAsync(network, buffered, cancellationToken).ConfigureAwait(false);
+                }
+
+                operation = "Decode";
+                return await DecodeBitmapUnlessCancelledAsync(buffered, decodeWidth, cancellationToken, useSerialDecode)
+                    .ConfigureAwait(false);
+            }
+
+            if (!File.Exists(source)) return null;
+            await using var file = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read,
+                DownloadBufferBytes, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            operation = "Decode";
+            return await DecodeBitmapUnlessCancelledAsync(file, decodeWidth, cancellationToken, useSerialDecode)
+                .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            ReportLoadFailure(source, operation, ex, errorService);
+            return null;
+        }
+    }
+
+    private static async Task BufferHttpImageAsync(Stream source, MemoryStream destination, CancellationToken token)
+    {
+        var buffer = ArrayPool<byte>.Shared.Rent(DownloadBufferBytes);
+        try
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                // Probe at most one byte beyond the limit, and never append that byte to the MemoryStream.
+                var count = Math.Min(DownloadBufferBytes, MaximumHttpImageBytes - (int)destination.Length + 1);
+                var read = await source.ReadAsync(buffer.AsMemory(0, count), token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                if (read == 0) return;
+                if (destination.Length + read > MaximumHttpImageBytes)
+                    throw new ImageLimitExceededException("Image.DownloadTooLarge");
+                destination.Write(buffer, 0, read);
+            }
+        }
+        finally
+        {
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
+    }
+
+    private static void ReportLoadFailure(string source, string operation, Exception exception, IErrorService? errors = null)
+    {
+        try
+        {
+            errors ??= App.Current?.Services?.GetService(typeof(IErrorService)) as IErrorService;
+            if (errors == null) return;
+            var code = exception is ImageLimitExceededException limit ? limit.Code : "Image.LoadFailed";
+            var sourceId = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(source)));
+            var key = code + ":" + sourceId;
+            lock (FailureReportLock)
+            {
+                var now = Environment.TickCount64;
+                if (LastFailureReports.TryGetValue(key, out var lastReport) && now - lastReport < FailureReportIntervalMs)
+                    return;
+                if (!LastFailureReports.ContainsKey(key))
+                {
+                    if (LastFailureReports.Count >= MaximumFailureReportKeys)
+                        LastFailureReports.Remove(FailureReportOrder.Dequeue());
+                    FailureReportOrder.Enqueue(key);
+                }
+                LastFailureReports[key] = now;
+            }
+
+            // Do not forward raw exception messages/stacks: HTTP failures can contain signed/credential URLs.
+            errors.Report(new ErrorReport(code,
+                exception is ImageLimitExceededException ? ErrorSeverity.Warning : ErrorSeverity.Diagnostic,
+                nameof(AsyncImageHelper), code switch
+                {
+                    "Image.DownloadTooLarge" => "The HTTP image exceeds the 32 MiB download limit.",
+                    "Image.DimensionsExceeded" => "The image exceeds the permitted source or decoded dimensions.",
+                    _ => "The image could not be loaded. The placeholder remains visible."
+                }, Context: new Dictionary<string, string>
+                {
+                    ["Operation"] = operation,
+                    ["SourceId"] = sourceId,
+                    ["SourceKind"] = source.StartsWith("http", StringComparison.OrdinalIgnoreCase) ? "HTTP" : "Local",
+                    ["FailureType"] = exception.GetType().Name,
+                    ["MaximumHttpBytes"] = MaximumHttpImageBytes.ToString(CultureInfo.InvariantCulture),
+                    ["MaximumDimension"] = MaximumImageDimension.ToString(CultureInfo.InvariantCulture),
+                    ["MaximumPixels"] = MaximumImagePixels.ToString(CultureInfo.InvariantCulture)
+                }));
+        }
+        catch
+        {
+            // Diagnosis must not change placeholder/cancellation behavior or escape a fire-and-forget load.
+        }
+    }
+
+    private sealed class ImageLimitExceededException(string code) : Exception("An image resource limit was exceeded.")
+    {
+        public string Code { get; } = code;
     }
 
     /// <summary>
@@ -412,7 +504,7 @@ public class AsyncImageHelper : AvaloniaObject
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[AsyncImageHelper] Preload error: {ex.Message}");
+            ReportLoadFailure(path, "Preload", ex);
         }
     }
 
@@ -451,11 +543,35 @@ public class AsyncImageHelper : AvaloniaObject
     private static Bitmap DecodeBitmap(Stream stream, int? decodeWidth)
     {
         stream.Position = 0;
+        // SKCodec.Info parses metadata without requesting pixels. Explicitly leave the caller's stream open.
+        using (var nativeStream = new SKManagedStream(stream, disposeManagedStream: false))
+        using (var codec = SKCodec.Create(nativeStream))
+        {
+            if (codec == null)
+                throw new InvalidDataException("The image format is unsupported or invalid.");
+            var info = codec.Info;
+            ValidateImageDimensions(info.Width, info.Height);
+            if (decodeWidth is > 0)
+            {
+                // Use wide arithmetic, including for thin images that would otherwise upscale to extreme heights.
+                var targetHeight = (long)info.Height * decodeWidth.Value / info.Width;
+                ValidateImageDimensions(decodeWidth.Value, targetHeight);
+            }
+        }
+
+        stream.Position = 0;
         if (decodeWidth is > 0)
         {
             return Bitmap.DecodeToWidth(stream, decodeWidth.Value);
         }
         return new Bitmap(stream);
+    }
+
+    private static void ValidateImageDimensions(long width, long height)
+    {
+        if (width <= 0 || height <= 0 || width > MaximumImageDimension || height > MaximumImageDimension ||
+            width * height > MaximumImagePixels)
+            throw new ImageLimitExceededException("Image.DimensionsExceeded");
     }
 
     private static Bitmap? DecodeBitmapUnlessCancelled(

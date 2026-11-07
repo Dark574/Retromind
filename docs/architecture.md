@@ -562,6 +562,42 @@ of allowing the shared cache to grow beyond its limit. Desktop views use a small
 so the visible grid can populate promptly, while the BigMode host opts its complete visual subtree into a
 separate serial lane that keeps rapidly superseded carousel artwork from competing for CPU time.
 
+HTTP image loads have a 32 MiB encoded-body limit. A larger `Content-Length` is rejected before reading;
+missing or misleading headers cannot bypass the streaming counter. A pooled 64 KiB buffer reads at most
+one byte beyond the limit, and that byte is never appended to the bounded `MemoryStream`. Downloads use the
+image-switch cancellation token. Responses/network streams are disposed before decode, and download buffers
+are disposed on success, failure and cancellation. HTTP download concurrency remains unrestricted by this
+helper. Desktop decoding remains limited to four operations and BigMode decoding to one.
+
+Before pixel decoding, the already available SkiaSharp `SKCodec.Info` API inspects the source dimensions
+through a non-owning managed-stream wrapper. Both source and requested output must have positive dimensions,
+at most 16,384 pixels per side, and at most 32 Mi pixels (33,554,432 pixels) in total. Target-height arithmetic
+uses `long`, including for extreme aspect ratios/upscaling. The existing Avalonia `DecodeToWidth` path remains
+unchanged after validation. The metadata probe is inside the corresponding decode gate, applies to HTTP,
+local loading and local preloading, and does not request pixels or enumerate animation frames.
+See [SKCodec.Info](https://learn.microsoft.com/en-us/dotnet/api/skiasharp.skcodec.info) and the pinned
+[Avalonia decoder](https://github.com/AvaloniaUI/Avalonia/blob/12.1.4/src/Skia/Avalonia.Skia/ImmutableBitmap.cs).
+
+The attached-property helper resolves the existing singleton `IErrorService` from application DI, as it already
+does for `HttpClient`; it creates no second logger. `Image.DownloadTooLarge` and `Image.DimensionsExceeded`
+are warnings; other load/decode failures use `Image.LoadFailed` (`Diagnostic`). Expected caller cancellation and
+missing local files remain silent. Reports contain fixed messages, operation, failure type, numeric limits and
+a SHA-256 source identifier, never the source URL, query parameters, local path, or raw exception text/stack.
+The same source/code is reported at most once per five minutes while retained in a separate, FIFO-bounded
+256-key suppression table. Eviction can allow another report; this does not cache failures or prevent retries.
+No notification callback is supplied, and diagnostic failures cannot escape image loading. Failed loads leave
+the existing placeholder/`IsLoaded` behavior intact. LRU keys, reference counts, invalidation and bitmap ownership
+are unchanged.
+
+Limits: these are per-image limits rather than a total process-memory budget. Concurrent downloads and
+completed HTTP buffers waiting for a decode gate can accumulate across requests. Temporary managed-array
+growth, native encoded copies, codec metadata/intermediate pixel buffers, cached and displayed bitmaps also
+consume memory. The 200-entry LRU is count-based. Local encoded file size is not capped.
+Header inspection/native decoding is not a sandbox and cannot be interrupted once
+inside the codec; cancellation is checked before/after native work. Concurrent external changes to a local file
+are not locked out across the probe/decode boundary. Very slow HTTP bodies remain pending until completion,
+failure or cancellation; no new streaming timeout or global memory-budget framework is introduced.
+
 ## BigMode architecture
 BigMode is an overlay workflow with clear host/VM split:
 

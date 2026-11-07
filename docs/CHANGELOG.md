@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - publish only the current `Retromind-<version>-x86_64.AppImage.zsync` update metadata; retire the legacy filename containing `linux`
 
 ### Fixed
+- limit remote artwork downloads and reject excessive image dimensions to reduce memory spikes while browsing
 - preserve existing multi-disc playlists when updates fail and fall back to the primary disc instead of launching an incomplete or outdated playlist
 - keep metadata-import error messages readable below the results and explain when a manual download returns no valid PDF
 - display scraped quotation marks, apostrophes, umlauts and other HTML-encoded characters correctly in metadata previews and imports across scraper providers
