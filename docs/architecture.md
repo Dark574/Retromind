@@ -1004,7 +1004,25 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
 - media items may intentionally have no launch file and act as catalog placeholders; the editor can add,
   replace, or clear launch files later
 - `LaunchPlaylistService` selects the primary media file and owns optional multi-disc playlist generation below
-  the resolved library node folder, falling back to the primary file when a playlist cannot be created
+  the resolved library node folder. All configured discs must yield nonempty, single-line paths: empty paths,
+  unsupported kinds, invalid characters (NUL/CR/LF), and library-relative paths escaping `DataRoot` reject the
+  entire update rather than silently omitting discs. File existence is not required. Absolute paths remain as
+  configured; portable paths are resolved through `AppPaths` at launch without modifying stored references.
+  Filenames, ordering (index, then case-insensitive label/path), and UTF-8 M3U lines remain unchanged.
+  Updates write an exclusively created, uniquely named temporary file in the playlist directory, flush and close
+  it, then publish with a same-directory overwrite rename. Failed writes leave the previous playlist intact;
+  temporary files are deleted best effort. A failed update never reuses a potentially stale playlist: launch
+  falls back to the primary file if its path is valid, otherwise no playlist/primary target is returned. This
+  intentionally degrades multi-disc switching for that launch and does not roll back user configuration.
+  DI injects the singleton `IErrorService`; one `Launcher.PlaylistCreationFailed` warning records operation,
+  item ID, disc count, available paths, and whether a primary fallback is available. A failed temporary-file
+  cleanup is attached to the same report. There is no notification callback, modal dialog, or duplicate report
+  in `LauncherService`; error-output failures cannot prevent cleanup or fallback. The launch log records the
+  actual selected target. The convenience launcher constructor creates the same diagnostic implementation when
+  no playlist service was supplied; application DI always supplies the registered singleton-backed service.
+  Limits: a crash can leave an orphaned temporary file; no startup recovery or directory-fsync durability promise
+  is added. Atomic replacement assumes a filesystem supporting same-directory rename. Separate Retromind
+  instances are not coordinated, and external disc-file availability remains the emulator's responsibility.
 - `LaunchPlanBuilder` owns the deterministic executable, argument-placeholder, and wrapper composition after the
   launch file has been resolved. Plan layering remains item launcher -> emulator config -> node/item wrapper chain;
   there is no application-global wrapper layer

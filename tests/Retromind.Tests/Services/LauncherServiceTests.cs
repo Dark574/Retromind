@@ -12,6 +12,56 @@ namespace Retromind.Tests.Services;
 public sealed class LauncherServiceTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LaunchAsync_PlaylistFailureLaunchesPrimaryAndNeverUsesStalePlaylist(bool failWriting)
+    {
+        if (!OperatingSystem.IsLinux())
+            return;
+
+        using var temp = new TemporaryDirectory();
+        var primary = temp.CreateFile("primary.sh", "#!/bin/sh\nprintf 'primary-fallback-ok\\n'\nexit 23\n");
+        var item = new MediaItem("Multi-disc fallback")
+        {
+            MediaType = MediaType.Emulator,
+            LauncherPath = "/bin/sh",
+            LauncherArgs = "{file}",
+            Files =
+            [
+                new() { Path = primary, Index = 1 },
+                new() { Path = "/games/disc-2.chd", Index = 2 }
+            ]
+        };
+        var playlistPath = new LaunchPlaylistService(temp.RootPath, new RecordingErrorService())
+            .ResolveLaunchFilePath(item, ["Games"], true)!;
+        var previousBytes = File.ReadAllBytes(playlistPath);
+        var errors = new RecordingErrorService();
+        var playlists = failWriting
+            ? new LaunchPlaylistService(temp.RootPath, errors, (stream, _) =>
+            {
+                stream.WriteByte(42);
+                throw new IOException("Simulated playlist write failure");
+            })
+            : new LaunchPlaylistService(temp.RootPath, errors);
+        if (!failWriting)
+            item.Files[1].Path = "";
+        var launcher = new LauncherService(temp.RootPath, new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")), playlists);
+
+        var result = await launcher.LaunchAsync(item, nodePath: ["Games"],
+            usePlaylistForMultiDisc: true, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Contains("primary-fallback-ok", result.ConsoleOutput);
+        Assert.Equal(previousBytes, File.ReadAllBytes(playlistPath));
+        Assert.Equal("Launcher.PlaylistCreationFailed", Assert.Single(errors.Reports).Code);
+        Assert.All(errors.Notifications, Assert.Null);
+        var launchLog = File.ReadAllText(Directory.GetFiles(temp.GetPath("launch-logs")).Single());
+        Assert.Contains(primary, launchLog);
+        Assert.DoesNotContain(playlistPath, launchLog);
+    }
+
+    [Theory]
     [InlineData("steam", "steam://rungameid/123", "-silent steam://rungameid/123")]
     [InlineData("/usr/bin/steam", "steam://rungameid/123", "-silent steam://rungameid/123")]
     [InlineData("steam", "-silent steam://rungameid/123", "-silent steam://rungameid/123")]
@@ -974,7 +1024,7 @@ public sealed class LauncherServiceTests
             libraryRoot,
             settings,
             new LaunchLogService(temp.GetPath("launch-logs")),
-            new LaunchPlaylistService(libraryRoot),
+            new LaunchPlaylistService(libraryRoot, new RecordingErrorService()),
             new LaunchEnvironmentService(),
             new WinePrefixService(libraryRoot, settings),
             new LaunchProcessService(),

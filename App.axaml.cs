@@ -290,7 +290,8 @@ public partial class App : Application
             libraryPath, provider.GetRequiredService<IErrorService>()));
         services.AddSingleton(_ => new LaunchLogService(
             Path.Combine(AppPaths.DataRoot, "Logs", "Launch")));
-        services.AddSingleton(_ => new LaunchPlaylistService(libraryPath));
+        services.AddSingleton(provider => new LaunchPlaylistService(
+            libraryPath, provider.GetRequiredService<IErrorService>()));
         services.AddSingleton<LaunchEnvironmentService>();
         services.AddSingleton(provider => new ProtonPrefixRelocationService(
             libraryPath,

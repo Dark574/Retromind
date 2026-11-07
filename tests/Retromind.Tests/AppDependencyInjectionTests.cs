@@ -34,10 +34,19 @@ public sealed class AppDependencyInjectionTests
         Assert.IsType<AudioService>(provider.GetRequiredService<AudioService>());
         Assert.IsType<WinetricksService>(provider.GetRequiredService<WinetricksService>());
         Assert.IsType<FileManagementService>(provider.GetRequiredService<FileManagementService>());
+        var playlists = provider.GetRequiredService<LaunchPlaylistService>();
+        Assert.Same(playlists, provider.GetRequiredService<LaunchPlaylistService>());
+        var item = new MediaItem("Invalid discs")
+        {
+            Files = [new() { Path = "/games/disc-1.chd", Index = 1 }, new() { Path = "", Index = 2 }]
+        };
+        Assert.Equal("/games/disc-1.chd", playlists.ResolveLaunchFilePath(item, ["Games"], true));
         Assert.IsType<EpicInstallService>(provider.GetRequiredService<EpicInstallService>());
         Assert.IsType<GogPlaytimeSyncService>(provider.GetRequiredService<IGogPlaytimeSyncService>());
         errors.Report(new ErrorReport("Test", ErrorSeverity.Diagnostic, "Test", "Portable log"));
         Assert.True(File.Exists(temp.GetPath("Logs", "Exceptions", "errors.jsonl")));
+        Assert.Contains("Launcher.PlaylistCreationFailed",
+            File.ReadAllText(temp.GetPath("Logs", "Exceptions", "errors.jsonl")));
         Assert.False(Directory.Exists(temp.GetPath("Logs", "Launch")));
     }
 
