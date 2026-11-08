@@ -310,16 +310,7 @@ public partial class BigModeViewModel
 
     partial void OnSelectedItemChanged(MediaItem? value)
     {
-        if (value == null)
-        {
-            SelectedItemIndex = -1;
-        }
-        else
-        {
-            // O(n) only for external selection changes (mouse/touch).
-            var idx = Items.IndexOf(value);
-            if (idx >= 0) SelectedItemIndex = idx;
-        }
+        SelectedItemIndex = SelectionIndexHelper.Resolve(Items, value, SelectedItemIndex);
 
         // Stop preview only when the target video actually changes.
         var targetVideoPath = ResolvePreviewVideoPath();
@@ -350,15 +341,7 @@ public partial class BigModeViewModel
 
     partial void OnSelectedCategoryChanged(MediaNode? value)
     {
-        if (value == null)
-        {
-            SelectedCategoryIndex = -1;
-        }
-        else
-        {
-            // O(n) only for external selection changes (mouse/touch).
-            SelectedCategoryIndex = CurrentCategories.IndexOf(value);
-        }
+        SelectedCategoryIndex = SelectionIndexHelper.Resolve(CurrentCategories, value, SelectedCategoryIndex);
 
         UpdateWheelCategories();
 

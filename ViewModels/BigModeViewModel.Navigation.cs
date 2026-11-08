@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 
@@ -248,7 +249,7 @@ public partial class BigModeViewModel
     {
         // The selected node can stay the same when returning from its item list.
         // Recompute its index even when SelectedCategory's setter does not fire.
-        SelectedCategoryIndex = SelectedCategory != null ? value.IndexOf(SelectedCategory) : -1;
+        SelectedCategoryIndex = SelectionIndexHelper.Resolve(value, SelectedCategory, SelectedCategoryIndex);
         UpdateWheelCategories();
     }
 
@@ -259,7 +260,7 @@ public partial class BigModeViewModel
 
     partial void OnItemsChanged(ObservableCollection<MediaItem> value)
     {
-        SelectedItemIndex = -1;
+        SelectedItemIndex = SelectionIndexHelper.Resolve(value, SelectedItem, SelectedItemIndex);
 
         // Items list changed -> cached item video paths may no longer be relevant.
         _itemVideoPathCache.Clear();

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Animation;
@@ -53,6 +54,8 @@ public class CrossfadeImage : Grid
     private int _imageAGeneration;
     private int _imageBGeneration;
     private string? _currentUrl;
+    private CancellationTokenSource? _loadDelayCts;
+    private bool _resumeLoadOnAttach;
     private bool _isCurrentImageReady = true;
     private static readonly TimeSpan LoadHoldDelay = TimeSpan.FromMilliseconds(140);
 
@@ -220,6 +223,12 @@ public class CrossfadeImage : Grid
         _imageB.Stretch = stretch;
     }
 
+    private void PostToDispatcher(Action action)
+    {
+        if (CheckAccess()) action();
+        else Dispatcher.Post(action);
+    }
+
     private void StartCrossfadeToUrl(string? url, bool forceReload)
     {
         var urlChanged = !string.Equals(_currentUrl, url, StringComparison.Ordinal);
@@ -228,6 +237,13 @@ public class CrossfadeImage : Grid
 
         _currentUrl = url;
         var generation = ++_loadGeneration;
+        _loadDelayCts?.Cancel();
+        _loadDelayCts?.Dispose();
+        _loadDelayCts = null;
+        // Preserve decoded A/B images, including an outgoing fade. Only work
+        // which has not produced a valid image belongs to the superseded request.
+        AsyncImageHelper.CancelPendingLoad(_imageA);
+        AsyncImageHelper.CancelPendingLoad(_imageB);
         IsCurrentImageReady = string.IsNullOrWhiteSpace(url);
 
         if (urlChanged &&
@@ -246,7 +262,8 @@ public class CrossfadeImage : Grid
         var loadDelayMs = Math.Clamp(LoadDelayMs, 0, 10_000);
         if (loadDelayMs > 0)
         {
-            _ = StartCrossfadeAfterDelayAsync(url, forceReload, generation, loadDelayMs);
+            _loadDelayCts = new CancellationTokenSource();
+            _ = StartCrossfadeAfterDelayAsync(url, forceReload, generation, loadDelayMs, _loadDelayCts.Token);
             return;
         }
 
@@ -257,20 +274,21 @@ public class CrossfadeImage : Grid
         string url,
         bool forceReload,
         int generation,
-        int loadDelayMs)
+        int loadDelayMs,
+        CancellationToken cancellationToken)
     {
         try
         {
-            await Task.Delay(loadDelayMs).ConfigureAwait(false);
+            await Task.Delay(loadDelayMs, cancellationToken).ConfigureAwait(false);
         }
         catch
         {
             return;
         }
 
-        UiThreadHelper.Post(() =>
+        PostToDispatcher(() =>
         {
-            if (generation != _loadGeneration ||
+            if (cancellationToken.IsCancellationRequested || generation != _loadGeneration ||
                 !string.Equals(_currentUrl, url, StringComparison.Ordinal))
             {
                 return;
@@ -278,6 +296,27 @@ public class CrossfadeImage : Grid
 
             StartCrossfadeToUrlCore(url, forceReload, generation);
         });
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        _resumeLoadOnAttach = !string.IsNullOrWhiteSpace(Url);
+        _loadDelayCts?.Cancel();
+        _loadDelayCts?.Dispose();
+        _loadDelayCts = null;
+        ++_loadGeneration;
+        base.OnDetachedFromVisualTree(e);
+    }
+
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (_resumeLoadOnAttach)
+        {
+            _resumeLoadOnAttach = false;
+            _currentUrl = null;
+            StartCrossfadeToUrl(Url, forceReload: false);
+        }
     }
 
     private void StartCrossfadeToUrlCore(string url, bool forceReload, int generation)
@@ -348,7 +387,7 @@ public class CrossfadeImage : Grid
             return;
         }
 
-        UiThreadHelper.Post(() =>
+        PostToDispatcher(() =>
         {
             if (generation != _loadGeneration || !string.IsNullOrWhiteSpace(_currentUrl))
                 return;
@@ -404,7 +443,7 @@ public class CrossfadeImage : Grid
             return;
         }
 
-        UiThreadHelper.Post(() =>
+        PostToDispatcher(() =>
         {
             if (generation != _loadGeneration)
                 return;
@@ -436,7 +475,7 @@ public class CrossfadeImage : Grid
 
         var other = targetIndex == 0 ? _imageB : _imageA;
 
-        UiThreadHelper.Post(() =>
+        PostToDispatcher(() =>
         {
             if (generation != _loadGeneration)
                 return;
@@ -586,7 +625,7 @@ public class CrossfadeImage : Grid
             return;
         }
 
-        UiThreadHelper.Post(() =>
+        PostToDispatcher(() =>
         {
             if (generation != _loadGeneration)
                 return;

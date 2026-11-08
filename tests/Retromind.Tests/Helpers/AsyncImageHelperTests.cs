@@ -11,7 +11,7 @@ using SkiaSharp;
 
 namespace Retromind.Tests.Helpers;
 
-public sealed class AsyncImageHelperTests
+public sealed partial class AsyncImageHelperTests
 {
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(10);
 

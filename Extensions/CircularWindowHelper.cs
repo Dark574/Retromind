@@ -24,11 +24,20 @@ public static class CircularWindowHelper
         int windowSize,
         int minimumSourceCount,
         RangeObservableCollection<T> target)
+        => SynchronizeRepeatingCircularWindow(source, selected, windowSize, minimumSourceCount, target, -1);
+
+    internal static int SynchronizeRepeatingCircularWindow<T>(
+        IList<T> source,
+        T? selected,
+        int windowSize,
+        int minimumSourceCount,
+        RangeObservableCollection<T> target,
+        int selectionIndexHint)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
 
-        var selectedSourceIndex = selected == null ? -1 : source.IndexOf(selected);
+        var selectedSourceIndex = SelectionIndexHelper.Resolve(source, selected, selectionIndexHint);
         if (selectedSourceIndex < 0 && source.Count > 0)
             selectedSourceIndex = 0;
 
@@ -78,11 +87,19 @@ public static class CircularWindowHelper
         T? selected,
         int windowSize,
         RangeObservableCollection<T> target)
+        => SynchronizeCircularWindow(source, selected, windowSize, target, -1);
+
+    internal static void SynchronizeCircularWindow<T>(
+        IList<T> source,
+        T? selected,
+        int windowSize,
+        RangeObservableCollection<T> target,
+        int selectionIndexHint)
     {
         ArgumentNullException.ThrowIfNull(target);
 
         var desired = new List<T>();
-        BuildCircularWindow(source, selected, windowSize, desired);
+        BuildCircularWindow(source, selected, windowSize, desired, selectionIndexHint);
 
         SynchronizeTarget(target, desired);
     }
@@ -139,6 +156,14 @@ public static class CircularWindowHelper
         T? selected,
         int windowSize,
         ICollection<T> target)
+        => BuildCircularWindow(source, selected, windowSize, target, -1);
+
+    internal static void BuildCircularWindow<T>(
+        IList<T> source,
+        T? selected,
+        int windowSize,
+        ICollection<T> target,
+        int selectionIndexHint)
     {
         if (source == null) throw new ArgumentNullException(nameof(source));
         if (target == null) throw new ArgumentNullException(nameof(target));
@@ -165,13 +190,7 @@ public static class CircularWindowHelper
             return;
         }
 
-        var selectedIndex = 0;
-        if (selected != null)
-        {
-            var idx = source.IndexOf(selected);
-            if (idx >= 0)
-                selectedIndex = idx;
-        }
+        var selectedIndex = Math.Max(0, SelectionIndexHelper.Resolve(source, selected, selectionIndexHint));
 
         var count = source.Count;
         var half = windowSize / 2;
@@ -197,6 +216,15 @@ public static class CircularWindowHelper
         int windowSize,
         int lookaheadCount,
         ICollection<T> target)
+        => BuildCircularLookahead(source, selected, windowSize, lookaheadCount, target, -1);
+
+    internal static void BuildCircularLookahead<T>(
+        IList<T> source,
+        T? selected,
+        int windowSize,
+        int lookaheadCount,
+        ICollection<T> target,
+        int selectionIndexHint)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(target);
@@ -211,7 +239,7 @@ public static class CircularWindowHelper
         if (windowSize <= 0 || windowSize >= source.Count)
             return;
 
-        var selectedIndex = selected == null ? -1 : source.IndexOf(selected);
+        var selectedIndex = SelectionIndexHelper.Resolve(source, selected, selectionIndexHint);
         if (selectedIndex < 0)
             selectedIndex = 0;
 

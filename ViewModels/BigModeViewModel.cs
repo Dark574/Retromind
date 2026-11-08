@@ -105,15 +105,78 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly RangeObservableCollection<MediaItem> _wheelItems = new();
     private readonly RangeObservableCollection<MediaNode> _wheelCategories = new();
 
-    public ObservableCollection<MediaItem> CircularItems => _circularItems;
-    public ObservableCollection<MediaItem> WheelItems => _wheelItems;
-    public ObservableCollection<MediaNode> WheelCategories => _wheelCategories;
+    private bool _usesCircularItems;
+    private bool _usesWheelItems;
+    private bool _usesWheelCategories;
 
-    [ObservableProperty]
+    // Existing theme bindings opt in simply by reading a property. Do not require
+    // theme metadata or inspect XAML: third-party and dynamically bound themes work too.
+    public ObservableCollection<MediaItem> CircularItems
+    {
+        get
+        {
+            if (!_usesCircularItems)
+            {
+                _usesCircularItems = true;
+                UpdateCircularItems();
+            }
+            return _circularItems;
+        }
+    }
+
+    public ObservableCollection<MediaItem> WheelItems
+    {
+        get
+        {
+            EnsureWheelItemsRequested();
+            return _wheelItems;
+        }
+    }
+
+    public ObservableCollection<MediaNode> WheelCategories
+    {
+        get
+        {
+            EnsureWheelCategoriesRequested();
+            return _wheelCategories;
+        }
+    }
+
     private int _wheelSelectedItemIndex = -1;
-
-    [ObservableProperty]
     private int _wheelSelectedCategoryIndex = -1;
+
+    public int WheelSelectedItemIndex
+    {
+        get { EnsureWheelItemsRequested(); return _wheelSelectedItemIndex; }
+        set => SetProperty(ref _wheelSelectedItemIndex, value);
+    }
+
+    public int WheelSelectedCategoryIndex
+    {
+        get { EnsureWheelCategoriesRequested(); return _wheelSelectedCategoryIndex; }
+        set => SetProperty(ref _wheelSelectedCategoryIndex, value);
+    }
+
+    private void EnsureWheelItemsRequested()
+    {
+        if (_usesWheelItems) return;
+        _usesWheelItems = true;
+        UpdateWheelItems();
+    }
+
+    private void EnsureWheelCategoriesRequested()
+    {
+        if (_usesWheelCategories) return;
+        _usesWheelCategories = true;
+        UpdateWheelCategories();
+    }
+
+    internal void ResetThemeWindowUsage()
+    {
+        _usesCircularItems = false;
+        _usesWheelItems = false;
+        _usesWheelCategories = false;
+    }
 
     public int CircularWindowSize
     {
@@ -907,12 +970,14 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        var index = Items.IndexOf(SelectedItem);
+        var index = SelectionIndexHelper.Resolve(Items, SelectedItem, SelectedItemIndex);
         CurrentGameNumber = index >= 0 ? index + 1 : 0;
     }
 
     private void UpdateCircularItems()
     {
+        if (!_usesCircularItems) return;
+
         if (!IsGameListActive || Items.Count == 0)
         {
             if (_circularItems.Count > 0)
@@ -929,12 +994,13 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             Items,
             SelectedItem,
             _circularWindowSize,
-            _circularItems);
+            _circularItems,
+            SelectedItemIndex);
     }
 
     private void PreloadCircularLogos()
     {
-        if (_circularLogoPreloadCount <= 0 || !IsGameListActive || Items.Count == 0)
+        if (!_usesCircularItems || _circularLogoPreloadCount <= 0 || !IsGameListActive || Items.Count == 0)
             return;
 
         var lookaheadItems = new List<MediaItem>(_circularLogoPreloadCount * 2);
@@ -943,7 +1009,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             SelectedItem,
             _circularWindowSize,
             _circularLogoPreloadCount,
-            lookaheadItems);
+            lookaheadItems,
+            SelectedItemIndex);
 
         foreach (var item in lookaheadItems)
             _ = AsyncImageHelper.PreloadLocalAsync(
@@ -954,14 +1021,17 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private void UpdateWheelItems()
     {
+        if (!_usesWheelItems) return;
+
         var selectedIndex = CircularWindowHelper.SynchronizeRepeatingCircularWindow(
             Items,
             SelectedItem,
             _circularWindowSize,
             MinimumRepeatingWheelItemCount,
-            _wheelItems);
+            _wheelItems,
+            SelectedItemIndex);
 
-        if (WheelSelectedItemIndex == selectedIndex)
+        if (_wheelSelectedItemIndex == selectedIndex)
             OnPropertyChanged(nameof(WheelSelectedItemIndex));
         else
             WheelSelectedItemIndex = selectedIndex;
@@ -969,14 +1039,17 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private void UpdateWheelCategories()
     {
+        if (!_usesWheelCategories) return;
+
         var selectedIndex = CircularWindowHelper.SynchronizeRepeatingCircularWindow(
             CurrentCategories,
             SelectedCategory,
             _circularWindowSize,
             MinimumRepeatingWheelItemCount,
-            _wheelCategories);
+            _wheelCategories,
+            SelectedCategoryIndex);
 
-        if (WheelSelectedCategoryIndex == selectedIndex)
+        if (_wheelSelectedCategoryIndex == selectedIndex)
             OnPropertyChanged(nameof(WheelSelectedCategoryIndex));
         else
             WheelSelectedCategoryIndex = selectedIndex;
@@ -989,6 +1062,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     public void UpdateTheme(Theme newTheme)
     {
         _theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
+        ResetThemeWindowUsage();
 
 
         // When a new theme view is loaded, the VideoView attachment state becomes invalid

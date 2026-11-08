@@ -24,11 +24,12 @@ namespace Retromind.Helpers;
 /// Helper class to load images asynchronously from URLs or local paths.
 /// Features an LRU (Least Recently Used) Cache, Downsampling, and Task Cancellation.
 /// </summary>
-public class AsyncImageHelper : AvaloniaObject
+public partial class AsyncImageHelper : AvaloniaObject
 {
     // --- Configuration ---
 
     private const int MaxCacheSize = 200;
+    internal const long MaxCacheBytes = 128L * 1024 * 1024;
 
     private const int DesktopDecodeConcurrency = 4;
     internal const int MaximumHttpImageBytes = 32 * 1024 * 1024;
@@ -65,12 +66,17 @@ public class AsyncImageHelper : AvaloniaObject
     }
 
     // --- Cache State ---
-    private static readonly Dictionary<string, (Bitmap Bitmap, LinkedListNode<string> Node)> Cache = new();
+    private static readonly Dictionary<string, (Bitmap Bitmap, LinkedListNode<string> Node, long Bytes)> Cache = new();
     private static readonly Dictionary<string, int> CacheRefCounts = new(StringComparer.Ordinal);
-    private static readonly Dictionary<string, Task> PreloadTasks = new(StringComparer.Ordinal);
     private static readonly HashSet<string> InvalidatedKeys = new(StringComparer.Ordinal);
     private static readonly LinkedList<string> LruList = new();
     private static readonly object CacheLock = new();
+    private static long _cachedBitmapBytes;
+
+    internal static (int Count, long Bytes) GetCacheUsage()
+    {
+        lock (CacheLock) return (Cache.Count, _cachedBitmapBytes);
+    }
 
     private readonly record struct CacheAddResult(
         Bitmap Bitmap,
@@ -185,13 +191,9 @@ public class AsyncImageHelper : AvaloniaObject
     private static readonly AttachedProperty<CancellationTokenSource?> CurrentLoadCtsProperty =
         AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, CancellationTokenSource?>("CurrentLoadCts");
 
-    // Private property to track the current cache key used by an Image control
-    private static readonly AttachedProperty<string?> CurrentCacheKeyProperty =
-        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, string?>("CurrentCacheKey");
-
-    // Tracks the current uncached bitmap to dispose it when replaced.
-    private static readonly AttachedProperty<Bitmap?> CurrentUncachedBitmapProperty =
-        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, Bitmap?>("CurrentUncachedBitmap");
+    // Owns either a cache reference or a share of an uncached in-flight result.
+    private static readonly AttachedProperty<BitmapLease?> CurrentBitmapLeaseProperty =
+        AvaloniaProperty.RegisterAttached<AsyncImageHelper, Image, BitmapLease?>("CurrentBitmapLease");
 
     // Tracks whether we've attached a Detach handler for this Image instance
     private static readonly AttachedProperty<bool> DetachHandlerAttachedProperty =
@@ -207,9 +209,8 @@ public class AsyncImageHelper : AvaloniaObject
         var oldCts = image.GetValue(CurrentLoadCtsProperty);
         oldCts?.Cancel();
         oldCts?.Dispose();
-        ReleaseImageCacheKey(image);
-        DisposeUncachedBitmap(image);
         image.Source = PlaceholderImage;
+        ReleaseImageLease(image);
         image.SetValue(IsLoadedProperty, false);
         image.SetValue(CurrentLoadCtsProperty, null);
     }
@@ -228,68 +229,40 @@ public class AsyncImageHelper : AvaloniaObject
         var cts = new CancellationTokenSource();
         image.SetValue(CurrentLoadCtsProperty, cts);
 
-        string? cacheKey = null;
-        if (!disableCache)
-        {
-            cacheKey = decodeWidth.HasValue ? $"{url}_{decodeWidth}" : url;
-            if (TryAssignFromCache(image, cts, cacheKey))
-                return;
-
-            // A theme may already be warming this exact image just outside its
-            // visible carousel window. Reuse that decode instead of starting a
-            // duplicate one when the item becomes visible.
-            var preloadTask = TryGetPreloadTask(cacheKey);
-            if (preloadTask != null)
-            {
-                await preloadTask.ConfigureAwait(false);
-                if (cts.IsCancellationRequested)
-                    return;
-                if (TryAssignFromCache(image, cts, cacheKey))
-                    return;
-            }
-        }
-
         try
         {
             var token = cts.Token;
-            var loadedBitmap = await Task.Run(
-                () => LoadBitmapAsync(url, decodeWidth, useSerialDecode, token), token);
-
-            if (loadedBitmap == null) return;
-
-            var bitmapToAssign = loadedBitmap;
-            var isCached = false;
-            CacheLease? assignmentLease = null;
-            if (!disableCache && cacheKey != null)
+            var lease = disableCache
+                ? await LoadUncachedAsync(url, decodeWidth, useSerialDecode, token).ConfigureAwait(false)
+                : await AcquireBitmapAsync(url, decodeWidth, useSerialDecode, token).ConfigureAwait(false);
+            if (lease == null) return;
+            if (token.IsCancellationRequested)
             {
-                var cacheResult = AddToCache(cacheKey, loadedBitmap);
-                bitmapToAssign = cacheResult.Bitmap;
-                isCached = cacheResult.IsCached;
-                assignmentLease = cacheResult.AssignmentLease;
+                lease.Dispose();
+                return;
             }
 
-            UiThreadHelper.Post(() =>
+            try
             {
-                try
+                void Apply()
                 {
-                    if (image.GetValue(CurrentLoadCtsProperty) != cts)
+                    if (token.IsCancellationRequested || image.GetValue(CurrentLoadCtsProperty) != cts)
                     {
-                        if (!isCached)
-                            bitmapToAssign.Dispose();
+                        lease.Dispose();
                         return;
                     }
 
-                    AssignImageSource(
-                        image,
-                        bitmapToAssign,
-                        isCached ? cacheKey : null,
-                        disableCache: !isCached);
+                    AssignImageSource(image, lease);
                 }
-                finally
-                {
-                    assignmentLease?.Dispose();
-                }
-            });
+
+                if (image.CheckAccess()) Apply();
+                else image.Dispatcher.Post(Apply);
+            }
+            catch
+            {
+                lease.Dispose();
+                throw;
+            }
         }
         catch (OperationCanceledException)
         {
@@ -430,114 +403,21 @@ public class AsyncImageHelper : AvaloniaObject
     /// Warms the shared cache for local artwork without creating a visual. Calls
     /// for the same cache key share one decode operation.
     /// </summary>
-    public static Task PreloadLocalAsync(
+    public static async Task PreloadLocalAsync(
         string? path,
         int? decodeWidth = null,
         bool useSerialDecode = false)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            return Task.CompletedTask;
-
-        var cacheKey = decodeWidth.HasValue ? $"{path}_{decodeWidth}" : path;
-        lock (CacheLock)
-        {
-            if (Cache.ContainsKey(cacheKey) && !InvalidatedKeys.Contains(cacheKey))
-                return Task.CompletedTask;
-
-            if (PreloadTasks.TryGetValue(cacheKey, out var existingTask))
-                return existingTask;
-
-            var preloadTask = Task.Run(
-                () => PreloadLocalCoreAsync(path, cacheKey, decodeWidth, useSerialDecode));
-            PreloadTasks[cacheKey] = preloadTask;
-            _ = preloadTask.ContinueWith(
-                completedTask =>
-                {
-                    lock (CacheLock)
-                    {
-                        if (PreloadTasks.TryGetValue(cacheKey, out var currentTask) &&
-                            ReferenceEquals(currentTask, completedTask))
-                        {
-                            PreloadTasks.Remove(cacheKey);
-                        }
-                    }
-                },
-                CancellationToken.None,
-                TaskContinuationOptions.ExecuteSynchronously,
-                TaskScheduler.Default);
-
-            return preloadTask;
-        }
-    }
-
-    private static async Task PreloadLocalCoreAsync(
-        string path,
-        string cacheKey,
-        int? decodeWidth,
-        bool useSerialDecode)
-    {
+        if (string.IsNullOrWhiteSpace(path) || path.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return;
         try
         {
-            if (!File.Exists(path))
-                return;
-
-            await using var fileStream = new FileStream(
-                path,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                bufferSize: 64 * 1024,
-                FileOptions.Asynchronous | FileOptions.SequentialScan);
-            var bitmap = await DecodeBitmapUnlessCancelledAsync(
-                    fileStream,
-                    decodeWidth,
-                    CancellationToken.None,
-                    useSerialDecode)
+            using var lease = await AcquireBitmapAsync(path, decodeWidth, useSerialDecode, CancellationToken.None)
                 .ConfigureAwait(false);
-            if (bitmap == null)
-                return;
-
-            var cacheResult = AddToCache(cacheKey, bitmap);
-            cacheResult.AssignmentLease?.Dispose();
-            if (!cacheResult.IsCached)
-                cacheResult.Bitmap.Dispose();
         }
         catch (Exception ex)
         {
             ReportLoadFailure(path, "Preload", ex);
         }
-    }
-
-    private static Task? TryGetPreloadTask(string cacheKey)
-    {
-        lock (CacheLock)
-            return PreloadTasks.TryGetValue(cacheKey, out var task) ? task : null;
-    }
-
-    private static bool TryAssignFromCache(
-        Image image,
-        CancellationTokenSource cts,
-        string cacheKey)
-    {
-        var cachedLease = TryAcquireFromCache(cacheKey);
-        if (cachedLease == null)
-            return false;
-
-        UiThreadHelper.Post(() =>
-        {
-            try
-            {
-                if (image.GetValue(CurrentLoadCtsProperty) != cts)
-                    return;
-
-                AssignImageSource(image, cachedLease.Bitmap, cacheKey, disableCache: false);
-            }
-            finally
-            {
-                cachedLease.Dispose();
-            }
-        });
-        return true;
     }
 
     private static Bitmap DecodeBitmap(Stream stream, int? decodeWidth)
@@ -631,6 +511,13 @@ public class AsyncImageHelper : AvaloniaObject
     {
         lock (CacheLock)
         {
+            // A decode started before an asset edit must never repopulate the cache.
+            foreach (var (key, request) in SharedLoads)
+            {
+                if (key == url || key.StartsWith(url + "_", StringComparison.Ordinal))
+                    request.Invalidated = true;
+            }
+
             var keysToRemove = new List<string>();
             foreach (var key in Cache.Keys)
             {
@@ -644,10 +531,7 @@ public class AsyncImageHelper : AvaloniaObject
                 {
                     if (GetCacheRefCount(key) == 0)
                     {
-                        LruList.Remove(entry.Node);
-                        Cache.Remove(key);
-                        InvalidatedKeys.Remove(key);
-                        entry.Bitmap.Dispose();
+                        RemoveCacheEntry(key);
                     }
                     else
                     {
@@ -722,7 +606,13 @@ public class AsyncImageHelper : AvaloniaObject
                     new CacheLease(key, existing.Bitmap));
             }
 
-            while (Cache.Count >= MaxCacheSize)
+            // Decoded pixel storage, excluding GPU textures, codec temporaries and
+            // control-owned results. Pinned entries count against both hard limits.
+            var bytes = checked((long)bitmap.PixelSize.Width * bitmap.PixelSize.Height * 4);
+            if (bytes > MaxCacheBytes)
+                return new CacheAddResult(bitmap, IsCached: false, AssignmentLease: null);
+
+            while (Cache.Count >= MaxCacheSize || _cachedBitmapBytes > MaxCacheBytes - bytes)
             {
                 if (!TryEvictOne())
                     return new CacheAddResult(bitmap, IsCached: false, AssignmentLease: null);
@@ -731,7 +621,8 @@ public class AsyncImageHelper : AvaloniaObject
             InvalidatedKeys.Remove(key);
 
             var node = LruList.AddLast(key);
-            Cache[key] = (bitmap, node);
+            Cache[key] = (bitmap, node, bytes);
+            _cachedBitmapBytes += bytes;
             IncrementCacheRef(key);
             return new CacheAddResult(
                 bitmap,
@@ -740,54 +631,28 @@ public class AsyncImageHelper : AvaloniaObject
         }
     }
 
-    private static void AssignImageSource(Image image, Bitmap bitmap, string? cacheKey, bool disableCache)
+    private static void AssignImageSource(Image image, BitmapLease lease)
     {
-        if (disableCache)
-        {
-            DisposeUncachedBitmap(image);
-            image.Source = bitmap;
-            image.SetValue(CurrentUncachedBitmapProperty, bitmap);
-            image.SetValue(IsLoadedProperty, true);
-            return;
-        }
-
-        DisposeUncachedBitmap(image);
-
-        var oldKey = image.GetValue(CurrentCacheKeyProperty);
-        if (!string.Equals(oldKey, cacheKey, StringComparison.Ordinal))
-        {
-            if (!string.IsNullOrEmpty(oldKey))
-                ReleaseImageCacheKey(image);
-
-            if (!string.IsNullOrEmpty(cacheKey))
-            {
-                IncrementCacheRef(cacheKey);
-                image.SetValue(CurrentCacheKeyProperty, cacheKey);
-            }
-        }
-
-        image.Source = bitmap;
+        var previous = image.GetValue(CurrentBitmapLeaseProperty);
+        image.SetValue(CurrentBitmapLeaseProperty, lease);
+        image.Source = lease.Bitmap;
+        previous?.Dispose();
         image.SetValue(IsLoadedProperty, true);
     }
 
-    private static void ReleaseImageCacheKey(Image image)
+    private static void ReleaseImageLease(Image image)
     {
-        var oldKey = image.GetValue(CurrentCacheKeyProperty);
-        if (string.IsNullOrEmpty(oldKey))
-            return;
-
-        image.SetValue(CurrentCacheKeyProperty, null);
-        DecrementCacheRef(oldKey);
+        var previous = image.GetValue(CurrentBitmapLeaseProperty);
+        image.SetValue(CurrentBitmapLeaseProperty, null);
+        previous?.Dispose();
     }
 
-    private static void DisposeUncachedBitmap(Image image)
+    // A superseded Crossfade target can be canceled without touching either
+    // already decoded image participating in the visible transition.
+    internal static void CancelPendingLoad(Image image)
     {
-        var oldBitmap = image.GetValue(CurrentUncachedBitmapProperty);
-        if (oldBitmap == null)
-            return;
-
-        image.SetValue(CurrentUncachedBitmapProperty, null);
-        oldBitmap.Dispose();
+        if (!GetIsLoaded(image) && image.GetValue(CurrentLoadCtsProperty) != null)
+            SetUrl(image, null);
     }
 
     private static int GetCacheRefCount(string key)
@@ -817,10 +682,7 @@ public class AsyncImageHelper : AvaloniaObject
 
                 if (InvalidatedKeys.Contains(key) && Cache.TryGetValue(key, out var entry))
                 {
-                    Cache.Remove(key);
-                    LruList.Remove(entry.Node);
-                    InvalidatedKeys.Remove(key);
-                    entry.Bitmap.Dispose();
+                    RemoveCacheEntry(key);
                 }
             }
             else
@@ -846,10 +708,7 @@ public class AsyncImageHelper : AvaloniaObject
 
             if (Cache.TryGetValue(key, out var entry))
             {
-                Cache.Remove(key);
-                LruList.Remove(node);
-                InvalidatedKeys.Remove(key);
-                entry.Bitmap.Dispose();
+                RemoveCacheEntry(key);
                 return true;
             }
 
@@ -858,6 +717,16 @@ public class AsyncImageHelper : AvaloniaObject
         }
 
         return false;
+    }
+
+    private static void RemoveCacheEntry(string key)
+    {
+        var entry = Cache[key];
+        Cache.Remove(key);
+        LruList.Remove(entry.Node);
+        InvalidatedKeys.Remove(key);
+        _cachedBitmapBytes -= entry.Bytes;
+        entry.Bitmap.Dispose();
     }
 
     private static void EnsureDetachHandler(Image image)

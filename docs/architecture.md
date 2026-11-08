@@ -632,18 +632,35 @@ or constrained by a separately audited allowlist model.
 ## Image loading and cache
 
 `AsyncImageHelper` owns asynchronous bitmap loading, downsampling, cancellation, and its shared LRU cache.
-Cache entries are reference-counted while controls display them. The cache has a hard limit of 200 entries;
-if every cached bitmap is currently in use, a newly loaded bitmap remains control-owned and uncached instead
-of allowing the shared cache to grow beyond its limit. Desktop views use a small bounded parallel decode lane
+Cache entries are reference-counted while controls display them. The cache has hard limits of 200 entries
+and 128 MiB of decoded pixel storage (width × height × 4 bytes). Both limits include pinned entries. LRU
+eviction only disposes unused entries; when pinned entries prevent admission, the result remains uncached
+and is released after its final consumer. The byte budget excludes object overhead, GPU resources, codec
+working memory and uncached live images; it is not a total process-memory limit.
+Desktop views use a small bounded parallel decode lane
 so the visible grid can populate promptly, while the BigMode host opts its complete visual subtree into a
 separate serial lane that keeps rapidly superseded carousel artwork from competing for CPU time.
+
+Cacheable visible loads and local preloads share an in-flight operation by the existing source/DecodeWidth
+key. Each consumer owns an independent disposable lease, including when cache admission fails. A shared
+result pins its cache entry until its final consumer releases it. Invalidating a source marks both retained
+entries and matching in-flight operations; a pre-invalidation decode cannot repopulate the cache or satisfy
+new requests. Existing consumers can finish using their bitmap. Native decodes already in progress finish
+before a replacement for the same key starts. Completed/abandoned operations leave the in-flight table.
+`DisableCache=True` continues to use independently owned, uncached bitmaps.
+
+`CrossfadeImage` cancels superseded load-delay timers and unfinished internal image requests immediately,
+while preserving decoded outgoing images and existing fade timings. Detach invalidates pending generations;
+reattach resumes loading. Image completions are applied through the control's owning dispatcher.
 
 HTTP image loads have a 32 MiB encoded-body limit. A larger `Content-Length` is rejected before reading;
 missing or misleading headers cannot bypass the streaming counter. A pooled 64 KiB buffer reads at most
 one byte beyond the limit, and that byte is never appended to the bounded `MemoryStream`. Downloads use the
-image-switch cancellation token. Responses/network streams are disposed before decode, and download buffers
-are disposed on success, failure and cancellation. HTTP download concurrency remains unrestricted by this
-helper. Desktop decoding remains limited to four operations and BigMode decoding to one.
+shared operation's cancellation token for cacheable requests, or the image-switch token for uncached
+requests. Canceling one cacheable consumer only cancels its wait; the shared operation is canceled once
+its last waiter leaves. Responses/network streams are disposed before decode, and download buffers
+are disposed on success, failure and cancellation. HTTP download concurrency across different keys remains
+unrestricted by this helper. Desktop decoding remains limited to four operations and BigMode decoding to one.
 
 Before pixel decoding, the already available SkiaSharp `SKCodec.Info` API inspects the source dimensions
 through a non-owning managed-stream wrapper. Both source and requested output must have positive dimensions,
@@ -668,7 +685,8 @@ are unchanged.
 Limits: these are per-image limits rather than a total process-memory budget. Concurrent downloads and
 completed HTTP buffers waiting for a decode gate can accumulate across requests. Temporary managed-array
 growth, native encoded copies, codec metadata/intermediate pixel buffers, cached and displayed bitmaps also
-consume memory. The 200-entry LRU is count-based. Local encoded file size is not capped.
+consume memory. The LRU bounds decoded pixels by count and bytes, but does not account for these other allocations.
+Local encoded file size is not capped.
 Header inspection/native decoding is not a sandbox and cannot be interrupted once
 inside the codec; cancellation is checked before/after native work. Concurrent external changes to a local file
 are not locked out across the probe/decode boundary. Very slow HTTP bodies remain pending until completion,
@@ -714,7 +732,12 @@ BigMode is an overlay workflow with clear host/VM split:
   allocation and callback safety remain in `LibVlcVideoSurface`, and bitmap presentation remains in
   `VideoSurfaceControl`. Error reporting never performs playback recovery or changes crossfade generations
 - attract mode (theme-driven idle navigation)
+- selection processing validates existing item/category indices against the current source and selected
+  object before falling back to a linear lookup; counters and carousel helpers reuse valid indices
 - circular carousel windows retain overlapping item containers during one-step navigation instead of rebuilding every card
+- circular and wheel windows are activated by reading their existing collection or wheel-selection-index
+  properties, so unused windows are not built. Usage resets on root theme replacement; the next binding
+  read repopulates the same collection instance. Existing theme bindings need no new metadata
 - root themes can opt into a non-persisted Home dashboard through `ThemeProperties.SupportsHome`; the user-facing
   `AppSettings.EnableBigModeHomeScreen` switch must also be enabled. Its recent,
   favorite, and library shortcuts retain their real source nodes for inherited artwork and launch behavior.
