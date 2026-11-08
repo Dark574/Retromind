@@ -138,9 +138,10 @@ public sealed class NodeAssetMoveIntegrationTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Move_FileFailureReturnsFalseAndDiagnosesCompleteOrIncompleteRollback(bool blockRollback)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Move_FileFailureReturnsFalseAndDiagnosesCompleteOrIncompleteRollback(bool blockRollback, bool failManifest)
     {
         using var state = new State();
         var asset = state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
@@ -151,25 +152,138 @@ public sealed class NodeAssetMoveIntegrationTests
                 throw new IOException("Fixture commit failed");
             if (blockRollback && source.Contains(".retromind_asset_move_staging") &&
                 target.StartsWith(state.Temp.GetPath("Library", "Old")))
+            {
+                if (failManifest) Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(source)!, "recovery.json"));
                 throw new IOException("Fixture rollback blocked");
+            }
             File.Move(source, target);
         } };
         Assert.False(await state.Move(vm));
+        var reportCount = state.Errors.Reports.Count;
+        var noticeChanges = 0;
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(vm.NodeAssetRecoveryMessage)) noticeChanges++;
+        };
+        vm.ShowNodeMoveRecoveryIfNeeded();
+        vm.ShowNodeMoveRecoveryIfNeeded(); // Repeated presentation never creates duplicate notices/reports.
+        Assert.Equal(reportCount, state.Errors.Reports.Count);
         Assert.Contains(state.Source, state.Roots);
         Assert.Empty(state.Target.Children);
         Assert.Equal(!blockRollback, vm.LastNodeAssetOperation!.RollbackComplete);
         if (blockRollback)
         {
-            Assert.NotNull(vm.LastNodeAssetOperation.RecoveryManifest);
+            if (failManifest) Assert.Null(vm.LastNodeAssetOperation.RecoveryManifest);
+            else Assert.NotNull(vm.LastNodeAssetOperation.RecoveryManifest);
             Assert.All(vm.LastNodeAssetOperation.RecoveryFiles,
                 recovery => Assert.True(File.Exists(AppPaths.ResolveDataPath(recovery.RetainedPath))));
-            Assert.Equal(["NodeAssets.MoveFailed", "NodeAssets.RollbackIncomplete"], state.Errors.Reports.Select(report => report.Code));
+            var expected = new List<string> { "NodeAssets.MoveFailed", "NodeAssets.RollbackIncomplete" };
+            if (failManifest) expected.Add("NodeAssets.CleanupFailed");
+            Assert.Equal(expected, state.Errors.Reports.Select(report => report.Code));
+            var location = vm.LastNodeAssetOperation.RecoveryManifest ?? vm.LastNodeAssetOperation.StagingDirectory!;
+            Assert.False(Path.IsPathRooted(location));
+            Assert.Contains(location, vm.NodeAssetRecoveryMessage);
+            Assert.DoesNotContain(state.Temp.RootPath, vm.NodeAssetRecoveryMessage!);
+            Assert.Equal(1, noticeChanges);
         }
         else
         {
             Assert.True(File.Exists(asset.AbsolutePath));
             Assert.Equal("NodeAssets.MoveFailed", Assert.Single(state.Errors.Reports).Code);
+            Assert.Null(vm.NodeAssetRecoveryMessage);
+            Assert.Equal(0, noticeChanges);
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Move_UserCancellationCreatesNoRecoveryNoticeOrError(bool throwsCancellation)
+    {
+        using var state = new State();
+        var asset = state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
+        var vm = state.Main();
+        vm.NodeAssetFileOperations = new NodeAssetFileOperations { MoveFile = (_, _) => Assert.Fail("Cancelled move touched files") };
+        var moved = await vm.TryMoveNodeAsync(state.Source, state.Target, MainWindowViewModel.NodeDropPosition.Inside,
+            _ => throwsCancellation ? Task.FromException<bool>(new OperationCanceledException()) : Task.FromResult(false),
+            _ => Assert.Fail("Cancelled move changed selection"), () => throw new Exception("Cancelled move saved"));
+        Assert.False(moved);
+        vm.ShowNodeMoveRecoveryIfNeeded();
+        Assert.Null(vm.LastNodeAssetOperation);
+        Assert.Null(vm.NodeAssetRecoveryMessage);
+        Assert.Empty(state.Errors.Reports);
+        Assert.True(File.Exists(asset.AbsolutePath));
+        Assert.Contains(state.Source, state.Roots);
+        Assert.Empty(state.Target.Children);
+    }
+
+    [Fact]
+    public async Task Move_CommitThrowingAfterPublicationPreservesCompetingSourceAndShowsCriticalRecoveryLocation()
+    {
+        using var state = new State();
+        var asset = state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
+        var original = asset.AbsolutePath;
+        var vm = state.Main();
+        var published = state.Temp.GetPath("Library", "Target", "Old", "Cover", "Game_Cover_01.png");
+        vm.NodeAssetFileOperations = new NodeAssetFileOperations { MoveFile = (source, target) =>
+        {
+            File.Move(source, target);
+            if (target != published) return;
+            File.WriteAllText(original, "competing file");
+            throw new IOException("Fixture commit threw after moving");
+        } };
+
+        Assert.False(await state.Move(vm));
+        vm.ShowNodeMoveRecoveryIfNeeded();
+
+        Assert.False(vm.LastNodeAssetOperation!.RollbackComplete);
+        Assert.Equal("competing file", File.ReadAllText(original));
+        Assert.Equal("ours", File.ReadAllText(published));
+        Assert.Contains(state.Source, state.Roots);
+        Assert.Empty(state.Target.Children);
+        Assert.Contains(vm.LastNodeAssetOperation.RecoveryManifest!, vm.NodeAssetRecoveryMessage);
+        Assert.Equal(["NodeAssets.MoveFailed", "NodeAssets.RollbackIncomplete"], state.Errors.Reports.Select(report => report.Code));
+        Assert.Equal(ErrorSeverity.Critical, state.Errors.Reports.Last().Severity);
+        Assert.All(state.Errors.Notifications, Assert.Null);
+    }
+
+    [Fact]
+    public async Task Move_CancellationOrRejectionAfterRecoveryDoesNotReuseStaleResultOrLoseNotice()
+    {
+        using var state = new State();
+        state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
+        var vm = state.Main();
+        vm.NodeAssetFileOperations = new NodeAssetFileOperations
+        {
+            AfterFilesMoved = () => throw new IOException("Fixture publication failed"),
+            MoveFile = (source, target) =>
+            {
+                if (source.Contains("/Target/")) throw new IOException("Fixture rollback blocked");
+                File.Move(source, target);
+            }
+        };
+        Assert.False(await state.Move(vm));
+        vm.ShowNodeMoveRecoveryIfNeeded();
+        var originalNotice = vm.NodeAssetRecoveryMessage;
+        Assert.NotNull(originalNotice);
+        var reports = state.Errors.Reports.Count;
+        var changes = 0;
+        vm.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(vm.NodeAssetRecoveryMessage)) changes++;
+        };
+
+        Assert.False(await vm.TryMoveNodeAsync(state.Source, state.Target, MainWindowViewModel.NodeDropPosition.Inside,
+            _ => Task.FromResult(false), _ => { }, () => Task.FromResult(true)));
+        vm.ShowNodeMoveRecoveryIfNeeded();
+        Assert.Null(vm.LastNodeAssetOperation);
+        Assert.Equal(originalNotice, vm.NodeAssetRecoveryMessage);
+        Assert.False(await state.Move(vm, target: state.Source));
+        vm.ShowNodeMoveRecoveryIfNeeded();
+        Assert.Null(vm.LastNodeAssetOperation);
+        Assert.Equal(originalNotice, vm.NodeAssetRecoveryMessage);
+        Assert.Equal(0, changes);
+        Assert.Equal(reports, state.Errors.Reports.Count);
     }
 
     [Fact]
@@ -295,8 +409,8 @@ public sealed class NodeAssetMoveIntegrationTests
             typeof(MainWindowViewModel).GetField("_errorService", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, Errors);
             return vm;
         }
-        public Task<bool> Move(MainWindowViewModel vm, Func<Task<bool>>? save = null, Action<MediaNode?>? select = null) =>
-            vm.TryMoveNodeAsync(Source, Target, MainWindowViewModel.NodeDropPosition.Inside, _ => Task.FromResult(true), select ?? (_ => { }),
+        public Task<bool> Move(MainWindowViewModel vm, Func<Task<bool>>? save = null, Action<MediaNode?>? select = null, MediaNode? target = null) =>
+            vm.TryMoveNodeAsync(Source, target ?? Target, MainWindowViewModel.NodeDropPosition.Inside, _ => Task.FromResult(true), select ?? (_ => { }),
                 save ?? (() => Task.FromResult(true)));
         public void Dispose() { _environment.Dispose(); Temp.Dispose(); }
     }

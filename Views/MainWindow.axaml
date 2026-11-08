@@ -391,8 +391,12 @@
            </Grid>
        </Grid>
 
-       <Border MaxWidth="900"
+       <StackPanel MaxWidth="900"
                Margin="24,42,24,0"
+               Spacing="8"
+               HorizontalAlignment="Center"
+               VerticalAlignment="Top">
+       <Border
                Padding="14"
                HorizontalAlignment="Center"
                VerticalAlignment="Top"
@@ -407,6 +411,21 @@
                       TextAlignment="Center"
                       TextWrapping="Wrap" />
        </Border>
+
+       <Border Padding="14"
+               Background="#FF8B0000"
+               BorderBrush="#FFFFB4AB"
+               BorderThickness="1"
+               CornerRadius="8"
+               IsVisible="{Binding NodeAssetRecoveryMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+           <ScrollViewer MaxHeight="200" HorizontalScrollBarVisibility="Disabled">
+               <TextBlock Text="{Binding NodeAssetRecoveryMessage}"
+                          Foreground="White"
+                          FontSize="15"
+                          TextWrapping="Wrap" />
+           </ScrollViewer>
+       </Border>
+       </StackPanel>
 
         <!-- Resize Grips (Invisible Edges) -->
         <!-- We use x:Static for WindowEdge. The Avalonia.Controls namespace is there by default -->

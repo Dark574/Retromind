@@ -2120,6 +2120,7 @@ public partial class MainWindowViewModel
     internal async Task<bool> TryMoveNodeAsync(MediaNode sourceNode, MediaNode targetNode, NodeDropPosition dropPosition,
         Func<string, Task<bool>>? confirm, Action<MediaNode?>? selectNode, Func<Task<bool>>? save)
     {
+        LastNodeAssetOperation = null;
         var traversal = NodeAssetFolderHelper.ValidateTraversal(RootItems);
         if (!traversal.Success)
         {

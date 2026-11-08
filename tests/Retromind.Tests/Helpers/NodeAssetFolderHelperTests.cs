@@ -223,6 +223,108 @@ public sealed class NodeAssetFolderHelperTests
         Assert.All(errors.Notifications, Assert.Null);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CommitThrowingAfterMove_PreservesUncertainTargetAndReportsCriticalRecovery(bool competingSource)
+    {
+        using var state = new AssetState();
+        var asset = state.AddAsset(state.Node, "Cover", "Game_Cover_01.png");
+        var original = asset.AbsolutePath;
+        var targetPath = state.Temp.GetPath("Library", "New", "Cover", "Game_Cover_01.png");
+        var result = state.Move(new NodeAssetFileOperations { MoveFile = (source, target) =>
+        {
+            File.Move(source, target);
+            if (target != targetPath) return;
+            if (competingSource) File.WriteAllText(original, "competing file");
+            throw new IOException("Fixture commit threw after moving");
+        } });
+
+        Assert.False(result.Success);
+        Assert.False(result.RollbackComplete);
+        Assert.Equal("CommitFiles", result.FailurePhase);
+        Assert.Equal("Old", state.Node.Name);
+        Assert.StartsWith("Library/Old/", asset.RelativePath);
+        Assert.Equal("ours", File.ReadAllText(targetPath));
+        if (competingSource) Assert.Equal("competing file", File.ReadAllText(original));
+        else Assert.False(File.Exists(original));
+        var recovery = Assert.Single(result.RecoveryFiles);
+        Assert.Equal(asset.RelativePath, recovery.OriginalPath);
+        Assert.Equal("Library/New/Cover/Game_Cover_01.png", recovery.RetainedPath);
+        Assert.NotNull(result.RecoveryManifest);
+        using var manifest = JsonDocument.Parse(File.ReadAllText(AppPaths.ResolveDataPath(result.RecoveryManifest)));
+        var savedRecovery = Assert.Single(manifest.RootElement.GetProperty("RecoveryFiles").EnumerateArray());
+        Assert.Equal(recovery.OriginalPath, savedRecovery.GetProperty("OriginalPath").GetString());
+        Assert.Equal(recovery.RetainedPath, savedRecovery.GetProperty("RetainedPath").GetString());
+        var errors = new RecordingErrorService();
+        NodeAssetDiagnostics.Report(errors, result, "Move", state.Node.Id);
+        Assert.Equal(["NodeAssets.MoveFailed", "NodeAssets.RollbackIncomplete"], errors.Reports.Select(report => report.Code));
+        Assert.Equal(ErrorSeverity.Critical, errors.Reports.Last().Severity);
+        Assert.Equal(result.RecoveryManifest, errors.Reports.Last().Context!["RecoveryManifest"]);
+        Assert.Single(errors.Reports.Select(report => report.CorrelationId).Distinct());
+    }
+
+    [Fact]
+    public void FailedCommitWithCompetingTarget_RestoresStagingButDoesNotAssumeTargetOwnership()
+    {
+        using var state = new AssetState();
+        var asset = state.AddAsset(state.Node, "Cover", "Game_Cover_01.png");
+        var targetPath = state.Temp.GetPath("Library", "New", "Cover", "Game_Cover_01.png");
+        var result = state.Move(new NodeAssetFileOperations { MoveFile = (source, target) =>
+        {
+            if (target == targetPath) File.WriteAllText(target, "competing file");
+            File.Move(source, target);
+        } });
+        Assert.False(result.RollbackComplete);
+        Assert.Equal("ours", File.ReadAllText(asset.AbsolutePath));
+        Assert.Equal("competing file", File.ReadAllText(targetPath));
+        Assert.Equal("Library/New/Cover/Game_Cover_01.png", Assert.Single(result.RecoveryFiles).RetainedPath);
+        Assert.NotNull(result.RecoveryManifest);
+    }
+
+    [Fact]
+    public void StagingThrowingAfterMove_PreservesFileForManualRecovery()
+    {
+        using var state = new AssetState();
+        var asset = state.AddAsset(state.Node, "Cover", "Game_Cover_01.png");
+        var original = asset.AbsolutePath;
+        var result = state.Move(new NodeAssetFileOperations { MoveFile = (source, target) =>
+        {
+            File.Move(source, target);
+            File.WriteAllText(original, "competing file");
+            throw new IOException("Fixture staging threw after moving");
+        } });
+        Assert.False(result.RollbackComplete);
+        Assert.Equal("competing file", File.ReadAllText(original));
+        Assert.Contains(result.RecoveryFiles, file =>
+            file.RetainedPath.Contains(".retromind_asset_move_staging") &&
+            File.ReadAllText(AppPaths.ResolveDataPath(file.RetainedPath)) == "ours");
+        Assert.NotNull(result.RecoveryManifest);
+    }
+
+    [Fact]
+    public void RollbackThrowingAfterMove_RecordsSurvivingSourceWithoutClaimingConfirmedRestoration()
+    {
+        using var state = new AssetState();
+        var asset = state.AddAsset(state.Node, "Cover", "Game_Cover_01.png");
+        var original = asset.AbsolutePath;
+        var result = state.Move(new NodeAssetFileOperations
+        {
+            MoveFile = (source, target) =>
+            {
+                File.Move(source, target);
+                if (target == original) throw new IOException("Fixture rollback threw after moving");
+            },
+            AfterFilesMoved = () => throw new IOException("Fixture publication failed")
+        });
+        Assert.False(result.RollbackComplete);
+        Assert.Equal("ours", File.ReadAllText(original));
+        var recovery = Assert.Single(result.RecoveryFiles);
+        Assert.Equal(asset.RelativePath, recovery.OriginalPath);
+        Assert.Equal(asset.RelativePath, recovery.RetainedPath);
+        Assert.NotNull(result.RecoveryManifest);
+    }
+
     [Fact]
     public void CleanupFailure_IsDiagnosticAndDoesNotTurnSuccessfulMoveIntoFailure()
     {

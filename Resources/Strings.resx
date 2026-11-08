@@ -1637,4 +1637,5 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
 Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data>
     <data name="BulkScrape.AssetImportFailed" xml:space="preserve"><value>At least one selected asset could not be imported: {0}. Other changes are retained.</value></data>
     <data name="NodeAssets.RecoveryRequired" xml:space="preserve"><value>Manual recovery is required. Preserve files at: {0}</value></data>
+    <data name="NodeAssets.MoveRecoveryRequired" xml:space="preserve"><value>Category move failed. Manual recovery is required. Preserve files at (relative to the data directory): {0}</value></data>
 </root>

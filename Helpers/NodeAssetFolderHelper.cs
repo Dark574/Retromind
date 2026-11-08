@@ -15,6 +15,9 @@ public static partial class NodeAssetFolderHelper
         public required string SourcePath { get; init; }
         public required string TargetPath { get; init; }
         public string? StagingPath { get; set; }
+        public bool StagingCompleted { get; set; }
+        public bool CommitAttempted { get; set; }
+        public bool CommitCompleted { get; set; }
     }
 
     private sealed class TargetFolderReservation

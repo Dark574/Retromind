@@ -157,7 +157,6 @@ public static partial class NodeAssetFolderHelper
     {
         var stagingRoot = Path.Combine(AppPaths.LibraryRoot, ".retromind_asset_move_staging", Guid.NewGuid().ToString("N"));
         var staged = new List<PlannedFileMove>();
-        var committed = new List<PlannedFileMove>();
         var failureCode = "NodeAssets.MoveFailed";
         var phase = "Staging";
         var categoryAttempted = false;
@@ -178,6 +177,7 @@ public static partial class NodeAssetFolderHelper
                 move.StagingPath = stage;
                 staged.Add(move); // Also track an interrupted cross-filesystem copy or a move that throws after IO.
                 io.MoveFile(move.SourcePath, stage);
+                move.StagingCompleted = true;
             }
             phase = "CommitFiles";
             foreach (var move in plannedMoves)
@@ -186,8 +186,9 @@ public static partial class NodeAssetFolderHelper
                     throw new IOException("Unsafe asset target location.");
                 Directory.CreateDirectory(Path.GetDirectoryName(move.TargetPath)!);
                 // File.Move itself never overwrites, including races after this check or directory collisions.
+                move.CommitAttempted = true;
                 io.MoveFile(move.StagingPath!, move.TargetPath);
-                committed.Add(move);
+                move.CommitCompleted = true;
             }
 
             failureCode = "NodeAssets.PathUpdateFailed";
@@ -210,7 +211,7 @@ public static partial class NodeAssetFolderHelper
                 catch { result.MetadataRecoveryRequired = true; result.RollbackComplete = false; }
             }
             paths?.Rollback(result);
-            RollbackPlannedMoves(staged, committed, result, io);
+            RollbackPlannedMoves(staged, result, io);
             if (!result.RollbackComplete)
                 WriteRecoveryManifest(stagingRoot, result, paths);
         }
@@ -222,24 +223,42 @@ public static partial class NodeAssetFolderHelper
     }
 
     private static void RollbackPlannedMoves(IReadOnlyList<PlannedFileMove> staged,
-        IReadOnlyList<PlannedFileMove> committed, NodeAssetOperationResult result, NodeAssetFileOperations io)
+        NodeAssetOperationResult result, NodeAssetFileOperations io)
     {
-        foreach (var move in committed.Reverse()) Restore(move, move.TargetPath);
-        foreach (var move in staged.Reverse()) Restore(move, move.StagingPath!);
-        foreach (var move in staged)
+        foreach (var move in staged.Reverse())
         {
-            if (File.Exists(move.SourcePath)) continue;
-            result.RollbackComplete = false;
-            var retained = File.Exists(move.StagingPath) ? move.StagingPath! : move.TargetPath;
-            var entry = new NodeAssetRecoveryFile(RelativeLocation(move.SourcePath), RelativeLocation(retained));
-            if (!result.RecoveryFiles.Contains(entry)) result.RecoveryFiles.Add(entry);
+            if (move.CommitCompleted)
+            {
+                Restore(move, move.TargetPath);
+            }
+            else if (move.StagingCompleted)
+            {
+                // A throwing commit may already have published the file. Its target could also be a
+                // competing file: preserve it rather than guessing ownership from path existence.
+                var uncertainTarget = move.CommitAttempted && File.Exists(move.TargetPath);
+                if (uncertainTarget)
+                {
+                    result.RollbackComplete = false;
+                    Remember(move, move.TargetPath);
+                }
+                if (!uncertainTarget || File.Exists(move.StagingPath))
+                    Restore(move, move.StagingPath!);
+            }
+            else
+            {
+                // Even staging can throw after IO (or after a partial cross-filesystem copy).
+                // Neither an existing source nor a staging file proves a complete original survived.
+                result.RollbackComplete = false;
+                Remember(move, move.StagingPath!);
+                Remember(move, move.SourcePath);
+            }
         }
 
         void Restore(PlannedFileMove move, string retained)
         {
-            if (!File.Exists(retained)) return;
             try
             {
+                if (!File.Exists(retained)) throw new IOException("The recorded asset location is missing.");
                 if (!AppPaths.TryResolveDataPathForMutation(retained, out _) ||
                     !AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
                     throw new IOException("Unsafe rollback location.");
@@ -250,8 +269,18 @@ public static partial class NodeAssetFolderHelper
             catch
             {
                 result.RollbackComplete = false;
-                result.RecoveryFiles.Add(new(RelativeLocation(move.SourcePath), RelativeLocation(retained)));
+                Remember(move, retained);
+                // A restoration can likewise throw after moving. Keep the actual surviving location
+                // in the manifest, but never treat source existence alone as confirmed restoration.
+                if (!File.Exists(retained)) Remember(move, move.SourcePath);
             }
+        }
+
+        void Remember(PlannedFileMove move, string retained)
+        {
+            if (!File.Exists(retained)) return;
+            var entry = new NodeAssetRecoveryFile(RelativeLocation(move.SourcePath), RelativeLocation(retained));
+            if (!result.RecoveryFiles.Contains(entry)) result.RecoveryFiles.Add(entry);
         }
     }
 

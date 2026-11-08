@@ -549,6 +549,13 @@ Failure behavior is explicit:
 - File-stage/commit failure uses the existing reverse staging/commit rollback. Publication and restoration use
   non-overwriting `File.Move`; competing source/target files are preserved. Mutation, rollback and cleanup keep
   the existing root-containment and symbolic-link checks, including validation of individual source files.
+  Attempted staging/commit steps and confirmed returns are tracked separately. A move that throws can already
+  have changed the filesystem: an existing original path alone never confirms restoration. An unconfirmed
+  commit target is retained for manual inspection, even if the original path is vacant. If staging still holds
+  the confirmed original, that file is restored without touching the uncertain target. Such ambiguous cases
+  conservatively set `RollbackComplete=false`; recovery mappings include surviving candidate locations, not
+  a guarantee that each candidate belongs to this operation. A restoration that throws after moving likewise
+  records its surviving source location without claiming a confirmed rollback.
 - A path or category publication failure restores attempted metadata changes and rolls the files back. A path
   changed to an unexpected third value is preserved and marked for manual recovery rather than overwritten.
 - If restoration cannot finish, `Success=false`, `RollbackComplete=false`, recovery file mappings, and
@@ -576,7 +583,12 @@ another Save in that editor instance. Its prepared editor-import transaction is 
 imports when category recovery is incomplete: imported files may be the only remaining copies at recovery
 locations. Such edits/references may remain in memory and require inspection. Ordinary complete rollbacks
 still restore the original asset list and undo pending editor imports. A main-window category move returns
-`false` on asset/metadata failure and exposes the last operation result for diagnostics. Reordering within a
+`false` on asset/metadata failure and exposes the last operation result for diagnostics. Both category drag/drop
+paths inspect this result: incomplete rollback displays a persistent, wrapped, nonmodal recovery notice with
+the `DataRoot`-relative manifest path, or staging location when manifest creation fails. Presentation does not
+report the failure again. Each move clears its previous operation result; ordinary rejection and cancelled
+confirmation create no new recovery notice and preserve any earlier unresolved notice. Notices are not proof
+that manual recovery has completed and are not persisted across application restarts. Reordering within a
 parent retains its previous behavior. A later `SaveData()` failure after a successful category operation still
 returns `false` while retaining the correct filesystem/model move and dirty state for a save retry; persistence
 owns its existing notice, without a duplicate node-asset failure report.

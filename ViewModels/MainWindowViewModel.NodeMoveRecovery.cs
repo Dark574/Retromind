@@ -8,6 +8,26 @@ namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
+    private string? _nodeAssetRecoveryMessage;
+    public string? NodeAssetRecoveryMessage
+    {
+        get => _nodeAssetRecoveryMessage;
+        private set => SetProperty(ref _nodeAssetRecoveryMessage, value);
+    }
+
+    // Called by both drag/drop paths on the UI thread. Reporting already belongs to the move caller.
+    internal void ShowNodeMoveRecoveryIfNeeded()
+    {
+        if (LastNodeAssetOperation is not { RollbackComplete: false } recovery) return;
+        var location = recovery.RecoveryManifest ?? recovery.StagingDirectory ?? recovery.TargetPrefix;
+        var message = string.Format(T("NodeAssets.MoveRecoveryRequired",
+            "Category move failed. Manual recovery is required. Preserve files at (relative to the data directory): {0}"), location);
+        // An unrelated rejection/cancellation must not dismiss earlier unresolved recovery information.
+        if (NodeAssetRecoveryMessage == null) NodeAssetRecoveryMessage = message;
+        else if (!NodeAssetRecoveryMessage.Contains(message, StringComparison.Ordinal))
+            NodeAssetRecoveryMessage += "\n\n" + message;
+    }
+
     private sealed class NodeAssignmentSnapshot
     {
         private readonly List<Action> _restore = new();

@@ -432,7 +432,10 @@ public partial class MainWindow : Window
 
         e.Handled = true;
         if (DataContext is MainWindowViewModel vm)
-            await vm.TryMoveNodeAsync(sourceNode, targetNode, dropPosition.Value);
+        {
+            if (!await vm.TryMoveNodeAsync(sourceNode, targetNode, dropPosition.Value))
+                vm.ShowNodeMoveRecoveryIfNeeded();
+        }
     }
 
     private void OnTreeNodePointerCaptureLost(object? sender, PointerCaptureLostEventArgs e)
@@ -537,7 +540,8 @@ public partial class MainWindow : Window
             return;
 
         var dropPosition = GetDropPosition(targetControl, e);
-        await vm.TryMoveNodeAsync(sourceNode, targetNode, dropPosition);
+        if (!await vm.TryMoveNodeAsync(sourceNode, targetNode, dropPosition))
+            vm.ShowNodeMoveRecoveryIfNeeded();
         ClearDropIndicator();
     }
 
