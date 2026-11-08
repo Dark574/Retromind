@@ -12,6 +12,7 @@ using Retromind.Helpers;
 using Retromind.Extensions;
 using Retromind.Helpers.Video;
 using Retromind.Models;
+using Retromind.Services.BigMode;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.Achievements;
@@ -686,7 +687,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         var visibleItems = !_parentalFilterActive
             ? node.Items
             : new ObservableCollection<MediaItem>(
-                node.Items.Where(item => !item.IsProtected));
+                node.Items.Where(item => BigModeVisibilityPolicy.IsItemVisible(item, _parentalFilterActive)));
 
         ApplyRandomizedMedia(node, visibleItems);
         return visibleItems;
@@ -749,24 +750,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     }
 
     private bool ShouldShowNode(MediaNode node)
-    {
-        if (!_parentalFilterActive)
-            return true;
-
-        if (node.Children.Count == 0 && node.Items.Count == 0)
-            return true;
-
-        if (node.Items.Any(item => !item.IsProtected))
-            return true;
-
-        foreach (var child in node.Children)
-        {
-            if (ShouldShowNode(child))
-                return true;
-        }
-
-        return false;
-    }
+        => BigModeVisibilityPolicy.IsNodeVisible(node, _parentalFilterActive);
 
     private MediaPlayer CreateMediaPlayerForSurface(LibVlcVideoSurface surface, int index)
     {

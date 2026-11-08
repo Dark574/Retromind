@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Retromind.Models;
+using Retromind.Services.BigMode;
 
 namespace Retromind.ViewModels;
 
@@ -151,7 +152,7 @@ public sealed class BigModeHomeLibraryNavigator
     private int CountVisibleItems(MediaNode node)
     {
         var directCount = node.Items.Count(item =>
-            !_parentalFilterActive || !item.IsProtected);
+            BigModeVisibilityPolicy.IsItemVisible(item, _parentalFilterActive));
         return directCount + GetVisibleChildren(node).Sum(CountVisibleItems);
     }
 
@@ -191,13 +192,5 @@ public sealed class BigModeHomeLibraryNavigator
     }
 
     private static bool ShouldShowNode(MediaNode node)
-    {
-        if (node.Children.Count == 0 && node.Items.Count == 0)
-            return true;
-
-        if (node.Items.Any(item => !item.IsProtected))
-            return true;
-
-        return node.Children.Any(ShouldShowNode);
-    }
+        => BigModeVisibilityPolicy.IsNodeVisible(node, parentalFilterActive: true);
 }

@@ -5,6 +5,7 @@ using System.Globalization;
 using System.Linq;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.BigMode;
 
 namespace Retromind.ViewModels;
 
@@ -105,7 +106,7 @@ public static class BigModeHomeBuilder
         {
             foreach (var item in node.Items)
             {
-                if (!parentalFilterActive || !item.IsProtected)
+                if (BigModeVisibilityPolicy.IsItemVisible(item, parentalFilterActive))
                     yield return (item, node);
             }
 
@@ -115,15 +116,7 @@ public static class BigModeHomeBuilder
     }
 
     private static bool ShouldShowNode(MediaNode node)
-    {
-        if (node.Children.Count == 0 && node.Items.Count == 0)
-            return true;
-
-        if (node.Items.Any(item => !item.IsProtected))
-            return true;
-
-        return node.Children.Any(ShouldShowNode);
-    }
+        => BigModeVisibilityPolicy.IsNodeVisible(node, parentalFilterActive: true);
 
     private static ObservableCollection<T> ToObservableCollection<T>(this IEnumerable<T> source) =>
         new(source);
