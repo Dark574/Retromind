@@ -22,7 +22,8 @@ public sealed class GamepadService : IDisposable
         Right
     }
 
-    // Events (raised on the SDL polling thread; subscribers should marshal to UI thread if needed).
+    // Events normally run on the SDL polling thread; lifecycle releases can run on the caller.
+    // Subscribers must marshal to the UI thread. No subscriber runs under the input-state lock.
     public event Action? OnSelect;
     public event Action? OnBack;
     public event Action? OnDetails;
@@ -38,6 +39,7 @@ public sealed class GamepadService : IDisposable
     private readonly AppSettings _settings;
     private readonly Sdl _sdl;
     private readonly bool _isSdlAvailable;
+    private readonly TimeProvider _timeProvider;
     private bool _sdlUnavailableLogged;
 
     private readonly Dictionary<int, IntPtr> _activeControllers = new();
@@ -70,17 +72,49 @@ public sealed class GamepadService : IDisposable
 
     private readonly Dictionary<int, TriggerState> _triggerStates = new();
 
-    // Simple axis edge detection to prevent event spam.
-    // 0 = center, -1 = negative, 1 = positive
-    private int _lastAxisXState;
-    private int _lastAxisYState;
+    private sealed class DirectionState
+    {
+        public int AxisX;
+        public int AxisY;
+        public int Dpad;
+
+        public int Pressed => Dpad |
+            (AxisX < 0 ? DirectionBit(GamepadDirection.Left) : AxisX > 0 ? DirectionBit(GamepadDirection.Right) : 0) |
+            (AxisY < 0 ? DirectionBit(GamepadDirection.Up) : AxisY > 0 ? DirectionBit(GamepadDirection.Down) : 0);
+    }
+
+    private readonly Dictionary<int, DirectionState> _directionStates = new();
+    private int _pressedDirections;
+    private int _publishedDirections;
     private readonly object _uiInputGate = new();
     private bool _uiInputEnabled = true;
+    private bool _monitoringStopped;
+    private long _inputGeneration;
+    private long _monitoringGeneration;
+    private readonly Queue<PendingInputEvent> _pendingInputEvents = new();
+    private bool _dispatchingEvents;
+
+    private sealed record PendingInputEvent(
+        Action? Callback, long Generation, bool UiOnly = false, bool BackgroundOnly = false,
+        GamepadDirection? Direction = null, bool IsPressed = false);
 
     public GamepadService(AppSettings? settings = null)
+        : this(settings, loadSdl: true)
+    {
+    }
+
+    // Tests drive the same SDL event processor without opening native controllers or sleeping for holds.
+    internal GamepadService(AppSettings? settings, bool loadSdl, TimeProvider? timeProvider = null)
     {
         _settings = settings ?? new AppSettings();
         _settings.ControllerBindings ??= new ControllerBindingSettings();
+        _timeProvider = timeProvider ?? TimeProvider.System;
+
+        if (!loadSdl)
+        {
+            _sdl = null!;
+            return;
+        }
 
         try
         {
@@ -96,12 +130,35 @@ public sealed class GamepadService : IDisposable
         }
     }
 
-    public void StartMonitoring()
-    {
-        StopMonitoring();
+    public void StartMonitoring() => StartMonitoring(expectedGeneration: null);
 
-        _cts = new CancellationTokenSource();
-        var token = _cts.Token;
+    private void StartMonitoring(long? expectedGeneration)
+    {
+        var stop = RequestStop(expectedGeneration);
+        if (stop == null)
+            return;
+        FinishStop(stop.Value.Loop);
+
+        lock (_uiInputGate)
+        {
+            // A callback/concurrent StopMonitoring may have canceled this start while releases were delivered.
+            if (_monitoringGeneration != stop.Value.Generation)
+                return;
+        }
+
+        // A subscriber may request a restart from inside the polling callback. Never join that loop here.
+        if (stop.Value.Loop is { IsCompleted: false } previousLoop)
+        {
+            _ = RestartAfterLoopAsync(previousLoop, stop.Value.Generation);
+            return;
+        }
+
+        lock (_uiInputGate)
+        {
+            if (_monitoringGeneration != stop.Value.Generation)
+                return;
+            _monitoringStopped = false;
+        }
 
         if (!_isSdlAvailable)
         {
@@ -124,21 +181,51 @@ public sealed class GamepadService : IDisposable
 
         OpenExistingControllers();
 
-        _loopTask = Task.Run(() => GameLoopAsync(token), token);
+        lock (_uiInputGate)
+        {
+            if (_monitoringGeneration == stop.Value.Generation)
+            {
+                var cts = new CancellationTokenSource();
+                _cts = cts;
+                // Always enter the loop's finally, even if StopMonitoring immediately cancels the token.
+                _loopTask = Task.Run(() => GameLoopAsync(cts));
+                return;
+            }
+        }
+        CloseControllers(); // Startup was canceled before the polling loop took ownership.
     }
 
     public void StopMonitoring()
     {
-        var cts = _cts;
-        var loopTask = _loopTask;
-        _cts = null;
-        _loopTask = null;
+        var stop = RequestStop();
+        FinishStop(stop!.Value.Loop);
+    }
 
-        cts?.Cancel();
+    private (Task? Loop, long Generation)? RequestStop(long? expectedGeneration = null)
+    {
+        lock (_uiInputGate)
+        {
+            if (expectedGeneration.HasValue && _monitoringGeneration != expectedGeneration.Value)
+                return null;
+            _monitoringGeneration++;
+            _monitoringStopped = true;
+            ResetInputState();
+            _cts?.Cancel();
+            return (_loopTask, _monitoringGeneration);
+        }
+    }
+
+    private void FinishStop(Task? loopTask)
+    {
+        DrainInputEvents();
+
+        bool dispatchInProgress;
+        lock (_uiInputGate)
+            dispatchInProgress = _dispatchingEvents;
 
         // The polling loop owns hot-plug updates. Let it finish before closing
         // controller handles so the dictionary cannot change during cleanup.
-        if (loopTask != null)
+        if (loopTask != null && !dispatchInProgress)
         {
             try
             {
@@ -154,7 +241,20 @@ public sealed class GamepadService : IDisposable
             }
         }
 
-        // Best effort: close all controllers.
+        // Native handles and the token source are owned by the loop's finally. Callback-triggered
+        // stops (including cross-thread calls from a subscriber) never wait on an in-flight callback.
+        // Ordinary callers with no callback in flight still wait for native cleanup.
+    }
+
+    private async Task RestartAfterLoopAsync(Task previousLoop, long generation)
+    {
+        try { await previousLoop.ConfigureAwait(false); }
+        catch (Exception ex) { Debug.WriteLine($"[Gamepad] Previous loop ended with an error: {ex.Message}"); }
+        StartMonitoring(generation);
+    }
+
+    private void CloseControllers()
+    {
         if (_isSdlAvailable)
         {
             unsafe
@@ -174,10 +274,6 @@ public sealed class GamepadService : IDisposable
         }
 
         _activeControllers.Clear();
-        _sessionExitHoldStates.Clear();
-        _triggerStates.Clear();
-
-        cts?.Dispose();
 
         // Important:
         // We intentionally do NOT call SDL_Quit() here.
@@ -198,20 +294,20 @@ public sealed class GamepadService : IDisposable
                 return;
 
             _uiInputEnabled = enabled;
-            _sessionExitHoldStates.Clear();
-            _triggerStates.Clear();
-
-            if (enabled)
-                return;
-
-            _lastAxisXState = 0;
-            _lastAxisYState = 0;
+            ResetInputState();
         }
 
-        // End any active repeat navigation before handing the controller to
-        // another application. Releasing all directions is harmless for idle ones.
-        foreach (var direction in Enum.GetValues<GamepadDirection>())
-            OnDirectionStateChanged?.Invoke(direction, false);
+        DrainInputEvents();
+    }
+
+    // Called under _uiInputGate. Clear both on disable and enable; background events never restore UI holds.
+    private void ResetInputState()
+    {
+        _inputGeneration++;
+        _sessionExitHoldStates.Clear();
+        _triggerStates.Clear();
+        _directionStates.Clear();
+        UpdateAggregatedDirections();
     }
 
     private bool EnsureInitialized()
@@ -244,28 +340,33 @@ public sealed class GamepadService : IDisposable
         }
     }
 
-    private async Task GameLoopAsync(CancellationToken token)
+    private async Task GameLoopAsync(CancellationTokenSource cts)
     {
-        Event sdlEvent;
-
-        while (!token.IsCancellationRequested)
+        var token = cts.Token;
+        try
         {
-            while (!token.IsCancellationRequested && PollNextEvent(out sdlEvent))
+            while (!token.IsCancellationRequested)
             {
-                ProcessEvent(sdlEvent);
-            }
+                while (!token.IsCancellationRequested && PollNextEvent(out var sdlEvent))
+                    ProcessEvent(sdlEvent);
 
-            if (TryConsumeSessionExitHold())
-                OnSessionExitRequested?.Invoke();
+                CheckSessionExitHold();
 
-            try
-            {
-                await Task.Delay(10, token).ConfigureAwait(false);
+                try { await Task.Delay(10, token).ConfigureAwait(false); }
+                catch (OperationCanceledException) { break; }
             }
-            catch (OperationCanceledException)
+        }
+        finally
+        {
+            CloseControllers();
+            lock (_uiInputGate)
             {
-                break;
+                _monitoringStopped = true;
+                ResetInputState();
+                _cts = null;
+                cts.Dispose();
             }
+            DrainInputEvents();
         }
     }
 
@@ -316,7 +417,7 @@ public sealed class GamepadService : IDisposable
         return result == 1;
     }
 
-    private void ProcessEvent(Event sdlEvent)
+    internal void ProcessEvent(Event sdlEvent)
     {
         switch ((EventType)sdlEvent.Type)
         {
@@ -340,6 +441,8 @@ public sealed class GamepadService : IDisposable
     {
         lock (_uiInputGate)
         {
+            if (_monitoringStopped)
+                return;
             var eventType = (EventType)sdlEvent.Type;
             if (eventType is EventType.Controllerbuttondown or EventType.Controllerbuttonup &&
                 TryMapButton((GameControllerButton)sdlEvent.Cbutton.Button, out var button))
@@ -347,7 +450,7 @@ public sealed class GamepadService : IDisposable
                 var isPressed = eventType == EventType.Controllerbuttondown;
                 UpdateSessionExitHoldState(sdlEvent.Cbutton.Which, button, isPressed);
                 if (isPressed)
-                    OnButtonPressed?.Invoke(button);
+                    QueueInputEvent(() => OnButtonPressed?.Invoke(button));
             }
             else if (eventType == EventType.Controlleraxismotion &&
                      TryUpdateTriggerState(sdlEvent.Caxis, out var trigger, out var isPressed))
@@ -355,28 +458,29 @@ public sealed class GamepadService : IDisposable
                 UpdateSessionExitHoldState(sdlEvent.Caxis.Which, trigger, isPressed);
                 if (isPressed)
                 {
-                    OnButtonPressed?.Invoke(trigger);
+                    QueueInputEvent(() => OnButtonPressed?.Invoke(trigger));
                     if (_uiInputEnabled)
                         RaiseMappedAction(trigger);
                 }
             }
 
-            if (!_uiInputEnabled)
-                return;
-
-            switch ((EventType)sdlEvent.Type)
+            if (_uiInputEnabled)
             {
-                case EventType.Controllerbuttondown:
-                    HandleButtonDown(sdlEvent.Cbutton);
-                    break;
-                case EventType.Controllerbuttonup:
-                    HandleButtonUp(sdlEvent.Cbutton);
-                    break;
-                case EventType.Controlleraxismotion:
-                    HandleAxisMotion(sdlEvent.Caxis);
-                    break;
+                switch ((EventType)sdlEvent.Type)
+                {
+                    case EventType.Controllerbuttondown:
+                        HandleButtonDown(sdlEvent.Cbutton);
+                        break;
+                    case EventType.Controllerbuttonup:
+                        HandleButtonUp(sdlEvent.Cbutton);
+                        break;
+                    case EventType.Controlleraxismotion:
+                        HandleAxisMotion(sdlEvent.Caxis);
+                        break;
+                }
             }
         }
+        DrainInputEvents();
     }
 
     private unsafe void HandleDeviceAdded(ControllerDeviceEvent e)
@@ -391,17 +495,17 @@ public sealed class GamepadService : IDisposable
         // "Which" is the instance ID.
         int instanceId = e.Which;
 
-        if (!_activeControllers.TryGetValue(instanceId, out var ptr))
-            return;
-
-        _sdl.GameControllerClose((GameController*)ptr);
-        _activeControllers.Remove(instanceId);
-
         lock (_uiInputGate)
         {
             _sessionExitHoldStates.Remove(instanceId);
             _triggerStates.Remove(instanceId);
+            _directionStates.Remove(instanceId);
+            UpdateAggregatedDirections();
         }
+        DrainInputEvents();
+
+        if (_activeControllers.Remove(instanceId, out var ptr))
+            _sdl.GameControllerClose((GameController*)ptr);
 
         Debug.WriteLine($"[SDL] Controller disconnected (ID: {instanceId})");
     }
@@ -414,19 +518,19 @@ public sealed class GamepadService : IDisposable
         switch (button)
         {
             case GameControllerButton.DpadUp:
-                RaiseDirectionState(GamepadDirection.Up, true);
+                UpdateDpadState(e.Which, GamepadDirection.Up, true);
                 return;
 
             case GameControllerButton.DpadDown:
-                RaiseDirectionState(GamepadDirection.Down, true);
+                UpdateDpadState(e.Which, GamepadDirection.Down, true);
                 return;
 
             case GameControllerButton.DpadLeft:
-                RaiseDirectionState(GamepadDirection.Left, true);
+                UpdateDpadState(e.Which, GamepadDirection.Left, true);
                 return;
 
             case GameControllerButton.DpadRight:
-                RaiseDirectionState(GamepadDirection.Right, true);
+                UpdateDpadState(e.Which, GamepadDirection.Right, true);
                 return;
         }
 
@@ -441,16 +545,16 @@ public sealed class GamepadService : IDisposable
         switch (button)
         {
             case GameControllerButton.DpadUp:
-                RaiseDirectionState(GamepadDirection.Up, false);
+                UpdateDpadState(e.Which, GamepadDirection.Up, false);
                 break;
             case GameControllerButton.DpadDown:
-                RaiseDirectionState(GamepadDirection.Down, false);
+                UpdateDpadState(e.Which, GamepadDirection.Down, false);
                 break;
             case GameControllerButton.DpadLeft:
-                RaiseDirectionState(GamepadDirection.Left, false);
+                UpdateDpadState(e.Which, GamepadDirection.Left, false);
                 break;
             case GameControllerButton.DpadRight:
-                RaiseDirectionState(GamepadDirection.Right, false);
+                UpdateDpadState(e.Which, GamepadDirection.Right, false);
                 break;
         }
     }
@@ -458,64 +562,129 @@ public sealed class GamepadService : IDisposable
     private void HandleAxisMotion(ControllerAxisEvent e)
     {
         var axis = (GameControllerAxis)e.Axis;
-        short value = e.Value;
-
-        if (axis == GameControllerAxis.Leftx)
-        {
-            int newState = value < -DeadZone ? -1 : value > DeadZone ? 1 : 0;
-
-            if (newState == _lastAxisXState)
-                return;
-
-            if (_lastAxisXState == -1) RaiseDirectionState(GamepadDirection.Left, false);
-            if (_lastAxisXState == 1) RaiseDirectionState(GamepadDirection.Right, false);
-
-            if (newState == -1) RaiseDirectionState(GamepadDirection.Left, true);
-            if (newState == 1) RaiseDirectionState(GamepadDirection.Right, true);
-
-            _lastAxisXState = newState;
+        if (axis is not (GameControllerAxis.Leftx or GameControllerAxis.Lefty))
             return;
-        }
 
-        if (axis == GameControllerAxis.Lefty)
-        {
-            int newState = value < -DeadZone ? -1 : value > DeadZone ? 1 : 0;
-
-            if (newState == _lastAxisYState)
-                return;
-
-            if (_lastAxisYState == -1) RaiseDirectionState(GamepadDirection.Up, false);
-            if (_lastAxisYState == 1) RaiseDirectionState(GamepadDirection.Down, false);
-
-            if (newState == -1) RaiseDirectionState(GamepadDirection.Up, true);
-            if (newState == 1) RaiseDirectionState(GamepadDirection.Down, true);
-
-            _lastAxisYState = newState;
-        }
+        var state = GetDirectionState(e.Which);
+        var newState = e.Value < -DeadZone ? -1 : e.Value > DeadZone ? 1 : 0;
+        if (axis == GameControllerAxis.Leftx)
+            state.AxisX = newState;
+        else
+            state.AxisY = newState;
+        UpdateAggregatedDirections();
     }
 
-    private void RaiseDirectionState(GamepadDirection direction, bool isPressed) =>
-        OnDirectionStateChanged?.Invoke(direction, isPressed);
+    private DirectionState GetDirectionState(int instanceId)
+    {
+        if (!_directionStates.TryGetValue(instanceId, out var state))
+            _directionStates[instanceId] = state = new DirectionState();
+        return state;
+    }
+
+    private static int DirectionBit(GamepadDirection direction) => 1 << (int)direction;
+
+    private void UpdateDpadState(int instanceId, GamepadDirection direction, bool pressed)
+    {
+        var state = GetDirectionState(instanceId);
+        var bit = DirectionBit(direction);
+        state.Dpad = pressed ? state.Dpad | bit : state.Dpad & ~bit;
+        UpdateAggregatedDirections();
+    }
+
+    // All source changes and queue operations are protected by _uiInputGate.
+    private void UpdateAggregatedDirections()
+    {
+        var next = 0;
+        foreach (var state in _directionStates.Values)
+            next |= state.Pressed;
+        if (next == _pressedDirections)
+            return;
+
+        // Release old directions before pressing new ones (in particular, a direct left/right switch).
+        foreach (var direction in Enum.GetValues<GamepadDirection>())
+        {
+            var bit = DirectionBit(direction);
+            if ((_pressedDirections & bit) != 0 && (next & bit) == 0)
+                _pendingInputEvents.Enqueue(new(null, _inputGeneration, Direction: direction, IsPressed: false));
+        }
+        foreach (var direction in Enum.GetValues<GamepadDirection>())
+        {
+            var bit = DirectionBit(direction);
+            if ((_pressedDirections & bit) == 0 && (next & bit) != 0)
+                _pendingInputEvents.Enqueue(new(null, _inputGeneration, Direction: direction, IsPressed: true));
+        }
+        _pressedDirections = next;
+    }
+
+    private void QueueInputEvent(Action callback, bool uiOnly = false, bool backgroundOnly = false) =>
+        _pendingInputEvents.Enqueue(new(callback, _inputGeneration, uiOnly, backgroundOnly));
+
+    private void DrainInputEvents()
+    {
+        lock (_uiInputGate)
+        {
+            if (_dispatchingEvents)
+                return;
+            _dispatchingEvents = true;
+        }
+
+        while (true)
+        {
+            Action? callback;
+            lock (_uiInputGate)
+            {
+                if (!_pendingInputEvents.TryDequeue(out var pending))
+                {
+                    _dispatchingEvents = false;
+                    return;
+                }
+
+                if (pending.Direction is { } direction)
+                {
+                    if (pending.IsPressed &&
+                        (pending.Generation != _inputGeneration || !_uiInputEnabled || _monitoringStopped))
+                        continue;
+                    var bit = DirectionBit(direction);
+                    if (((_publishedDirections & bit) != 0) == pending.IsPressed)
+                        continue;
+                    _publishedDirections = pending.IsPressed ? _publishedDirections | bit : _publishedDirections & ~bit;
+                    callback = () => OnDirectionStateChanged?.Invoke(direction, pending.IsPressed);
+                }
+                else
+                {
+                    if (pending.Generation != _inputGeneration || _monitoringStopped ||
+                        (pending.UiOnly && !_uiInputEnabled) || (pending.BackgroundOnly && _uiInputEnabled))
+                        continue;
+                    callback = pending.Callback;
+                }
+            }
+
+            // A callback can change focus, stop monitoring, or wait for another thread that does so.
+            // Reentrant/concurrent operations append to the same queue; only this drainer invokes subscribers.
+            try { callback?.Invoke(); }
+            catch (Exception ex) { Debug.WriteLine($"[Gamepad] Input subscriber failed: {ex.Message}"); }
+        }
+    }
 
     private void RaiseMappedAction(ControllerButton button)
     {
         var bindings = _settings.ControllerBindings;
         if (button == bindings.Select)
-            OnSelect?.Invoke();
+            QueueInputEvent(() => OnSelect?.Invoke(), uiOnly: true);
         else if (button == bindings.Back)
-            OnBack?.Invoke();
+            QueueInputEvent(() => OnBack?.Invoke(), uiOnly: true);
         else if (button == bindings.Details)
-            OnDetails?.Invoke();
+            QueueInputEvent(() => OnDetails?.Invoke(), uiOnly: true);
         else if (button == bindings.Home)
-            OnHome?.Invoke();
+            QueueInputEvent(() => OnHome?.Invoke(), uiOnly: true);
         else if (button == bindings.ExitBigMode)
-            OnExitBigMode?.Invoke();
+            QueueInputEvent(() => OnExitBigMode?.Invoke(), uiOnly: true);
         else if (button == bindings.SystemMenu)
-            OnSystemMenu?.Invoke();
+            QueueInputEvent(() => OnSystemMenu?.Invoke(), uiOnly: true);
         else if (button == bindings.PreviousPage)
-            OnPreviousPage?.Invoke();
+            QueueInputEvent(() => OnPreviousPage?.Invoke(), uiOnly: true);
         else if (button == bindings.NextPage)
-            OnNextPage?.Invoke();
+            QueueInputEvent(() => OnNextPage?.Invoke(), uiOnly: true);
     }
 
     private void UpdateSessionExitHoldState(int instanceId, ControllerButton button, bool isPressed)
@@ -540,7 +709,7 @@ public sealed class GamepadService : IDisposable
 
         if (state.FirstPressed && state.SecondPressed)
         {
-            state.HeldSinceTimestamp ??= Stopwatch.GetTimestamp();
+            state.HeldSinceTimestamp ??= _timeProvider.GetTimestamp();
             return;
         }
 
@@ -650,7 +819,7 @@ public sealed class GamepadService : IDisposable
     {
         lock (_uiInputGate)
         {
-            if (_uiInputEnabled)
+            if (_uiInputEnabled || _monitoringStopped)
                 return false;
 
             foreach (var state in _sessionExitHoldStates.Values)
@@ -658,7 +827,7 @@ public sealed class GamepadService : IDisposable
                 if (state.WasRaised || state.HeldSinceTimestamp is not { } heldSince)
                     continue;
 
-                if (Stopwatch.GetElapsedTime(heldSince) < SessionExitHoldDuration)
+                if (_timeProvider.GetElapsedTime(heldSince) < SessionExitHoldDuration)
                     continue;
 
                 state.WasRaised = true;
@@ -667,6 +836,16 @@ public sealed class GamepadService : IDisposable
 
             return false;
         }
+    }
+
+    internal void CheckSessionExitHold()
+    {
+        lock (_uiInputGate)
+        {
+            if (TryConsumeSessionExitHold())
+                QueueInputEvent(() => OnSessionExitRequested?.Invoke(), backgroundOnly: true);
+        }
+        DrainInputEvents();
     }
 
     public void Dispose()

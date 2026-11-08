@@ -648,6 +648,45 @@ BigMode is an overlay workflow with clear host/VM split:
   BigMode startup opens Home and an explicit desktop item selection keeps the established library start position
 - mirrors final BigMode selection back into core app settings on exit
 
+### Controller input and lifecycle
+
+`GamepadService` keeps the left-stick X/Y edge states and D-pad direction bits separately for each SDL
+controller instance ID (`Which` on input/removal events). The existing inclusive center zone of
+`-15000..15000` and 10 ms polling delay are unchanged. A direction is active when any stick or D-pad source
+on any controller holds it. The unchanged `OnDirectionStateChanged(direction, pressed)` event reports only
+aggregate transitions: one press for the first source and one release for the last source. Unchanged axis
+positions and duplicate D-pad events produce no additional direction events. Direct axis reversals release
+the old direction before pressing the new one. Opposing directions can remain active independently; BigMode
+keeps its existing most-recent-direction repeat policy rather than introducing conflict arbitration.
+
+Device removal drops that instance's direction, trigger and session-stop states and releases only directions
+that no remaining source holds. `StopMonitoring()` clears all input state, rejects late UI input, and releases
+all published directions. Both UI disable and re-enable reset source state; disabled navigation events are
+not retained/replayed. Only fresh SDL motion/button events after activation can start a new direction hold.
+`MainWindow` continues to route window activation through `SetGamepadUiInputEnabled`.
+
+The input-state lock also protects trigger edges, session-stop holds, focus generations and the notification
+queue. A single synchronous drainer invokes callbacks in order outside that lock, so subscribers can change
+focus or request a stop, including from another thread, without waiting on the state lock. Focus/stop changes
+invalidate queued old-generation presses/actions. Releases are delivered only for directions whose press was
+published. An already executing callback finishes before its queued releases; input-state changes do not wait
+for that subscriber. Subscriber exceptions are contained at the event-output boundary so the queue can continue.
+No new event interface, bindings or configuration switches are introduced.
+
+The polling loop owns native handle cleanup and its token disposal in `finally`, including on unexpected loop
+exit. Ordinary stops await this cleanup when no callback is in flight; callback-overlapping stops cancel and
+leave final cleanup to the loop to avoid joining a task that is waiting for that callback. A requested restart
+waits for the previous loop and is invalidated by a later stop. BigMode always posts controller callbacks at
+the same dispatcher input priority, even when a lifecycle release originates on the UI thread, so a release
+cannot overtake an already queued polling-thread press and leave repeat navigation active.
+
+Button capture, configurable action mapping, per-controller trigger edge detection and the background
+two-button session-stop gesture remain in place. Session-stop timing still uses the monotonic system clock,
+requires both configured buttons on the same controller for two seconds, emits once per hold, and rearms after
+a release. Focus transitions, removal and stop clear those holds. Internal event processing and an injectable
+`TimeProvider` allow deterministic tests without SDL hardware; a separate dispatcher test checks UI ordering.
+Actual physical-controller hotplugging and desktop focus behavior still need a manual Linux check.
+
 ## Search architecture
 Global search uses a dedicated `SearchAreaViewModel`:
 - debounced, cancelable background evaluation

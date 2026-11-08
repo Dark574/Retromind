@@ -155,14 +155,12 @@ public partial class BigModeViewModel
     }
     
     /// <summary>
-    /// Gamepad callbacks arrive on the SDL thread.
-    /// All UI-bound state changes must be marshaled to the UI thread.
+    /// Polling and lifecycle callbacks share the same UI queue, including releases raised on the UI thread.
     /// </summary>
-    private static void DispatchGamepadAction(Action action)
+    internal static void DispatchGamepadAction(Action action, Dispatcher? dispatcher = null)
     {
-        // Gamepad callbacks arrive on the SDL thread.
-        // All UI-bound state changes must be marshaled to the UI thread.
-        UiThreadHelper.Post(action, DispatcherPriority.Input);
+        // Never run a UI-thread lifecycle release inline ahead of a previously queued SDL press.
+        (dispatcher ?? Dispatcher.UIThread).Post(action, DispatcherPriority.Input);
     }
 
     private void StartGamepadRepeat(GamepadService.GamepadDirection direction)
