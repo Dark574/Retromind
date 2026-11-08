@@ -1620,4 +1620,20 @@ The current files and launch settings remain unchanged. The Retromind library it
     <data name="Settings.Scraper.CredentialsStoreFailed" xml:space="preserve"><value>The scraper credentials could not be stored in the system keyring. The settings were not saved.</value></data>
     <data name="Settings.Scraper.CredentialsRollbackFailed" xml:space="preserve"><value>The previous scraper credentials could not be fully restored. Check the scraper profiles before saving again.</value></data>
     <data name="Persistence.OperationSavePending" xml:space="preserve"><value>The operation completed, but its changes could not be fully saved. Changes remain in memory; completed work was retained.</value></data>
+    <data name="BulkScrape.Ready" xml:space="preserve"><value>Ready.</value></data>
+    <data name="BulkScrape.Preparing" xml:space="preserve"><value>Preparing...</value></data>
+    <data name="BulkScrape.Connecting" xml:space="preserve"><value>Connecting to provider...</value></data>
+    <data name="BulkScrape.Processing" xml:space="preserve"><value>Processing: {0}</value></data>
+    <data name="BulkScrape.Stopping" xml:space="preserve"><value>Stopping...</value></data>
+    <data name="BulkScrape.Completed" xml:space="preserve"><value>Processing finished.</value></data>
+    <data name="BulkScrape.CompletedWithErrors" xml:space="preserve"><value>Processing finished with technical errors.</value></data>
+    <data name="BulkScrape.Cancelled" xml:space="preserve"><value>Processing cancelled by user.</value></data>
+    <data name="BulkScrape.ProviderLimit" xml:space="preserve"><value>Stopped because the provider limit was reached.</value></data>
+    <data name="BulkScrape.Failed" xml:space="preserve"><value>Processing failed. See the log for details.</value></data>
+    <data name="BulkScrape.NotStarted" xml:space="preserve"><value>Processing was not started.</value></data>
+    <data name="BulkScrape.Summary" xml:space="preserve"><value>Found: {0} · Completed: {1} · Not processed: {2}
+Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data>
+    <data name="BulkScrape.PartialSummary" xml:space="preserve"><value>Found so far (collection incomplete): {0} · Completed: {1} · Not processed: {2}
+Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data>
+    <data name="BulkScrape.AssetImportFailed" xml:space="preserve"><value>At least one selected asset could not be imported: {0}. Other changes are retained.</value></data>
 </root>

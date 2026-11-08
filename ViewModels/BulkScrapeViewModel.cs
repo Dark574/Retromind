@@ -23,12 +23,18 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     private const int MaxConcurrentRequests = 4;
     private const int RequestDelayMs = 250;
     
-    private readonly MetadataService _metadataService;
+    private readonly Func<string, CancellationToken, Task<IMetadataProvider?>> _getProviderAsync;
+    private readonly Func<Func<Task>, Task> _invokeOnUiAsync;
+    private readonly Action<Action> _postToUi;
+    private readonly Func<int, CancellationToken, Task> _delayAsync;
+    private readonly object _runGate = new();
+    private bool _runActive;
+    private int _runId;
     private readonly MediaNode _rootNode;
     private readonly ObservableCollection<MediaNode> _libraryRoots;
     private readonly AppSettings _settings;
     private CancellationTokenSource? _cancellationTokenSource;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     // Buffer for logs to prevent UI flooding
     private readonly StringBuilder _logBuffer = new();
@@ -37,27 +43,60 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     [ObservableProperty] 
     private ScraperConfig? _selectedScraper;
 
-    [ObservableProperty] 
     private bool _isBusy;
+
+    // Dispose/final cleanup can clear the backing state silently after the view has detached.
+    public bool IsBusy { get => _isBusy; set => SetProperty(ref _isBusy, value); }
 
     [ObservableProperty] 
     private double _progressValue;
 
     [ObservableProperty] 
-    private string _statusMessage = "Ready.";
+    private string _statusMessage = T("BulkScrape.Ready", "Ready.");
 
     [ObservableProperty] 
     private string _logText = "";
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SummaryText))]
+    [NotifyPropertyChangedFor(nameof(HasSummary))]
+    private BulkScrapeRunSummary? _summary;
+
+    [ObservableProperty]
+    private BulkScrapeRunStatus _runStatus = BulkScrapeRunStatus.NotStarted;
+
+    public bool HasSummary => Summary != null;
+    public string SummaryText => Summary is not { } summary ? "" : string.Format(
+        T(summary.CollectionComplete ? "BulkScrape.Summary" : "BulkScrape.PartialSummary",
+            summary.CollectionComplete
+                ? "Found: {0} · Completed: {1} · Not processed: {2}\nImported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}"
+                : "Found so far (collection incomplete): {0} · Completed: {1} · Not processed: {2}\nImported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}"),
+        summary.Total, summary.Completed, summary.NotProcessed, summary.Imported,
+        summary.NoSafeMatch, summary.Skipped, summary.Failed);
 
     public BulkScrapeViewModel(
         MediaNode node,
         AppSettings settings,
         MetadataService metadataService,
         ObservableCollection<MediaNode>? libraryRoots = null)
+        : this(node, settings, metadataService.GetProviderAsync, UiThreadHelper.InvokeAsync, UiThreadHelper.Post,
+            libraryRoots: libraryRoots)
+    {
+    }
+
+    internal BulkScrapeViewModel(
+        MediaNode node, AppSettings settings,
+        Func<string, CancellationToken, Task<IMetadataProvider?>> getProviderAsync,
+        Func<Func<Task>, Task> invokeOnUiAsync, Action<Action> postToUi,
+        Func<int, CancellationToken, Task>? delayAsync = null,
+        ObservableCollection<MediaNode>? libraryRoots = null)
     {
         _rootNode = node;
         _settings = settings;
-        _metadataService = metadataService;
+        _getProviderAsync = getProviderAsync;
+        _invokeOnUiAsync = invokeOnUiAsync;
+        _postToUi = postToUi;
+        _delayAsync = delayAsync ?? Task.Delay;
         _libraryRoots = libraryRoots ?? new ObservableCollection<MediaNode> { node };
 
         InitializeScrapers();
@@ -71,8 +110,8 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     public IAsyncRelayCommand StartCommand { get; }
     public IRelayCommand CancelCommand { get; }
 
-    // Event raised when an item has been successfully scraped/matched.
-    public Func<MediaItem, ScraperSearchResult, Task>? OnItemScrapedAsync;
+    // Applying a safe match must explicitly distinguish changes, policy/no-change skips and failures.
+    public Func<MediaItem, ScraperSearchResult, Task<BulkScrapeImportOutcome>>? OnItemScrapedAsync;
 
     // Called only after the user presses Start and before the first item can be changed.
     public Func<Task<bool>>? OnBeforeStartAsync;
@@ -95,184 +134,83 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
 
     private async Task StartScrapingAsync()
     {
-        if (_disposed)
-            return;
-
         var selectedScraper = SelectedScraper;
-        if (selectedScraper == null)
-            return;
-
-        if (OnBeforeStartAsync != null && !await OnBeforeStartAsync())
-            return;
-
-        // The dialog may have closed while its pre-scrape backup was running.
-        if (_disposed)
-            return;
-
-        IsBusy = true;
-        var cancellationTokenSource = new CancellationTokenSource();
-        _cancellationTokenSource = cancellationTokenSource;
-        var cancellationToken = cancellationTokenSource.Token;
-        ClearLog();
-        AppendLog($"Starting bulk scrape with {selectedScraper.Name}...");
-
-        IMetadataProvider? provider;
-        try
+        if (selectedScraper == null) return;
+        CancellationTokenSource cancellationTokenSource;
+        int runId;
+        lock (_runGate)
         {
-            provider = await _metadataService.GetProviderAsync(selectedScraper.Id, cancellationToken);
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            AppendLog("Scraping operation cancelled by user.");
-            IsBusy = false;
-            StatusMessage = "Processing cancelled.";
-            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
-                _cancellationTokenSource = null;
-            cancellationTokenSource.Dispose();
-            return;
-        }
-        catch (Exception ex)
-        {
-            AppendLog($"Error: Could not connect to provider. {ex.Message}");
-            IsBusy = false;
-            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
-                _cancellationTokenSource = null;
-            cancellationTokenSource.Dispose();
-            return;
+            if (_disposed || _runActive) return;
+            _runActive = true;
+            runId = ++_runId;
+            _cancellationTokenSource = cancellationTokenSource = new CancellationTokenSource();
         }
 
-        if (provider == null)
-        {
-            AppendLog("Error: Could not load provider.");
-            IsBusy = false;
-            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
-                _cancellationTokenSource = null;
-            cancellationTokenSource.Dispose();
-            return;
-        }
-
-        // 1. Collect Items
-        // Using a HashSet or checking for duplicates might be useful here if one item is in multiple categories,
-        // but for now, we assume tree nodes are unique instances.
+        var token = cancellationTokenSource.Token;
         var allItems = new List<BulkScrapeTarget>();
-        await CollectItemsRecursiveSnapshotAsync(_rootNode, allItems);
-
-        AppendLog($"Found {allItems.Count} media items in total.");
-        ProgressValue = 0;
-
-        // 2. Prepare Processing
-        int processedCount = 0;
-        int totalItems = Math.Max(1, allItems.Count);
+        var progress = new BulkScrapeRunProgress();
+        var collectionComplete = false;
+        var completion = BulkScrapeRunStatus.NotStarted;
         string? providerStopMessage = null;
-
-        // ParallelOptions to control concurrency
-        var parallelOptions = new ParallelOptions
-        {
-            MaxDegreeOfParallelism = selectedScraper.Type is ScraperType.ScreenScraper or ScraperType.TheGamesDB
-                ? 1
-                : MaxConcurrentRequests,
-            CancellationToken = cancellationToken
-        };
-
-        // Timer to update the log UI periodically instead of constantly
-        // This prevents the UI thread from freezing when processing thousands of items.
-        using var logUpdateTimer = new Timer(_ => FlushLogBufferToUi(), null, 500, 500);
-
+        var phase = "Preparation";
+        Timer? logUpdateTimer = null;
         try
         {
-            await Parallel.ForEachAsync(allItems, parallelOptions, async (target, token) =>
+            await UpdateUiAsync(() =>
             {
-                var item = target.Item;
-                // Logic: Searching
+                IsBusy = true;
+                ProgressValue = 0;
+                Summary = null;
+                RunStatus = BulkScrapeRunStatus.Running;
+                StatusMessage = T("BulkScrape.Preparing", "Preparing...");
+            });
+            ClearLog(runId);
+            AppendLog($"Starting bulk scrape with {selectedScraper.Name}...", runId);
+            token.ThrowIfCancellationRequested();
+            if (OnBeforeStartAsync != null && !await OnBeforeStartAsync())
+                return;
+            token.ThrowIfCancellationRequested();
+
+            completion = BulkScrapeRunStatus.Running;
+            phase = "Collecting items";
+            await CollectItemsRecursiveSnapshotAsync(_rootNode, allItems,
+                new HashSet<MediaNode>(ReferenceEqualityComparer.Instance),
+                new HashSet<MediaItem>(ReferenceEqualityComparer.Instance), token);
+            collectionComplete = true;
+            AppendLog($"Found {allItems.Count} media items in total.", runId);
+            await UpdateUiAsync(() =>
+            {
+                Summary = progress.Snapshot(allItems.Count, collectionComplete);
+                StatusMessage = T("BulkScrape.Connecting", "Connecting to provider...");
+            });
+
+            phase = "Connecting to provider";
+            var provider = await _getProviderAsync(selectedScraper.Id, token);
+            token.ThrowIfCancellationRequested();
+            if (provider == null)
+                throw new InvalidOperationException("Could not load or connect to the provider.");
+
+            phase = "Processing items";
+            var options = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = selectedScraper.Type is ScraperType.ScreenScraper or ScraperType.TheGamesDB
+                    ? 1 : MaxConcurrentRequests,
+                CancellationToken = token
+            };
+            logUpdateTimer = new Timer(_ => FlushLogBufferToUi(runId), null, 500, 500);
+            await Parallel.ForEachAsync(allItems, options, async (target, itemToken) =>
+            {
+                BulkScrapeItemOutcome? outcome;
                 try
                 {
-                    // Only update status text every X items to save UI cycles,
-                    // or if it's really slow, update always. With 250ms delay, updating always is okayish,
-                    // but let's stick to updating progress bar always and text sometimes.
-                    if (processedCount % 5 == 0)
-                    {
-                        await UiThreadHelper.InvokeAsync(() =>
-                        {
-                            StatusMessage = $"Processing: {item.Title}";
-                        });
-                    }
-
-                    var gameSystemId = GameSystemResolver.ResolveForItem(
-                        item,
-                        target.ParentNode,
-                        _libraryRoots);
-                    var lookup = await GameMetadataLookupHelper.SearchAsync(
-                        provider,
-                        item.Title,
-                        gameSystemId,
-                        item.GetPrimaryLaunchPath(),
-                        token,
-                        useBulkSearch: true);
-                    var results = lookup.Results;
-
-                    var decision = lookup.IsExactMatch
-                        ? null
-                        : ScraperMatchEvaluator.SelectBestMatch(
-                            item.Title,
-                            results,
-                            item.Platform,
-                            item.ReleaseDate);
-                    var match = lookup.IsExactMatch
-                        ? results.SingleOrDefault()
-                        : decision?.Status == ScraperMatchStatus.Match
-                            ? decision.BestCandidate
-                            : null;
-
-                    if (match != null)
-                    {
-                        if (provider is IMetadataResultEnricher enricher)
-                        {
-                            var enrichmentRequest = MetadataEnrichmentRequest.ForBulk(
-                                item,
-                                _settings.ScraperImport);
-                            await enricher.EnrichAsync(match, enrichmentRequest, token);
-                        }
-
-                        // Buffer log in worker thread (no UI)
-                        AppendLogBuffer(
-                            lookup.IsExactMatch
-                                ? $"[HASH] {item.Title} -> {match.Title}"
-                                : $"[MATCH] {item.Title} -> {match.Title} " +
-                                  $"(confidence: {Math.Min(decision!.Score, 1):P0})");
-
-                        // Apply scraping result on UI thread (likely touches bound objects)
-                        await UiThreadHelper.InvokeAsync(async () =>
-                        {
-                            if (OnItemScrapedAsync != null)
-                                await OnItemScrapedAsync(item, match);
-                        });
-                    }
-                    else
-                    {
-                        var candidateTitle = decision?.BestCandidate?.Title;
-                        if (decision?.Status == ScraperMatchStatus.Ambiguous &&
-                            !string.IsNullOrWhiteSpace(candidateTitle))
-                        {
-                            var runnerUpTitle = decision.RunnerUpCandidate?.Title ?? "?";
-                            AppendLogBuffer(
-                                $"[AMBIGUOUS] {item.Title}: {candidateTitle} {Math.Min(decision.Score, 1):P0} | " +
-                                $"{runnerUpTitle} {Math.Min(decision.RunnerUpScore ?? 0, 1):P0}");
-                        }
-                        else if (!string.IsNullOrWhiteSpace(candidateTitle))
-                        {
-                            AppendLogBuffer($"[MISS] No safe match for: {item.Title} (best: {candidateTitle})");
-                        }
-                        else
-                        {
-                            AppendLogBuffer($"[MISS] No results for: {item.Title}");
-                        }
-                    }
+                    if (progress.Completed % 5 == 0)
+                        await UpdateUiAsync(() => StatusMessage = string.Format(
+                            T("BulkScrape.Processing", "Processing: {0}"), target.Item.Title));
+                    outcome = await ProcessTargetAsync(provider, target, itemToken);
                 }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
+                catch (OperationCanceledException) when (itemToken.IsCancellationRequested)
                 {
-                    // Expected user cancellation. Do not report it as a scraper error
-                    // and do not continue with progress updates or throttling delays.
-                    return;
+                    return; // Unfinished, including an interrupted search/import; never count as a technical failure.
                 }
                 catch (MetadataQuotaExceededException ex)
                 {
@@ -283,104 +221,197 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    AppendLogBuffer($"[ERROR] {item.Title}: {ex.Message}");
+                    AppendLogBuffer($"[ERROR] {target.Item.Title}: {ex.Message}");
+                    outcome = BulkScrapeItemOutcome.Failed;
                 }
 
-                if (token.IsCancellationRequested)
-                    return;
-
-                // Update Progress
-                // Interlocked is crucial here for thread safety without locking
-                var current = Interlocked.Increment(ref processedCount);
-
-                // Throttle progress updates: Update UI only every 1% or at least every 10 items
-                // to avoid 30.000 Dispatcher calls.
-                if (current % 10 == 0 || current == totalItems)
+                // A callback that really finished keeps its outcome even if cancellation arrived during it.
+                if (outcome.HasValue)
                 {
-                    double newVal = (double)current * 100 / totalItems;
-                    await UiThreadHelper.InvokeAsync(() => ProgressValue = newVal);
+                    var current = progress.Complete(target.Item, outcome.Value);
+                    if (current % 10 == 0 || current == allItems.Count)
+                        await UpdateUiAsync(() => UpdateProgress(progress, allItems.Count, collectionComplete));
                 }
-
-                if (token.IsCancellationRequested)
-                    return;
-
-                // Politeness Delay
-                try
-                {
-                    await Task.Delay(RequestDelayMs, token);
-                }
-                catch (OperationCanceledException) when (token.IsCancellationRequested)
-                {
-                    // Expected when cancellation happens during the delay.
-                }
+                if (itemToken.IsCancellationRequested) return;
+                try { await _delayAsync(RequestDelayMs, itemToken); }
+                catch (OperationCanceledException) when (itemToken.IsCancellationRequested) { }
             });
+            completion = token.IsCancellationRequested ? BulkScrapeRunStatus.Cancelled
+                : progress.Snapshot(allItems.Count, collectionComplete).Failed > 0
+                    ? BulkScrapeRunStatus.CompletedWithErrors : BulkScrapeRunStatus.Completed;
         }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            if (providerStopMessage == null)
-                AppendLog("Scraping operation cancelled by user.");
+            completion = BulkScrapeRunStatus.Cancelled;
+            if (providerStopMessage == null) AppendLogBuffer("Scraping operation cancelled by user.");
+        }
+        catch (MetadataQuotaExceededException ex)
+        {
+            providerStopMessage = ex.Message;
+            AppendLogBuffer($"[LIMIT] {ex.Message}");
+            completion = BulkScrapeRunStatus.ProviderLimitReached;
         }
         catch (Exception ex)
         {
-            AppendLog($"Critical Error during batch processing: {ex.Message}");
+            completion = BulkScrapeRunStatus.Failed;
+            AppendLogBuffer($"Critical Error ({phase}): {ex.Message}");
         }
         finally
         {
-            // Final Flush of logs
-            FlushLogBufferToUi();
-
-            IsBusy = false;
-            StatusMessage = providerStopMessage ?? (cancellationToken.IsCancellationRequested
-                ? "Processing cancelled."
-                : "Processing finished.");
-
-            if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
-                _cancellationTokenSource = null;
-
-            cancellationTokenSource.Dispose();
+            try
+            {
+                logUpdateTimer?.Dispose();
+                if (providerStopMessage != null && completion != BulkScrapeRunStatus.Failed)
+                    completion = BulkScrapeRunStatus.ProviderLimitReached;
+                FlushLogBufferToUi(runId);
+                await UpdateUiAsync(() =>
+                {
+                    RunStatus = completion;
+                    Summary = completion == BulkScrapeRunStatus.NotStarted ? null : progress.Snapshot(allItems.Count, collectionComplete);
+                    if (Summary != null) ProgressValue = Summary.Total == 0 ? 0 : 100d * Summary.Completed / Summary.Total;
+                    StatusMessage = CompletionMessage(completion);
+                    IsBusy = false;
+                });
+            }
+            finally
+            {
+                // The run owns disposal, even if the dialog closes or a UI update itself fails.
+                lock (_runGate)
+                {
+                    _isBusy = false;
+                    if (ReferenceEquals(_cancellationTokenSource, cancellationTokenSource))
+                        _cancellationTokenSource = null;
+                    cancellationTokenSource.Dispose();
+                    _runActive = false;
+                }
+            }
         }
     }
+
+    private void UpdateProgress(BulkScrapeRunProgress progress, int total, bool collectionComplete)
+    {
+        Summary = progress.Snapshot(total, collectionComplete);
+        ProgressValue = total == 0 ? 0 : 100d * Summary.Completed / total;
+    }
+
+    private static string CompletionMessage(BulkScrapeRunStatus status) => status switch
+    {
+        BulkScrapeRunStatus.Completed => T("BulkScrape.Completed", "Processing finished."),
+        BulkScrapeRunStatus.CompletedWithErrors => T("BulkScrape.CompletedWithErrors", "Processing finished with technical errors."),
+        BulkScrapeRunStatus.Cancelled => T("BulkScrape.Cancelled", "Processing cancelled by user."),
+        BulkScrapeRunStatus.ProviderLimitReached => T("BulkScrape.ProviderLimit", "Stopped because the provider limit was reached."),
+        BulkScrapeRunStatus.Failed => T("BulkScrape.Failed", "Processing failed. See the log for details."),
+        _ => T("BulkScrape.NotStarted", "Processing was not started.")
+    };
+
+    private async Task<BulkScrapeItemOutcome?> ProcessTargetAsync(
+        IMetadataProvider provider, BulkScrapeTarget target, CancellationToken token)
+    {
+        var item = target.Item;
+        var gameSystemId = GameSystemResolver.ResolveForItem(item, target.ParentNode, _libraryRoots);
+        var lookup = await GameMetadataLookupHelper.SearchAsync(provider, item.Title, gameSystemId,
+            item.GetPrimaryLaunchPath(), token, useBulkSearch: true);
+        token.ThrowIfCancellationRequested();
+        var results = lookup.Results;
+        var decision = lookup.IsExactMatch ? null : ScraperMatchEvaluator.SelectBestMatch(
+            item.Title, results, item.Platform, item.ReleaseDate);
+        var match = lookup.IsExactMatch ? results.SingleOrDefault()
+            : decision?.Status == ScraperMatchStatus.Match ? decision.BestCandidate : null;
+        if (match != null)
+        {
+            if (provider is IMetadataResultEnricher enricher)
+                await enricher.EnrichAsync(match, MetadataEnrichmentRequest.ForBulk(item, _settings.ScraperImport), token);
+            AppendLogBuffer(lookup.IsExactMatch ? $"[HASH] {item.Title} -> {match.Title}"
+                : $"[MATCH] {item.Title} -> {match.Title} (confidence: {Math.Min(decision!.Score, 1):P0})");
+            BulkScrapeImportOutcome? imported = null;
+            await _invokeOnUiAsync(async () =>
+            {
+                if (_disposed) return;
+                token.ThrowIfCancellationRequested();
+                if (OnItemScrapedAsync == null)
+                    throw new InvalidOperationException("No import callback is attached.");
+                imported = await OnItemScrapedAsync(item, match);
+            });
+            if (!imported.HasValue) return null;
+            AppendLogBuffer($"[{imported.Value.ToString().ToUpperInvariant()}] {item.Title}");
+            return imported.Value switch
+            {
+                BulkScrapeImportOutcome.Imported => BulkScrapeItemOutcome.Imported,
+                BulkScrapeImportOutcome.Skipped => BulkScrapeItemOutcome.Skipped,
+                BulkScrapeImportOutcome.Failed => BulkScrapeItemOutcome.Failed,
+                _ => throw new InvalidOperationException("Unknown import outcome.")
+            };
+        }
+
+        var candidateTitle = decision?.BestCandidate?.Title;
+        if (decision?.Status == ScraperMatchStatus.Ambiguous && !string.IsNullOrWhiteSpace(candidateTitle))
+            AppendLogBuffer($"[AMBIGUOUS] {item.Title}: {candidateTitle} {Math.Min(decision.Score, 1):P0} | " +
+                $"{decision.RunnerUpCandidate?.Title ?? "?"} {Math.Min(decision.RunnerUpScore ?? 0, 1):P0}");
+        else if (!string.IsNullOrWhiteSpace(candidateTitle))
+            AppendLogBuffer($"[MISS] No safe match for: {item.Title} (best: {candidateTitle})");
+        else
+            AppendLogBuffer($"[MISS] No results for: {item.Title}");
+        return BulkScrapeItemOutcome.NoSafeMatch;
+    }
+
+    private Task UpdateUiAsync(Action action)
+    {
+        if (_disposed) return Task.CompletedTask;
+        return _invokeOnUiAsync(() =>
+        {
+            if (!_disposed) action();
+            return Task.CompletedTask;
+        });
+    }
+
+    private void PostUi(Action action, int runId) => _postToUi(() =>
+    {
+        if (!_disposed && runId == _runId) action();
+    });
 
     private void CancelOperation()
     {
-        if (_disposed)
-            return;
-
-        if (_cancellationTokenSource != null && !_cancellationTokenSource.IsCancellationRequested)
+        int runId;
+        lock (_runGate)
         {
+            if (_disposed || _cancellationTokenSource == null || _cancellationTokenSource.IsCancellationRequested)
+                return;
+            runId = _runId;
             _cancellationTokenSource.Cancel();
-            StatusMessage = "Stopping...";
-            AppendLog("Cancellation requested...");
         }
+        PostUi(() =>
+        {
+            if (IsBusy && RunStatus == BulkScrapeRunStatus.Running)
+                StatusMessage = T("BulkScrape.Stopping", "Stopping...");
+        }, runId);
+        AppendLog("Cancellation requested...", runId);
     }
 
-    /// <summary>
-    /// Recursively collects all MediaItems from the node tree.
-    /// </summary>
-    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<BulkScrapeTarget> list)
+    private async Task CollectItemsRecursiveSnapshotAsync(MediaNode node, List<BulkScrapeTarget> list,
+        HashSet<MediaNode> visited, HashSet<MediaItem> itemsSeen, CancellationToken token)
     {
+        token.ThrowIfCancellationRequested();
+        if (!visited.Add(node)) return;
         List<MediaItem> items = new();
         List<MediaNode> children = new();
-
-        await UiThreadHelper.InvokeAsync(() =>
+        await UpdateUiAsync(() =>
         {
+            token.ThrowIfCancellationRequested();
             items = node.Items.ToList();
             children = node.Children.ToList();
         });
-
-        list.AddRange(items.Select(item => new BulkScrapeTarget(item, node)));
-
+        token.ThrowIfCancellationRequested();
+        foreach (var item in items)
+            if (itemsSeen.Add(item)) list.Add(new BulkScrapeTarget(item, node));
         foreach (var child in children)
-        {
-            await CollectItemsRecursiveSnapshotAsync(child, list);
-        }
+            await CollectItemsRecursiveSnapshotAsync(child, list, visited, itemsSeen, token);
     }
 
     private sealed record BulkScrapeTarget(MediaItem Item, MediaNode ParentNode);
 
     // --- High Performance Logging ---
 
-    private void ClearLog()
+    private void ClearLog(int runId)
     {
         lock (_logLock)
         {
@@ -388,16 +419,16 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         }
 
         // ensure UI thread
-        UiThreadHelper.Post(() => LogText = "");
+        PostUi(() => LogText = "", runId);
     }
 
     /// <summary>
     /// Direct log update (use only for low-frequency messages like Start/End)
     /// </summary>
-    private void AppendLog(string msg)
+    private void AppendLog(string msg, int runId)
     {
         AppendLogBuffer(msg);
-        FlushLogBufferToUi();
+        FlushLogBufferToUi(runId);
     }
 
     /// <summary>
@@ -407,6 +438,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     {
         lock (_logLock)
         {
+            if (_disposed) return;
             _logBuffer.AppendLine($"[{DateTime.Now:HH:mm:ss}] {msg}");
         }
     }
@@ -415,15 +447,15 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
     /// Pushes the buffered logs to the UI property.
     /// Should be called via Timer or Dispatcher.
     /// </summary>
-    private void FlushLogBufferToUi()
+    private void FlushLogBufferToUi(int runId)
     {
-        if (_disposed)
+        if (_disposed || runId != _runId)
             return;
 
         string newLogChunk = "";
         lock (_logLock)
         {
-            if (_logBuffer.Length == 0) return;
+            if (_disposed || runId != _runId || _logBuffer.Length == 0) return;
             newLogChunk = _logBuffer.ToString();
             _logBuffer.Clear();
         }
@@ -431,7 +463,7 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
         if (string.IsNullOrEmpty(newLogChunk))
             return;
 
-        UiThreadHelper.Post(() =>
+        PostUi(() =>
         {
             // Consider limiting total log size here to avoid OOM with 30k items
             if (LogText.Length > 50000)
@@ -440,25 +472,18 @@ public partial class BulkScrapeViewModel : ViewModelBase, IDisposable
             }
 
             LogText += newLogChunk;
-        });
+        }, runId);
     }
 
     public void Dispose()
     {
-        if (_disposed)
-            return;
-
-        _disposed = true;
-
-        if (_cancellationTokenSource != null)
+        lock (_runGate)
         {
-            _cancellationTokenSource.Cancel();
-
-            if (!IsBusy)
-            {
-                _cancellationTokenSource.Dispose();
-                _cancellationTokenSource = null;
-            }
+            if (_disposed) return;
+            _disposed = true;
+            _isBusy = false; // Detached UI must receive no further property notifications.
+            _cancellationTokenSource?.Cancel(); // The owning run disposes it in finally.
         }
+        lock (_logLock) _logBuffer.Clear();
     }
 }

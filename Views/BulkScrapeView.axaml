@@ -5,7 +5,7 @@
         x:Class="Retromind.Views.BulkScrapeView"
         x:DataType="vm:BulkScrapeViewModel"
         Title="{x:Static p:Strings.Metadata_ScrapeArea}"
-        Width="600" Height="400"
+        Width="640" Height="480"
         MinWidth="480" MinHeight="320"
         WindowStartupLocation="CenterOwner"
         CanResize="False"
@@ -36,7 +36,9 @@
         
         <!-- Progress -->
         <StackPanel Grid.Row="3" Spacing="10" Margin="0,20,0,0">
-            <TextBlock Text="{Binding StatusMessage}" HorizontalAlignment="Center"/>
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" TextAlignment="Center"/>
+            <TextBlock Text="{Binding SummaryText}" IsVisible="{Binding HasSummary}"
+                       TextWrapping="Wrap" TextAlignment="Center"/>
             <ProgressBar Value="{Binding ProgressValue}" Maximum="100" Height="20"/>
             
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">

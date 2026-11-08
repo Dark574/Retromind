@@ -1069,6 +1069,50 @@ the report never mutates JSON or deletes files.
   explicit unambiguous aliases; sharing a vendor or family word is insufficient. Ambiguous or unsafe results are
   logged but not imported
 
+### Bulk-scrape results and lifetime
+
+`BulkScrapeViewModel` retains the existing matching/enrichment policy, provider-specific worker counts
+(ScreenScraper/TheGamesDB: one, others: four), 250 ms post-item delay, 500 ms log-buffer timer, and throttled
+progress updates. The run now includes the pre-start backup callback, recursive UI-thread collection, provider
+connection and parallel processing in one `try/finally`. Collection precedes connection so a failed connection
+can still show the number of discovered items. Repeated references to the same item/node are collected once;
+the first containing node supplies the existing matching context. No extra provider requests are introduced.
+
+`BulkScrapeRunProgress` is a small run-local, locked accumulator keyed by item reference. An item can receive
+only one terminal outcome. Its immutable `BulkScrapeRunSummary` exposes `Total`, `Completed`, `Imported`,
+`NoSafeMatch`, `Skipped`, `Failed`, `NotProcessed`, and `CollectionComplete`:
+
+- `Completed = Imported + NoSafeMatch + Skipped + Failed`; `Total = Completed + NotProcessed`.
+- A safe search hit alone is not an import. `OnItemScrapedAsync` now returns `BulkScrapeImportOutcome` after
+  application: `Imported` confirms actual changes, `Skipped` means no changes under the configured policy,
+  and `Failed` means application failed. A missing callback or callback exception is a technical failure.
+- Empty, unsafe and ambiguous search results all count as `NoSafeMatch`, without technical failure.
+- The main-window callback uses the existing metadata/asset change flags. It distinguishes intentionally
+  skipped artwork from a failed attempted download/publication through an optional failure callback on the
+  existing asset helper. PDF and artwork failures make the item failed even if other changes were applied;
+  those changes remain dirty/saveable. Existing manual-import behavior and asset policies remain unchanged.
+- `NotProcessed` includes unstarted and interrupted work, including the quota-triggering item. A callback
+  already in progress can finish after cancellation and retains its explicit completed outcome. A global
+  connection/collection/infrastructure failure does not invent failures for unprocessed individual items.
+- A failed/interrupted collection reports only items found so far and marks the collection incomplete;
+  that partial count is not presented as the known total for the whole tree.
+
+`BulkScrapeRunStatus` distinguishes completion without technical errors, completion with item errors, user
+cancellation, provider-limit termination and a critical run failure. A declined preflight is `NotStarted`.
+The dialog shows localized status and wrapped summary counts beside its existing progress/log controls;
+no completion dialog is opened. Import success confirms applied library state, not durable persistence.
+The normal final `SaveData()` and central persistence notification retain their separate contracts.
+
+The run exclusively owns/disposes its cancellation source and timer, with Busy/resource cleanup in `finally`,
+including collection/preflight failures. `BulkScrapeView.Closed` still disposes the view model: disposal
+cancels future work, clears Busy without notifying detached bindings, and suppresses later UI callbacks/log
+flushes. UI updates check disposal when executed; queued log chunks also carry a run generation so an earlier
+run cannot overwrite a restarted run's log. Disposal and bound UI access remain on the UI thread.
+The main-window caller awaits any outstanding scrape callback after the dialog closes before the final library
+save. It does not roll back completed imports. The existing callback has no cancellation token, so a running
+asset import/backup is awaited rather than forcibly interrupted; provider searches and request delays keep
+their cancellation tokens. Real provider integration and dialog layout still require a manual UI check.
+
 For detailed GOG-native status and file map, see `docs/gog-provider.md`. The secure-credential Comet fork,
 reproducible Docker workflow, runtime integration, and achievement-presentation handoff are recorded in
 `docs/comet-fork.md`.

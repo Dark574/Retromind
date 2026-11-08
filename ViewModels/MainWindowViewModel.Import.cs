@@ -1444,6 +1444,8 @@ public partial class MainWindowViewModel
                 var format = T(
                     "MetadataBackup.BeforeBulkScrapeFailedFormat",
                     "The bulk scrape was not started because the safety backup could not be created.\n\n{0}");
+                if (!dialog.IsVisible)
+                    return false;
                 await ShowInfoDialog(dialog, string.Format(format, ex.Message));
                 return false;
             }
@@ -1451,10 +1453,11 @@ public partial class MainWindowViewModel
         vm.OnItemScrapedAsync = async (item, result) =>
         {
             var parent = FindParentNode(RootItems, item);
-            if (parent == null) return;
+            if (parent == null) return BulkScrapeImportOutcome.Failed;
             var nodePath = PathHelper.GetNodePath(parent, RootItems);
     
             var changed = false;
+            var failedAssets = new List<AssetType>();
 
             if (ApplyScrapedMetadata(item, result, importSettings))
                 changed = true;
@@ -1464,7 +1467,8 @@ public partial class MainWindowViewModel
                     result,
                     nodePath,
                     importSettings,
-                    appendAssetsWhenTypeExists: importSettings.AppendAssetsDuringBulkScrape);
+                    appendAssetsWhenTypeExists: importSettings.AppendAssetsDuringBulkScrape,
+                    onAssetImportFailed: failedAssets.Add);
             if (assets.Changed)
                 changed = true;
             
@@ -1474,9 +1478,17 @@ public partial class MainWindowViewModel
             if (assets.DocumentImportError is { } documentError)
                 throw new InvalidOperationException(string.Format(T("ScrapeDialog.DocumentImportFailed",
                     "{0}\nOther changes are retained. See the diagnostic log for details."), documentError));
+            if (failedAssets.Count > 0)
+                throw new InvalidOperationException(string.Format(T("BulkScrape.AssetImportFailed",
+                    "At least one selected asset could not be imported: {0}. Other changes are retained."),
+                    string.Join(", ", failedAssets)));
+            return changed ? BulkScrapeImportOutcome.Imported : BulkScrapeImportOutcome.Skipped;
         };
     
         await dialog.ShowDialog(owner);
+        // Closing cancels new work; an already running asset callback must finish before its changes are saved.
+        if (vm.StartCommand.ExecutionTask is { } runningScrape)
+            await runningScrape;
         await SaveData();
         if (IsNodeInCurrentView(node)) UpdateContent();
     }
@@ -1651,32 +1663,33 @@ public partial class MainWindowViewModel
         ScraperSearchResult result,
         List<string> nodePath,
         ScraperImportSettings settings,
-        bool appendAssetsWhenTypeExists)
+        bool appendAssetsWhenTypeExists,
+        Action<AssetType>? onAssetImportFailed = null)
     {
         var changed = false;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Cover, result.CoverUrl, settings.ImportCover, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Cover, result.CoverUrl, settings.ImportCover, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Wallpaper, result.WallpaperUrl, settings.ImportWallpaper, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Wallpaper, result.WallpaperUrl, settings.ImportWallpaper, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Screenshot, result.ScreenshotUrl, settings.ImportScreenshot, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Screenshot, result.ScreenshotUrl, settings.ImportScreenshot, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Video, result.VideoUrl, settings.ImportVideo, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Video, result.VideoUrl, settings.ImportVideo, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
         
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Bezel, result.BezelUrl, settings.ImportBezel, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Bezel, result.BezelUrl, settings.ImportBezel, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, appendAssetsWhenTypeExists))
+        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, appendAssetsWhenTypeExists, onAssetImportFailed))
             changed = true;
 
         string? documentImportError = null;
@@ -1741,7 +1754,8 @@ public partial class MainWindowViewModel
         AssetType type,
         string? url,
         bool isEnabled,
-        bool appendAssetsWhenTypeExists)
+        bool appendAssetsWhenTypeExists,
+        Action<AssetType>? onAssetImportFailed = null)
     {
         if (!isEnabled || string.IsNullOrWhiteSpace(url))
             return false;
@@ -1750,7 +1764,9 @@ public partial class MainWindowViewModel
         if (hasExisting && !appendAssetsWhenTypeExists)
             return false;
 
-        return await DownloadAndSetAsset(url, item, nodePath, type);
+        var imported = await DownloadAndSetAsset(url, item, nodePath, type);
+        if (!imported) onAssetImportFailed?.Invoke(type);
+        return imported;
     }
 
     private static bool TryApplyStringField(

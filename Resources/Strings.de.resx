@@ -1622,4 +1622,20 @@ Die vorhandenen Dateien und Starteinstellungen bleiben unverändert. Das Retromi
     <data name="Settings.GogGalaxy.Enable" xml:space="preserve"><value>GOG-Galaxy-Dienste für verknüpfte Spiele aktivieren</value></data>
     <data name="Settings.GogGalaxy.Hint" xml:space="preserve"><value>Zeigt den GOG-Achievement-Fortschritt an, synchronisiert abgeschlossene Spielzeitsitzungen und startet den von Retromind mitgelieferten Comet-Dienst, während ein geeignetes Spiel läuft. Comet kann Achievements bei kompatiblen Spielen und Laufzeitumgebungen synchronisieren. Die Unterstützung nativer Linux-Spiele sowie von Wine, Proton und UMU ist vom jeweiligen Titel abhängig.</value></data>
     <data name="Persistence.OperationSavePending" xml:space="preserve"><value>Der Vorgang wurde ausgeführt, seine Änderungen konnten aber nicht vollständig gespeichert werden. Die Änderungen bleiben im Arbeitsspeicher; bereits ausgeführte Schritte bleiben erhalten.</value></data>
+    <data name="BulkScrape.Ready" xml:space="preserve"><value>Bereit.</value></data>
+    <data name="BulkScrape.Preparing" xml:space="preserve"><value>Wird vorbereitet...</value></data>
+    <data name="BulkScrape.Connecting" xml:space="preserve"><value>Verbindung zum Anbieter wird hergestellt...</value></data>
+    <data name="BulkScrape.Processing" xml:space="preserve"><value>Verarbeitung: {0}</value></data>
+    <data name="BulkScrape.Stopping" xml:space="preserve"><value>Wird angehalten...</value></data>
+    <data name="BulkScrape.Completed" xml:space="preserve"><value>Verarbeitung abgeschlossen.</value></data>
+    <data name="BulkScrape.CompletedWithErrors" xml:space="preserve"><value>Verarbeitung mit technischen Fehlern abgeschlossen.</value></data>
+    <data name="BulkScrape.Cancelled" xml:space="preserve"><value>Verarbeitung vom Benutzer abgebrochen.</value></data>
+    <data name="BulkScrape.ProviderLimit" xml:space="preserve"><value>Wegen eines erreichten Anbieterlimits beendet.</value></data>
+    <data name="BulkScrape.Failed" xml:space="preserve"><value>Verarbeitung fehlgeschlagen. Details stehen im Protokoll.</value></data>
+    <data name="BulkScrape.NotStarted" xml:space="preserve"><value>Verarbeitung wurde nicht gestartet.</value></data>
+    <data name="BulkScrape.Summary" xml:space="preserve"><value>Gefunden: {0} · Abgeschlossen: {1} · Nicht verarbeitet: {2}
+Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgeschlagen: {6}</value></data>
+    <data name="BulkScrape.PartialSummary" xml:space="preserve"><value>Bisher gefunden (Erfassung unvollständig): {0} · Abgeschlossen: {1} · Nicht verarbeitet: {2}
+Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgeschlagen: {6}</value></data>
+    <data name="BulkScrape.AssetImportFailed" xml:space="preserve"><value>Mindestens ein ausgewähltes Medium konnte nicht importiert werden: {0}. Andere Änderungen bleiben erhalten.</value></data>
 </root>
