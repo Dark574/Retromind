@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -33,6 +34,7 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private static readonly TimeSpan SearchDebounceDelay = TimeSpan.FromMilliseconds(250);
 
     private readonly IReadOnlyList<MediaNode> _rootNodesSnapshot;
+    private readonly IErrorService _errorService;
     private readonly ObservableCollection<MediaNode>? _rootNodesObservable;
     private readonly HashSet<MediaNode> _trackedNodes = new();
     private readonly HashSet<string> _selectedScopeNodeIds = new(StringComparer.Ordinal);
@@ -139,10 +141,11 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private bool _hasAnyRoots;
 
-    public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes, bool parentalFilterActive = false)
+    public SearchAreaViewModel(IEnumerable<MediaNode> rootNodes, IErrorService errorService, bool parentalFilterActive = false)
     {
         if (rootNodes == null)
             throw new ArgumentNullException(nameof(rootNodes));
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
 
         _parentalFilterActive = parentalFilterActive;
         _rootNodesSnapshot = rootNodes.ToList();
@@ -250,6 +253,10 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
 
     public HashSet<string> GetSelectedScopeIdsSnapshot()
         => new(_selectedScopeNodeIds, StringComparer.Ordinal);
+
+    public SearchScopeDialogViewModel CreateScopeDialogViewModel() => new(
+        RootNodes.Where(node => !_parentalFilterActive || node == null || node.IsVisibleInTree),
+        GetSelectedScopeIdsSnapshot(), _errorService);
 
     public void ApplyScopeSelection(IReadOnlyCollection<string> selectedIds)
     {

@@ -268,7 +268,7 @@ public partial class SearchAreaView : UserControl
         _isScopeDialogOpen = true;
 
         var owner = this.FindAncestorOfType<Window>() ?? TopLevel.GetTopLevel(this) as Window;
-        var dialogVm = new SearchScopeDialogViewModel(vm.ScopeDialogRootNodesSnapshot, vm.GetSelectedScopeIdsSnapshot());
+        var dialogVm = vm.CreateScopeDialogViewModel();
         var dialog = new SearchScopeDialogView { DataContext = dialogVm };
 
         dialogVm.RequestClose += result =>

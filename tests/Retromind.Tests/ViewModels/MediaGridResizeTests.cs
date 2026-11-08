@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using Retromind.Models;
+using Retromind.Tests.TestInfrastructure;
 using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
@@ -31,7 +32,7 @@ public sealed class MediaGridResizeTests
     public void Search_ResizeWithinSameColumnCount_ReusesRowsAndUpdatesTileWidth()
     {
         var node = CreateNode();
-        using var vm = new SearchAreaViewModel([]);
+        using var vm = new SearchAreaViewModel([], new RecordingErrorService());
         vm.SearchResults.AddRange(node.Items);
         vm.ViewportWidth = 1200;
         vm.SelectedMediaItem = node.Items[3];
@@ -72,7 +73,7 @@ public sealed class MediaGridResizeTests
     public void Search_ColumnCountOrTileSizeChanges_RegroupsOnlyWhenNeeded()
     {
         var node = CreateNode();
-        using var vm = new SearchAreaViewModel([]);
+        using var vm = new SearchAreaViewModel([], new RecordingErrorService());
         vm.SearchResults.AddRange(node.Items);
         vm.ViewportWidth = 1200;
 
@@ -138,7 +139,7 @@ public sealed class MediaGridResizeTests
     public void EmptyGrids_ResizeDoesNotResetEmptyRowCollections()
     {
         using var category = new MediaAreaViewModel(new MediaNode("Empty"), 150);
-        using var search = new SearchAreaViewModel([]);
+        using var search = new SearchAreaViewModel([], new RecordingErrorService());
 
         AssertRowsUnchanged(category.ItemRows, () => category.ViewportWidth = 1200);
         AssertRowsUnchanged(search.ItemRows, () => search.ViewportWidth = 1200);

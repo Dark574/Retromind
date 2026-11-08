@@ -1640,4 +1640,5 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
     <data name="BulkScrape.AssetImportFailed" xml:space="preserve"><value>Mindestens ein ausgewähltes Medium konnte nicht importiert werden: {0}. Andere Änderungen bleiben erhalten.</value></data>
     <data name="NodeAssets.RecoveryRequired" xml:space="preserve"><value>Eine manuelle Wiederherstellung ist erforderlich. Dateien hier bitte aufbewahren: {0}</value></data>
     <data name="NodeAssets.MoveRecoveryRequired" xml:space="preserve"><value>Kategorie konnte nicht verschoben werden. Eine manuelle Wiederherstellung ist erforderlich. Dateien hier bitte aufbewahren (Pfad relativ zum Datenverzeichnis): {0}</value></data>
+    <data name="SearchScope.BuildFailed" xml:space="preserve"><value>Die Suchbereiche konnten nicht geladen werden. Die bisherige Auswahl bleibt erhalten. Bitte schließe diesen Dialog und prüfe das Diagnoseprotokoll.</value></data>
 </root>

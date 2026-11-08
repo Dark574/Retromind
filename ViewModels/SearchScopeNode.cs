@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Retromind.Models;
 
@@ -60,14 +59,20 @@ public class SearchScopeNode : ObservableObject
 
     public void ApplyInitialSelection(ISet<string> selectedIds)
     {
-        foreach (var child in Children)
-            child.ApplyInitialSelection(selectedIds);
+        ApplyInitialSelectionCore(selectedIds);
+        Parent?.UpdateCheckStateFromChildren();
+    }
 
+    private void ApplyInitialSelectionCore(ISet<string> selectedIds)
+    {
         if (selectedIds.Contains(Node.Id))
         {
             SetIsChecked(true, updateChildren: true, updateParent: false);
             return;
         }
+
+        foreach (var child in Children)
+            child.ApplyInitialSelectionCore(selectedIds);
 
         if (Children.Count == 0)
         {
@@ -75,33 +80,26 @@ public class SearchScopeNode : ObservableObject
             return;
         }
 
-        UpdateCheckStateFromChildren();
+        UpdateCheckStateFromChildren(updateParent: false);
     }
 
-    private void UpdateCheckStateFromChildren()
+    private void UpdateCheckStateFromChildren(bool updateParent = true)
     {
         if (Children.Count == 0) return;
 
-        var hasTrue = false;
-        var hasFalse = false;
-
+        var newValue = Children[0].IsChecked;
         foreach (var child in Children)
         {
-            if (child.IsChecked == true) hasTrue = true;
-            else if (child.IsChecked == false) hasFalse = true;
-        
-            if (hasTrue && hasFalse) break;
+            if (child.IsChecked == newValue) continue;
+            newValue = null;
+            break;
         }
 
-        bool? newValue = hasTrue && !hasFalse ? true : hasFalse && !hasTrue ? false : null;
-        SetIsChecked(newValue, updateChildren: false, updateParent: true);
+        SetIsChecked(newValue, updateChildren: false, updateParent: updateParent);
     }
 
     private void SetIsChecked(bool? value, bool updateChildren, bool updateParent)
     {
-        if (_isChecked == value)
-            return;
-
         SetProperty(ref _isChecked, value, nameof(IsChecked));
 
         if (updateChildren && value.HasValue)

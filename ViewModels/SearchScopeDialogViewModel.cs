@@ -1,15 +1,21 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Models;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
 public partial class SearchScopeDialogViewModel : ViewModelBase
 {
+    private const int MaximumTreeDepth = 256;
+    private readonly HashSet<string> _initialSelectedIds;
     public ObservableCollection<SearchScopeNode> RootNodes { get; } = new();
+    public string? ErrorMessage { get; private set; }
+    public bool HasBuildFailure => ErrorMessage != null;
 
     [ObservableProperty]
     private string _filterText = string.Empty;
@@ -23,26 +29,49 @@ public partial class SearchScopeDialogViewModel : ViewModelBase
 
     public event Action<bool>? RequestClose;
 
-    public SearchScopeDialogViewModel(IEnumerable<MediaNode> rootNodes, IReadOnlyCollection<string> selectedIds)
+    public SearchScopeDialogViewModel(IEnumerable<MediaNode>? rootNodes, IReadOnlyCollection<string>? selectedIds,
+        IErrorService errorService)
     {
-        var selected = new HashSet<string>(selectedIds ?? Array.Empty<string>(), StringComparer.Ordinal);
+        ArgumentNullException.ThrowIfNull(errorService);
+        _initialSelectedIds = new HashSet<string>(selectedIds ?? Array.Empty<string>(), StringComparer.Ordinal);
 
-        if (rootNodes != null)
+        var failureReason = "UnexpectedFailure";
+        try
         {
-            foreach (var root in rootNodes)
+            var roots = BuildNodes(rootNodes, out failureReason);
+            foreach (var node in roots)
             {
-                var node = BuildNode(root, null);
                 node.IsExpanded = true;
-                RootNodes.Add(node);
-                node.ApplyInitialSelection(selected);
+                node.ApplyInitialSelection(_initialSelectedIds);
             }
+            foreach (var node in roots) RootNodes.Add(node);
+        }
+        catch (Exception ex)
+        {
+            RootNodes.Clear();
+            ErrorMessage = T("SearchScope.BuildFailed",
+                "The search categories could not be loaded. Your previous selection has been preserved. Close this dialog and check the diagnostic log.");
+            try
+            {
+                errorService.Report(new ErrorReport("SearchScope.BuildFailed", ErrorSeverity.Error,
+                    nameof(SearchScopeDialogViewModel), "The search scope tree could not be built.",
+                    Context: new Dictionary<string, string>
+                    {
+                        ["Operation"] = "BuildTree", ["Reason"] = failureReason,
+                        ["FailureType"] = ex.GetType().Name, ["MaximumDepth"] = "256"
+                    }));
+            }
+            catch { /* Diagnostics must not prevent closing an unusable scope dialog. */ }
         }
 
-        SelectAllCommand = new RelayCommand(SelectAll);
-        ClearAllCommand = new RelayCommand(ClearAll);
-        ExpandAllCommand = new RelayCommand(() => SetExpanded(true));
-        CollapseAllCommand = new RelayCommand(() => SetExpanded(false));
-        ApplyCommand = new RelayCommand(() => RequestClose?.Invoke(true));
+        SelectAllCommand = new RelayCommand(SelectAll, () => !HasBuildFailure);
+        ClearAllCommand = new RelayCommand(ClearAll, () => !HasBuildFailure);
+        ExpandAllCommand = new RelayCommand(() => SetExpanded(true), () => !HasBuildFailure);
+        CollapseAllCommand = new RelayCommand(() => SetExpanded(false), () => !HasBuildFailure);
+        ApplyCommand = new RelayCommand(() =>
+        {
+            if (!HasBuildFailure) RequestClose?.Invoke(true);
+        }, () => !HasBuildFailure);
         CancelCommand = new RelayCommand(() => RequestClose?.Invoke(false));
 
         ApplyFilter();
@@ -52,6 +81,7 @@ public partial class SearchScopeDialogViewModel : ViewModelBase
 
     public HashSet<string> GetSelectedNodeIds()
     {
+        if (HasBuildFailure) return new HashSet<string>(_initialSelectedIds, StringComparer.Ordinal);
         var result = new HashSet<string>(StringComparer.Ordinal);
         foreach (var root in RootNodes)
             CollectSelected(root, result);
@@ -83,13 +113,31 @@ public partial class SearchScopeDialogViewModel : ViewModelBase
             SetExpandedRecursive(child, expanded);
     }
 
-    private static SearchScopeNode BuildNode(MediaNode node, SearchScopeNode? parent)
+    private static List<SearchScopeNode> BuildNodes(IEnumerable<MediaNode>? rootNodes, out string failureReason)
     {
-        var scopeNode = new SearchScopeNode(node, parent);
-        foreach (var child in node.Children)
-            scopeNode.Children.Add(BuildNode(child, scopeNode));
+        failureReason = "UnexpectedFailure";
+        var roots = new List<SearchScopeNode>();
+        var pending = new Stack<(MediaNode Node, SearchScopeNode? Parent, int Depth)>();
+        var sourceRoots = rootNodes?.ToArray() ?? Array.Empty<MediaNode>();
+        for (var i = sourceRoots.Length - 1; i >= 0; i--)
+            pending.Push((sourceRoots[i], null, 0));
 
-        return scopeNode;
+        var visited = new HashSet<MediaNode>(ReferenceEqualityComparer.Instance);
+        while (pending.TryPop(out var entry))
+        {
+            if (entry.Node == null || entry.Depth > MaximumTreeDepth || !visited.Add(entry.Node))
+            {
+                failureReason = entry.Node == null ? "MissingNode"
+                    : entry.Depth > MaximumTreeDepth ? "MaximumDepthExceeded" : "CycleOrSharedReference";
+                throw new InvalidOperationException("Invalid search scope hierarchy.");
+            }
+            var node = new SearchScopeNode(entry.Node, entry.Parent);
+            if (entry.Parent == null) roots.Add(node);
+            else entry.Parent.Children.Add(node);
+            for (var i = entry.Node.Children.Count - 1; i >= 0; i--)
+                pending.Push((entry.Node.Children[i], node, entry.Depth + 1));
+        }
+        return roots;
     }
 
     private void ApplyFilter()

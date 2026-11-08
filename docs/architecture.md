@@ -779,6 +779,23 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - media completeness queries use the existing `has:` / `missing:` syntax for every supported item asset type;
   presence is based on stored asset references and deliberately avoids filesystem access during filtering
 
+The search-scope dialog uses `SearchScopeNode` tri-state selection: a parent is checked only when all children
+are checked, unchecked only when all are unchecked, and indeterminate for every other combination, including
+indeterminate children. Restoration computes descendants before their parent; an explicitly selected category
+selects its entire subtree. Recursive select/clear synchronizes descendants even when the parent value already
+matches. Clicking an indeterminate checkbox still clears its subtree. Selected IDs retain the existing compact
+representation (a checked ancestor covers descendants); category-name filtering changes visibility only.
+
+`SearchAreaViewModel` receives the existing `IErrorService` from the main window and creates the scope dialog.
+The dialog builds a separate wrapper tree iteratively, rejects missing nodes, cycles/shared node references
+and depths above 256, and publishes it only after the entire forest is built and initialized. Invalid hierarchies
+or unexpected build failures produce one `SearchScope.BuildFailed` (`Error`) report with a fixed reason and
+exception type, without category names, raw exceptions or notification callbacks. The existing dialog shows an
+inline error, disables Apply and tree commands, and retains the original selected IDs; cancellation remains
+available. Ordinary checked/unchecked/indeterminate states produce no diagnostics. This is dialog-local
+validation, not library repair or a global search-tree guard. Once built, the wrapper structure is a snapshot;
+concurrent library hierarchy edits are not mirrored into an open scope dialog.
+
 ## Library statistics
 `LibraryStatisticsViewModel` calculates statistics on demand from the existing media tree; there is no
 separate statistics database or persisted aggregate state.

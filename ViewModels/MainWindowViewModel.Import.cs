@@ -2048,7 +2048,7 @@ public partial class MainWindowViewModel
         // Force refresh of selection
         OnPropertyChanged(nameof(SelectedNode));
         
-        var searchVm = new SearchAreaViewModel(RootItems, IsParentalFilterActive) { ItemWidth = ItemWidth };
+        var searchVm = new SearchAreaViewModel(RootItems, _errorService, IsParentalFilterActive) { ItemWidth = ItemWidth };
         searchVm.OnlyFavorites = _searchUiState.SharedOnlyFavorites;
         searchVm.SearchText = _searchUiState.SharedSearchText;
         if (_searchUiState.HasGlobalScopeSelection)
