@@ -1,7 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Text.Json;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
@@ -17,7 +18,8 @@ public static partial class NodeAssetFolderHelper
         Dictionary<string, string> plannedRenamedFiles,
         Dictionary<string, TargetFolderReservation> reservationsByFolder,
         HashSet<MediaNode> visitedNodes,
-        int depth)
+        int depth,
+        List<string> oldFolders)
     {
         if (!TryBeginNodeTraversal(node, visitedNodes, depth, nameof(MoveAssetFoldersRecursive)))
             return false;
@@ -29,6 +31,7 @@ public static partial class NodeAssetFolderHelper
         var newSegments = new List<string>(newBaseSegments.Count + relativeSegments.Count);
         newSegments.AddRange(newBaseSegments);
         newSegments.AddRange(relativeSegments);
+        oldFolders.Add(PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot));
 
         if (!TryPlanAssetFolderMovesForNode(
                 oldSegments,
@@ -52,7 +55,8 @@ public static partial class NodeAssetFolderHelper
                 plannedRenamedFiles,
                 reservationsByFolder,
                 visitedNodes,
-                depth + 1);
+                depth + 1,
+                oldFolders);
             relativeSegments.RemoveAt(relativeSegments.Count - 1);
 
             if (!childPlanned)
@@ -102,6 +106,8 @@ public static partial class NodeAssetFolderHelper
 
             foreach (var file in Directory.EnumerateFiles(oldTypeFolder))
             {
+                if (!AppPaths.TryResolveDataPathForMutation(file, out _))
+                    return false;
                 var fileName = Path.GetFileName(file);
                 if (string.IsNullOrWhiteSpace(fileName))
                     continue;
@@ -114,7 +120,6 @@ public static partial class NodeAssetFolderHelper
                     targetFileName = GetRenumberedAssetFileName(fileName, reservation);
                     if (string.IsNullOrWhiteSpace(targetFileName))
                     {
-                        Debug.WriteLine($"[NodeAssetFolderHelper] Failed to allocate renamed target for '{file}'.");
                         return false;
                     }
                 }
@@ -128,8 +133,7 @@ public static partial class NodeAssetFolderHelper
                     if (plannedRenamedFiles.TryGetValue(sourceRelativePath, out var existing) &&
                         !string.Equals(existing, renamedRelativePath, StringComparison.Ordinal))
                     {
-                        Debug.WriteLine(
-                            $"[NodeAssetFolderHelper] Planned rename collision for '{sourceRelativePath}': '{existing}' -> '{renamedRelativePath}'. Overwriting mapping.");
+                        return false;
                     }
 
                     plannedRenamedFiles[sourceRelativePath] = renamedRelativePath;
@@ -146,211 +150,128 @@ public static partial class NodeAssetFolderHelper
         return true;
     }
 
-    private static bool TryExecutePlannedMoves(
-        List<PlannedFileMove> plannedMoves,
-        IReadOnlyDictionary<string, string> plannedRenamedFiles,
-        Dictionary<string, string> renamedFiles)
+    private static void TryExecutePlannedMoves(
+        List<PlannedFileMove> plannedMoves, IReadOnlyDictionary<string, string> plannedRenamedFiles,
+        Dictionary<string, string> renamedFiles, NodeAssetOperationResult result, NodeAssetFileOperations io,
+        PreparedPathUpdates? paths, Action applyCategoryChange, Action rollbackCategoryChange)
     {
-        var stagingRoot = Path.Combine(
-            AppPaths.LibraryRoot,
-            ".retromind_asset_move_staging",
-            Guid.NewGuid().ToString("N"));
-
-        var stagedMoves = new List<PlannedFileMove>(plannedMoves.Count);
-        var committedMoves = new List<PlannedFileMove>(plannedMoves.Count);
-
+        var stagingRoot = Path.Combine(AppPaths.LibraryRoot, ".retromind_asset_move_staging", Guid.NewGuid().ToString("N"));
+        var staged = new List<PlannedFileMove>();
+        var committed = new List<PlannedFileMove>();
+        var failureCode = "NodeAssets.MoveFailed";
+        var phase = "Staging";
+        var categoryAttempted = false;
         try
         {
             if (!AppPaths.TryResolveDataPathForMutation(stagingRoot, out stagingRoot))
-                throw new IOException($"Unsafe asset staging path: '{stagingRoot}'.");
-
-            Directory.CreateDirectory(stagingRoot);
-
+                throw new IOException("Unsafe asset staging location.");
+            result.StagingDirectory = RelativeLocation(stagingRoot);
+            if (plannedMoves.Count > 0) Directory.CreateDirectory(stagingRoot);
             for (var i = 0; i < plannedMoves.Count; i++)
             {
                 var move = plannedMoves[i];
-                if (!AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
-                    throw new IOException($"Unsafe asset source path: '{move.SourcePath}'.");
-
-                if (!File.Exists(move.SourcePath))
-                    throw new FileNotFoundException("Source file does not exist for planned asset move.", move.SourcePath);
-
-                var extension = Path.GetExtension(move.SourcePath);
-                var stagePath = Path.Combine(stagingRoot, $"{i:D6}{extension}");
-                if (!AppPaths.TryResolveDataPathForMutation(stagePath, out stagePath))
-                    throw new IOException($"Unsafe asset staging path: '{stagePath}'.");
-
-                File.Move(move.SourcePath, stagePath);
-                move.StagingPath = stagePath;
-                stagedMoves.Add(move);
+                if (!AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _) || !File.Exists(move.SourcePath))
+                    throw new IOException("An asset source is missing or unsafe.");
+                var stage = Path.Combine(stagingRoot, $"{i:D6}{Path.GetExtension(move.SourcePath)}");
+                if (!AppPaths.TryResolveDataPathForMutation(stage, out stage))
+                    throw new IOException("Unsafe asset staging location.");
+                move.StagingPath = stage;
+                staged.Add(move); // Also track an interrupted cross-filesystem copy or a move that throws after IO.
+                io.MoveFile(move.SourcePath, stage);
             }
-
+            phase = "CommitFiles";
             foreach (var move in plannedMoves)
             {
-                if (string.IsNullOrWhiteSpace(move.StagingPath))
-                    throw new InvalidOperationException($"Staging path missing for planned move '{move.SourcePath}'.");
-
-                var targetDirectory = Path.GetDirectoryName(move.TargetPath);
                 if (!AppPaths.TryResolveDataPathForMutation(move.TargetPath, out _))
-                    throw new IOException($"Unsafe asset target path: '{move.TargetPath}'.");
-
-                if (!string.IsNullOrWhiteSpace(targetDirectory) && !Directory.Exists(targetDirectory))
-                    Directory.CreateDirectory(targetDirectory);
-
-                if (File.Exists(move.TargetPath))
-                    throw new IOException($"Target collision during commit: '{move.TargetPath}'.");
-
-                File.Move(move.StagingPath, move.TargetPath);
-                committedMoves.Add(move);
+                    throw new IOException("Unsafe asset target location.");
+                Directory.CreateDirectory(Path.GetDirectoryName(move.TargetPath)!);
+                // File.Move itself never overwrites, including races after this check or directory collisions.
+                io.MoveFile(move.StagingPath!, move.TargetPath);
+                committed.Add(move);
             }
 
-            foreach (var kvp in plannedRenamedFiles)
-            {
-                if (renamedFiles.TryGetValue(kvp.Key, out var existing) &&
-                    !string.Equals(existing, kvp.Value, StringComparison.Ordinal))
-                {
-                    Debug.WriteLine(
-                        $"[NodeAssetFolderHelper] Renamed path collision for '{kvp.Key}': '{existing}' -> '{kvp.Value}'. Overwriting mapping.");
-                }
-
-                renamedFiles[kvp.Key] = kvp.Value;
-            }
-
-            return true;
+            failureCode = "NodeAssets.PathUpdateFailed";
+            phase = "UpdatePaths";
+            io.AfterFilesMoved?.Invoke();
+            paths?.Apply();
+            phase = "CategoryChange";
+            categoryAttempted = true;
+            applyCategoryChange();
+            foreach (var pair in plannedRenamedFiles) renamedFiles[pair.Key] = pair.Value;
+            result.Success = true;
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[NodeAssetFolderHelper] Atomic move failed, rolling back: {ex}");
-            RollbackPlannedMoves(stagedMoves, committedMoves);
-            return false;
+            result.Fail(failureCode, ex);
+            result.FailurePhase = phase;
+            if (categoryAttempted)
+            {
+                try { rollbackCategoryChange(); }
+                catch { result.MetadataRecoveryRequired = true; result.RollbackComplete = false; }
+            }
+            paths?.Rollback(result);
+            RollbackPlannedMoves(staged, committed, result, io);
+            if (!result.RollbackComplete)
+                WriteRecoveryManifest(stagingRoot, result, paths);
         }
         finally
         {
-            DeleteDirectoryIfEmpty(stagingRoot);
-
-            var stagingParent = Path.GetDirectoryName(stagingRoot);
-            if (!string.IsNullOrWhiteSpace(stagingParent))
-                DeleteDirectoryIfEmpty(stagingParent);
+            CleanupEmptyDirectory(stagingRoot, result, io);
+            CleanupEmptyDirectory(Path.GetDirectoryName(stagingRoot)!, result, io);
         }
     }
 
-    private static void RollbackPlannedMoves(
-        IReadOnlyList<PlannedFileMove> stagedMoves,
-        IReadOnlyList<PlannedFileMove> committedMoves)
+    private static void RollbackPlannedMoves(IReadOnlyList<PlannedFileMove> staged,
+        IReadOnlyList<PlannedFileMove> committed, NodeAssetOperationResult result, NodeAssetFileOperations io)
     {
-        for (var i = committedMoves.Count - 1; i >= 0; i--)
+        foreach (var move in committed.Reverse()) Restore(move, move.TargetPath);
+        foreach (var move in staged.Reverse()) Restore(move, move.StagingPath!);
+        foreach (var move in staged)
         {
-            var move = committedMoves[i];
+            if (File.Exists(move.SourcePath)) continue;
+            result.RollbackComplete = false;
+            var retained = File.Exists(move.StagingPath) ? move.StagingPath! : move.TargetPath;
+            var entry = new NodeAssetRecoveryFile(RelativeLocation(move.SourcePath), RelativeLocation(retained));
+            if (!result.RecoveryFiles.Contains(entry)) result.RecoveryFiles.Add(entry);
+        }
+
+        void Restore(PlannedFileMove move, string retained)
+        {
+            if (!File.Exists(retained)) return;
             try
             {
-                if (!File.Exists(move.TargetPath))
-                    continue;
-
-                if (!AppPaths.TryResolveDataPathForMutation(move.TargetPath, out _) ||
+                if (!AppPaths.TryResolveDataPathForMutation(retained, out _) ||
                     !AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
-                {
-                    continue;
-                }
-
-                var sourceDirectory = Path.GetDirectoryName(move.SourcePath);
-                if (!string.IsNullOrWhiteSpace(sourceDirectory) && !Directory.Exists(sourceDirectory))
-                    Directory.CreateDirectory(sourceDirectory);
-
-                if (File.Exists(move.SourcePath))
-                {
-                    Debug.WriteLine(
-                        $"[NodeAssetFolderHelper] Rollback source already exists for '{move.SourcePath}'. Keeping committed target in place.");
-                    continue;
-                }
-
-                File.Move(move.TargetPath, move.SourcePath);
+                    throw new IOException("Unsafe rollback location.");
+                // No overwrite: a conflicting source (including a newly created one) must survive unchanged.
+                Directory.CreateDirectory(Path.GetDirectoryName(move.SourcePath)!);
+                io.MoveFile(retained, move.SourcePath);
             }
-            catch (Exception rollbackEx)
+            catch
             {
-                Debug.WriteLine($"[NodeAssetFolderHelper] Rollback failed (commit phase): {rollbackEx}");
-            }
-        }
-
-        for (var i = stagedMoves.Count - 1; i >= 0; i--)
-        {
-            var move = stagedMoves[i];
-            try
-            {
-                if (string.IsNullOrWhiteSpace(move.StagingPath) || !File.Exists(move.StagingPath))
-                    continue;
-
-                if (!AppPaths.TryResolveDataPathForMutation(move.StagingPath, out _) ||
-                    !AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
-                {
-                    continue;
-                }
-
-                var sourceDirectory = Path.GetDirectoryName(move.SourcePath);
-                if (!string.IsNullOrWhiteSpace(sourceDirectory) && !Directory.Exists(sourceDirectory))
-                    Directory.CreateDirectory(sourceDirectory);
-
-                if (File.Exists(move.SourcePath))
-                {
-                    Debug.WriteLine(
-                        $"[NodeAssetFolderHelper] Rollback source already exists for staged move '{move.SourcePath}'.");
-                    continue;
-                }
-
-                File.Move(move.StagingPath, move.SourcePath);
-            }
-            catch (Exception rollbackEx)
-            {
-                Debug.WriteLine($"[NodeAssetFolderHelper] Rollback failed (staging phase): {rollbackEx}");
+                result.RollbackComplete = false;
+                result.RecoveryFiles.Add(new(RelativeLocation(move.SourcePath), RelativeLocation(retained)));
             }
         }
     }
 
-    private static void CleanupEmptyOldFoldersRecursive(
-        MediaNode node,
-        IReadOnlyList<string> oldBaseSegments,
-        List<string> relativeSegments)
+    private static void WriteRecoveryManifest(string stagingRoot, NodeAssetOperationResult result, PreparedPathUpdates? paths)
     {
-        var visitedNodes = new HashSet<MediaNode>();
-        if (!TryCleanupEmptyOldFoldersRecursive(node, oldBaseSegments, relativeSegments, visitedNodes, depth: 0))
+        var manifest = Path.Combine(stagingRoot, "recovery.json");
+        try
         {
-            Debug.WriteLine("[NodeAssetFolderHelper] Empty-folder cleanup aborted due to invalid node traversal.");
+            if (!AppPaths.TryResolveDataPathForMutation(manifest, out manifest))
+                throw new IOException("Unsafe recovery manifest location.");
+            Directory.CreateDirectory(stagingRoot);
+            using var output = new FileStream(manifest, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            JsonSerializer.Serialize(output, new
+            {
+                result.SourcePrefix, result.TargetPrefix, result.MetadataRecoveryRequired, result.RecoveryFiles,
+                References = paths?.RecoveryReferences
+            });
+            output.Flush(flushToDisk: true);
+            result.RecoveryManifest = RelativeLocation(manifest);
         }
-    }
-
-    private static bool TryCleanupEmptyOldFoldersRecursive(
-        MediaNode node,
-        IReadOnlyList<string> oldBaseSegments,
-        List<string> relativeSegments,
-        HashSet<MediaNode> visitedNodes,
-        int depth)
-    {
-        if (!TryBeginNodeTraversal(node, visitedNodes, depth, nameof(CleanupEmptyOldFoldersRecursive)))
-            return false;
-
-        var oldSegments = new List<string>(oldBaseSegments.Count + relativeSegments.Count);
-        oldSegments.AddRange(oldBaseSegments);
-        oldSegments.AddRange(relativeSegments);
-
-        foreach (var child in node.Children)
-        {
-            relativeSegments.Add(child.Name);
-            var childCleanup = TryCleanupEmptyOldFoldersRecursive(
-                child,
-                oldBaseSegments,
-                relativeSegments,
-                visitedNodes,
-                depth + 1);
-            relativeSegments.RemoveAt(relativeSegments.Count - 1);
-
-            if (!childCleanup)
-                return false;
-        }
-
-        var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
-        foreach (var type in AssetFolderTypes)
-            DeleteDirectoryIfEmpty(Path.Combine(oldFolder, type.ToString()));
-
-        DeleteDirectoryIfEmpty(oldFolder);
-        return true;
+        catch { result.CleanupFailures.Add(RelativeLocation(manifest)); }
     }
 }

@@ -1636,4 +1636,5 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
     <data name="BulkScrape.PartialSummary" xml:space="preserve"><value>Found so far (collection incomplete): {0} · Completed: {1} · Not processed: {2}
 Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data>
     <data name="BulkScrape.AssetImportFailed" xml:space="preserve"><value>At least one selected asset could not be imported: {0}. Other changes are retained.</value></data>
+    <data name="NodeAssets.RecoveryRequired" xml:space="preserve"><value>Manual recovery is required. Preserve files at: {0}</value></data>
 </root>

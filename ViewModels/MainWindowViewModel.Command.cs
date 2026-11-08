@@ -952,6 +952,7 @@ public partial class MainWindowViewModel
             _currentSettings,
             _fileService,
             nodePath,
+            _errorService,
             message => ShowConfirmDialog(owner, message));
         
         var dialog = new NodeSettingsView { DataContext = vm };
@@ -2110,23 +2111,55 @@ public partial class MainWindowViewModel
         }
     }
 
-    public async Task<bool> TryMoveNodeAsync(MediaNode sourceNode, MediaNode targetNode, NodeDropPosition dropPosition)
+    internal NodeAssetOperationResult? LastNodeAssetOperation { get; private set; }
+    internal NodeAssetFileOperations? NodeAssetFileOperations { get; set; }
+
+    public Task<bool> TryMoveNodeAsync(MediaNode sourceNode, MediaNode targetNode, NodeDropPosition dropPosition) =>
+        TryMoveNodeAsync(sourceNode, targetNode, dropPosition, null, null, null);
+
+    internal async Task<bool> TryMoveNodeAsync(MediaNode sourceNode, MediaNode targetNode, NodeDropPosition dropPosition,
+        Func<string, Task<bool>>? confirm, Action<MediaNode?>? selectNode, Func<Task<bool>>? save)
     {
+        var traversal = NodeAssetFolderHelper.ValidateTraversal(RootItems);
+        if (!traversal.Success)
+        {
+            LastNodeAssetOperation = traversal;
+            NodeAssetDiagnostics.Report(_errorService, traversal, "Move", sourceNode?.Id ?? "");
+            return false;
+        }
+        async Task<bool> Confirm(string message)
+        {
+            try { return confirm != null ? await confirm(message)
+                : CurrentWindow is { } window && await ShowConfirmDialog(window, message); }
+            catch (OperationCanceledException) { return false; }
+            catch (Exception ex)
+            {
+                LastNodeAssetOperation = new NodeAssetOperationResult { FailurePhase = "Confirmation" };
+                LastNodeAssetOperation.Fail("NodeAssets.MoveFailed", ex);
+                NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Move", sourceNode?.Id ?? "");
+                return false;
+            }
+        }
+        void Select(MediaNode? node)
+        {
+            if (selectNode != null) selectNode(node);
+            else SelectedNode = node;
+        }
         if (sourceNode == null || targetNode == null)
             return false;
 
         if (ReferenceEquals(sourceNode, targetNode))
             return false;
 
-        if (IsChildOf(sourceNode, targetNode))
-            return false;
-
         var sourceChain = PathHelper.GetNodeChain(sourceNode, RootItems, matchById: true);
-        if (sourceChain.Count == 0)
+        if (sourceChain.Count == 0 || !ReferenceEquals(sourceChain[^1], sourceNode))
             return false;
 
         var targetChain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true);
-        if (targetChain.Count == 0)
+        if (targetChain.Count == 0 || !ReferenceEquals(targetChain[^1], targetNode))
+            return false;
+
+        if (IsChildOf(sourceNode, targetNode))
             return false;
 
         var sourceParent = sourceChain.Count > 1 ? sourceChain[^2] : null;
@@ -2139,11 +2172,8 @@ public partial class MainWindowViewModel
         {
             if (NamesCollide(targetNode, sourceNode))
             {
-                if (CurrentWindow is not { } owner)
-                    return false;
-
                 var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeFormat, targetNode.Name);
-                if (!await ShowConfirmDialog(owner, mergeMessage))
+                if (!await Confirm(mergeMessage))
                     return false;
 
                 mergeTarget = targetNode;
@@ -2154,11 +2184,8 @@ public partial class MainWindowViewModel
                 mergeTarget = FindNameCollision(destinationCollection, sourceNode);
                 if (mergeTarget != null)
                 {
-                    if (CurrentWindow is not { } owner)
-                        return false;
-
                     var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeFormat, mergeTarget.Name);
-                    if (!await ShowConfirmDialog(owner, mergeMessage))
+                    if (!await Confirm(mergeMessage))
                         return false;
                 }
             }
@@ -2169,11 +2196,8 @@ public partial class MainWindowViewModel
             var collision = FindNameCollision(destinationCollection, sourceNode);
             if (collision != null)
             {
-                if (CurrentWindow is not { } owner)
-                    return false;
-
                 var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeFormat, collision.Name);
-                if (!await ShowConfirmDialog(owner, mergeMessage))
+                if (!await Confirm(mergeMessage))
                     return false;
 
                 mergeTarget = collision;
@@ -2182,11 +2206,8 @@ public partial class MainWindowViewModel
 
         if (parentChanged)
         {
-            if (CurrentWindow is not { } owner)
-                return false;
-
             var confirmMessage = string.Format(Strings.Dialog_ConfirmMoveNodeAssetsFormat, sourceNode.Name);
-            if (!await ShowConfirmDialog(owner, confirmMessage))
+            if (!await Confirm(confirmMessage))
                 return false;
         }
 
@@ -2199,100 +2220,121 @@ public partial class MainWindowViewModel
         if (sourceIndex < 0 || targetIndex < 0)
             return false;
 
-        if (parentChanged)
+        if (!parentChanged)
         {
-            var oldPathSegments = PathHelper.GetNodePath(sourceNode, RootItems);
-            var newPathSegments = mergeTarget != null
-                ? PathHelper.GetNodePath(mergeTarget, RootItems)
-                : BuildNodePathSegments(newParent, sourceNode.Name);
-
-            var oldFolder = PathHelper.ResolveNodeFolder(oldPathSegments, AppPaths.LibraryRoot);
-            var newFolder = PathHelper.ResolveNodeFolder(newPathSegments, AppPaths.LibraryRoot);
-
-            if (!string.Equals(oldFolder, newFolder, StringComparison.Ordinal))
+            if (dropPosition == NodeDropPosition.Inside &&
+                (ReferenceEquals(sourceParent, targetNode) || ReferenceEquals(sourceCollection, targetNode.Children))) return false;
+            if (dropPosition != NodeDropPosition.Inside && ReferenceEquals(sourceCollection, targetCollection) &&
+                ((sourceIndex == targetIndex && dropPosition == NodeDropPosition.Before) ||
+                 (sourceIndex == targetIndex + 1 && dropPosition == NodeDropPosition.After))) return false;
+        }
+        void ApplyTreeChange()
+        {
+            if (mergeTarget != null && parentChanged)
             {
-                try
-                {
-                    var hasAssets = NodeAssetFolderHelper.HasAnyAssetFolders(oldFolder);
-                    if (hasAssets && Directory.Exists(newFolder))
-                    {
-                        var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeAssetsFormat, sourceNode.Name);
-                        if (CurrentWindow is not { } owner)
-                            return false;
-                        if (!await ShowConfirmDialog(owner, mergeMessage))
-                            return false;
-                    }
-
-                    if (hasAssets)
-                    {
-                        var renamedFiles = new Dictionary<string, string>(StringComparer.Ordinal);
-                        if (!NodeAssetFolderHelper.MoveAssetFoldersRecursive(sourceNode, oldPathSegments, newPathSegments, renamedFiles))
-                            return false;
-
-                        var oldRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, oldFolder);
-                        var newRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, newFolder);
-
-                        NodeAssetFolderHelper.UpdateAssetPathsRecursive(sourceNode, oldRelativePrefix, newRelativePrefix, renamedFiles);
-                    }
-                    else
-                    {
-                        NodeAssetFolderHelper.DeleteDirectoryIfEmpty(oldFolder);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[DragDrop] Failed to move node assets: {ex.Message}");
-                    return false;
-                }
+                sourceCollection.RemoveAt(sourceIndex);
+                MergeNodes(sourceNode, mergeTarget);
+                Select(mergeTarget);
             }
-        }
-
-        if (mergeTarget != null && parentChanged)
-        {
-            sourceCollection.RemoveAt(sourceIndex);
-            MergeNodes(sourceNode, mergeTarget);
-            SelectedNode = mergeTarget;
-        }
-        else if (dropPosition == NodeDropPosition.Inside)
-        {
-            if (ReferenceEquals(sourceParent, targetNode))
-                return false;
-
-            if (sourceCollection == targetNode.Children)
-                return false;
-
-            sourceCollection.RemoveAt(sourceIndex);
-            targetNode.Children.Add(sourceNode);
-            targetNode.IsExpanded = true;
-        }
-        else
-        {
-            if (ReferenceEquals(sourceCollection, targetCollection))
+            else if (dropPosition == NodeDropPosition.Inside)
             {
-                if (sourceIndex == targetIndex && dropPosition == NodeDropPosition.Before)
-                    return false;
+                sourceCollection.RemoveAt(sourceIndex);
+                targetNode.Children.Add(sourceNode);
+                targetNode.IsExpanded = true;
+            }
+            else
+            {
+                if (ReferenceEquals(sourceCollection, targetCollection))
+                {
+                    if (sourceIndex < targetIndex)
+                        targetIndex -= 1;
+                }
 
-                if (sourceIndex == targetIndex + 1 && dropPosition == NodeDropPosition.After)
-                    return false;
+                sourceCollection.RemoveAt(sourceIndex);
 
-                if (sourceIndex < targetIndex)
-                    targetIndex -= 1;
+                var insertIndex = dropPosition == NodeDropPosition.Before ? targetIndex : targetIndex + 1;
+                if (insertIndex < 0) insertIndex = 0;
+                if (insertIndex > targetCollection.Count) insertIndex = targetCollection.Count;
+
+                targetCollection.Insert(insertIndex, sourceNode);
             }
 
-            sourceCollection.RemoveAt(sourceIndex);
-
-            var insertIndex = dropPosition == NodeDropPosition.Before ? targetIndex : targetIndex + 1;
-            if (insertIndex < 0) insertIndex = 0;
-            if (insertIndex > targetCollection.Count) insertIndex = targetCollection.Count;
-
-            targetCollection.Insert(insertIndex, sourceNode);
+            if (parentChanged && !NodeAssetFolderHelper.ValidateTraversal(RootItems).Success)
+                throw new InvalidOperationException("The category assignment produced an invalid tree.");
+            if (mergeTarget == null)
+                Select(sourceNode);
+        }
+        if (!parentChanged)
+        {
+            ApplyTreeChange();
+            return true;
         }
 
-        if (mergeTarget == null)
-            SelectedNode = sourceNode;
-        if (parentChanged)
-            return await SaveData().ConfigureAwait(false);
-        return true;
+        traversal = NodeAssetFolderHelper.ValidateTraversal(RootItems);
+        if (!traversal.Success)
+        {
+            LastNodeAssetOperation = traversal;
+            NodeAssetDiagnostics.Report(_errorService, traversal, "Move", sourceNode.Id);
+            return false;
+        }
+        var oldPathSegments = PathHelper.GetNodePath(sourceNode, RootItems);
+        var newPathSegments = mergeTarget != null ? PathHelper.GetNodePath(mergeTarget, RootItems)
+            : BuildNodePathSegments(newParent, sourceNode.Name);
+        var oldFolder = PathHelper.ResolveNodeFolder(oldPathSegments, AppPaths.LibraryRoot);
+        var newFolder = PathHelper.ResolveNodeFolder(newPathSegments, AppPaths.LibraryRoot);
+        if (!string.Equals(oldFolder, newFolder, StringComparison.Ordinal) &&
+            NodeAssetFolderHelper.HasAnyAssetFolders(oldFolder) && Directory.Exists(newFolder))
+        {
+            var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeAssetsFormat, sourceNode.Name);
+            if (!await Confirm(mergeMessage)) return false;
+        }
+
+        traversal = NodeAssetFolderHelper.ValidateTraversal(RootItems);
+        if (!traversal.Success)
+        {
+            LastNodeAssetOperation = traversal;
+            NodeAssetDiagnostics.Report(_errorService, traversal, "Move", sourceNode.Id);
+            return false;
+        }
+        sourceIndex = sourceCollection.IndexOf(sourceNode);
+        targetIndex = targetCollection.IndexOf(targetNode);
+        if (sourceIndex < 0 || targetIndex < 0) return false;
+        oldPathSegments = PathHelper.GetNodePath(sourceNode, RootItems);
+        newPathSegments = mergeTarget != null ? PathHelper.GetNodePath(mergeTarget, RootItems)
+            : BuildNodePathSegments(newParent, sourceNode.Name);
+
+        var placement = NodeAssetFolderHelper.ValidateTraversal(new[] { sourceNode }, newPathSegments.Count - 1);
+        if (!placement.Success)
+        {
+            LastNodeAssetOperation = placement;
+            NodeAssetDiagnostics.Report(_errorService, placement, "Move", sourceNode.Id);
+            return false;
+        }
+        NodeAssignmentSnapshot snapshot;
+        try
+        {
+            snapshot = new NodeAssignmentSnapshot(sourceNode, mergeTarget ?? targetNode, sourceCollection,
+                dropPosition == NodeDropPosition.Inside ? targetNode.Children : targetCollection);
+        }
+        catch (Exception ex)
+        {
+            LastNodeAssetOperation = new NodeAssetOperationResult { FailurePhase = "PrepareMetadata" };
+            LastNodeAssetOperation.Fail("NodeAssets.PathUpdateFailed", ex);
+            NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Move", sourceNode.Id);
+            return false;
+        }
+        var previousSelection = SelectedNode;
+        var previousExpanded = targetNode.IsExpanded;
+        LastNodeAssetOperation = NodeAssetFolderHelper.MoveAndUpdateAssetPaths(sourceNode, oldPathSegments, newPathSegments,
+            ApplyTreeChange, () =>
+            {
+                snapshot.Restore();
+                targetNode.IsExpanded = previousExpanded;
+                Select(previousSelection);
+            }, NodeAssetFileOperations ?? new NodeAssetFileOperations());
+        NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Move", sourceNode.Id);
+        if (!LastNodeAssetOperation.Success) return false;
+        return save != null ? await save() : await SaveData().ConfigureAwait(false);
     }
 
     private List<string> BuildNodePathSegments(MediaNode? parent, string nodeName)

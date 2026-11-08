@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - publish only the current `Retromind-<version>-x86_64.AppImage.zsync` update metadata; retire the legacy filename containing `linux`
 
 ### Fixed
+- keep category artwork paths consistent during renames and moves, abort invalid category trees safely, and preserve recovery files when rollback cannot finish
 - show separate bulk-scraping totals for imports, missing matches, skipped items and failures, with accurate cancellation and provider-limit completion messages
 - keep controller navigation consistent when using multiple controllers or combining the D-pad and stick, and release held directions on disconnect, focus loss and monitoring shutdown
 - limit remote artwork downloads and reject excessive image dimensions to reduce memory spikes while browsing

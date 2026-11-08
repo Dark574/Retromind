@@ -77,7 +77,7 @@ public sealed class NodeSettingsViewModelAssetTests
             roots,
             settings ?? new AppSettings(),
             new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService()),
-            [node.Name]);
+            [node.Name], new RecordingErrorService());
     }
 
     private static EnvironmentVariableScope UseDataRoot(string rootPath)

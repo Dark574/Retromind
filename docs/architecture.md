@@ -526,6 +526,70 @@ be recovered manually; there is no persistent transaction journal or automatic s
 publication does not promise recovery from power loss, and transactions remain single-owner objects rather
 than a cross-process locking protocol. General item-move staging and rollback are unchanged.
 
+### Category asset rename/move and recovery
+
+`NodeAssetFolderHelper` returns an explicit `NodeAssetOperationResult`. `UpdateAssetPathsRecursive` no longer
+silently discards traversal failures: it validates the complete subtree and prepares all path changes before
+changing references. The traversal rejects cycles, shared node references, missing nodes and depth greater
+than 256. Both category callers also validate their library roots before using recursive path/parent helpers;
+move confirmations are followed by renewed validation before file work. Changed collections/names/references
+are checked against the prepared snapshot before paths are published. Moves also validate the projected
+destination depth, so an otherwise valid source and destination cannot create an excessively deep tree.
+
+The two UI callers use `MoveAndUpdateAssetPaths`, keeping the existing move plan and unique staging directory
+while extending its compensation boundary through path publication and the category rename/assignment itself.
+The plan covers descendants even when the top category has no asset folders. It retains existing filename
+reservation/renumbering and portable `DataRoot`-relative references. Prepared updates include node/item assets
+and active selections; unrelated prefixes/active choices are preserved. UI collection/merge snapshots restore
+the known source changes if category publication fails, without discarding unexpected concurrent entries.
+
+Failure behavior is explicit:
+
+- Validation/preparation failure aborts before moving files or publishing paths.
+- File-stage/commit failure uses the existing reverse staging/commit rollback. Publication and restoration use
+  non-overwriting `File.Move`; competing source/target files are preserved. Mutation, rollback and cleanup keep
+  the existing root-containment and symbolic-link checks, including validation of individual source files.
+- A path or category publication failure restores attempted metadata changes and rolls the files back. A path
+  changed to an unexpected third value is preserved and marked for manual recovery rather than overwritten.
+- If restoration cannot finish, `Success=false`, `RollbackComplete=false`, recovery file mappings, and
+  `MetadataRecoveryRequired` describe what remains. Best effort writes
+  `Library/.retromind_asset_move_staging/<operation-id>/recovery.json` with relative original/retained file
+  mappings and before/after/current reference values. This is recovery evidence, not a startup replay journal.
+  Recovery directories are never recursively deleted. A failed manifest write is itself diagnosed; remaining
+  files and the explicit incomplete result are still preserved.
+- Cleanup removes only empty directories and runs after successful publication using the prepared old-folder
+  list, so merged/cleared nodes do not hide descendant cleanup work. Cleanup failure alone keeps `Success=true`.
+
+`NodeSettingsViewModel` receives the existing `IErrorService` explicitly from the main-window caller; the main
+window already owns it. Neither helpers nor operation results hold a global static error service. The service-
+layer `NodeAssetDiagnostics` formatter receives the instance as an argument and reports at the handling caller:
+`NodeAssets.TraversalFailed`, `NodeAssets.MoveFailed`, and `NodeAssets.PathUpdateFailed` are `Error`;
+`NodeAssets.RollbackIncomplete` is a separate `Critical` report; grouped `NodeAssets.CleanupFailed` is
+`Diagnostic`. Reports from one result share a correlation ID, include operation/node ID, fixed phase/reason,
+relative source/target/staging prefixes, counts and a bounded recovery preview/manifest location. Raw exception
+messages/stacks, credentials and absolute data-root paths are excluded. Main failures are reported once;
+rollback/cleanup reports describe separate failed recovery steps. Output failures cannot change the result.
+There are no notification callbacks or new modal dialogs.
+
+Rename keeps the existing error text; incomplete recovery appends a nonmodal recovery location and prevents
+another Save in that editor instance. Its prepared editor-import transaction is completed without deleting
+imports when category recovery is incomplete: imported files may be the only remaining copies at recovery
+locations. Such edits/references may remain in memory and require inspection. Ordinary complete rollbacks
+still restore the original asset list and undo pending editor imports. A main-window category move returns
+`false` on asset/metadata failure and exposes the last operation result for diagnostics. Reordering within a
+parent retains its previous behavior. A later `SaveData()` failure after a successful category operation still
+returns `false` while retaining the correct filesystem/model move and dirty state for a save retry; persistence
+owns its existing notice, without a duplicate node-asset failure report.
+
+Recovery limits: successful rollback can leave empty target directories. Incomplete rollback can retain files
+in staging or the destination, competing files at original paths, and partially restored references/category
+assignments. These are flagged and documented by the manifest/central diagnostics, with no automatic repair,
+destructive cleanup or persisted global operation block. Manual recovery must be resolved before further
+category operations, including after reopening/restarting. Manifest writing can also fail on a damaged or
+unwritable filesystem. Managed path checks and compensation do not provide cross-process file-identity locks,
+power-loss/crash recovery, or an atomic transaction with library persistence; a process crash during movement
+can leave staging files without a recovery manifest. The library format is unchanged.
+
 ## Theme subsystem
 Themes are external runtime XAML loaded through `ThemeLoader`:
 - resolves theme files against portable `ThemesRoot` and theme assets against their individual theme directory;

@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Retromind.Models;
@@ -34,18 +33,37 @@ public static partial class NodeAssetFolderHelper
         AssetFolderTypes.Select(type => type.ToString()),
         StringComparer.OrdinalIgnoreCase);
 
-    public static void UpdateAssetPathsRecursive(
-        MediaNode node,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles)
+    public static NodeAssetOperationResult UpdateAssetPathsRecursive(
+        MediaNode node, string oldPrefix, string newPrefix, IReadOnlyDictionary<string, string>? renamedFiles)
     {
-        var visitedNodes = new HashSet<MediaNode>();
-        if (!TryUpdateAssetPathsRecursive(node, oldPrefix, newPrefix, renamedFiles, visitedNodes, depth: 0))
+        var result = new NodeAssetOperationResult { SourcePrefix = oldPrefix, TargetPrefix = newPrefix };
+        if (!TrySnapshotNodes(new[] { node }, result, out var nodes)) return result;
+        PreparedPathUpdates? paths = null;
+        try
         {
-            Debug.WriteLine("[NodeAssetFolderHelper] Asset path update aborted due to invalid node traversal.");
+            paths = PreparePathUpdates(nodes, oldPrefix, newPrefix, renamedFiles);
+            paths.Apply();
+            result.Success = true;
         }
+        catch (Exception ex)
+        {
+            result.Fail("NodeAssets.PathUpdateFailed", ex);
+            paths?.Rollback(result);
+        }
+        return result;
     }
+
+    public static NodeAssetOperationResult MoveAndUpdateAssetPaths(
+        MediaNode node, List<string> oldSegments, List<string> newSegments,
+        Action applyCategoryChange, Action rollbackCategoryChange) =>
+        MoveAndUpdateAssetPaths(node, oldSegments, newSegments, applyCategoryChange, rollbackCategoryChange,
+            new NodeAssetFileOperations());
+
+    internal static NodeAssetOperationResult MoveAndUpdateAssetPaths(
+        MediaNode node, List<string> oldSegments, List<string> newSegments,
+        Action applyCategoryChange, Action rollbackCategoryChange, NodeAssetFileOperations io) =>
+        RunAssetMove(node, oldSegments, newSegments, new Dictionary<string, string>(StringComparer.Ordinal),
+            applyCategoryChange, rollbackCategoryChange, io, updatePaths: true);
 
     public static bool HasAnyAssetFolders(string nodeFolder)
     {
@@ -65,43 +83,73 @@ public static partial class NodeAssetFolderHelper
         return false;
     }
 
-    public static bool MoveAssetFoldersRecursive(
-        MediaNode node,
-        List<string> oldBaseSegments,
-        List<string> newBaseSegments,
-        Dictionary<string, string> renamedFiles)
+    public static NodeAssetOperationResult MoveAssetFoldersRecursive(
+        MediaNode node, List<string> oldBaseSegments, List<string> newBaseSegments,
+        Dictionary<string, string> renamedFiles) =>
+        RunAssetMove(node, oldBaseSegments, newBaseSegments, renamedFiles, () => { }, () => { },
+            new NodeAssetFileOperations(), updatePaths: false);
+
+    private static NodeAssetOperationResult RunAssetMove(
+        MediaNode node, List<string> oldSegments, List<string> newSegments,
+        Dictionary<string, string> renamedFiles, Action applyCategoryChange, Action rollbackCategoryChange,
+        NodeAssetFileOperations io, bool updatePaths)
     {
-        var relativeSegments = new List<string>();
+        var result = new NodeAssetOperationResult();
+        if (!TrySnapshotNodes(new[] { node }, result, out var nodes)) return result;
         var plannedMoves = new List<PlannedFileMove>();
-        var plannedRenamedFiles = new Dictionary<string, string>(StringComparer.Ordinal);
-        var reservationsByFolder = new Dictionary<string, TargetFolderReservation>(StringComparer.Ordinal);
-        var visitedNodes = new HashSet<MediaNode>();
-
-        if (!TryPlanAssetFolderMovesRecursive(
-                node,
-                oldBaseSegments,
-                newBaseSegments,
-                relativeSegments,
-                plannedMoves,
-                plannedRenamedFiles,
-                reservationsByFolder,
-                visitedNodes,
-                depth: 0))
+        var plannedRenames = new Dictionary<string, string>(StringComparer.Ordinal);
+        var oldFolders = new List<string>();
+        PreparedPathUpdates? paths = null;
+        var failureCode = "NodeAssets.MoveFailed";
+        try
         {
-            return false;
+            result.SourcePrefix = RelativeLocation(PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot));
+            result.TargetPrefix = RelativeLocation(PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot));
+            if (!TryPlanAssetFolderMovesRecursive(node, oldSegments, newSegments, new List<string>(), plannedMoves,
+                    plannedRenames, new Dictionary<string, TargetFolderReservation>(StringComparer.Ordinal),
+                    new HashSet<MediaNode>(ReferenceEqualityComparer.Instance), 0, oldFolders))
+            {
+                result.Fail("NodeAssets.MoveFailed");
+                return result;
+            }
+            if (updatePaths)
+            {
+                failureCode = "NodeAssets.PathUpdateFailed";
+                paths = PreparePathUpdates(nodes, result.SourcePrefix, result.TargetPrefix, plannedRenames);
+            }
+        }
+        catch (Exception ex)
+        {
+            result.Fail(failureCode, ex);
+            return result;
         }
 
-        if (plannedMoves.Count == 0)
+        TryExecutePlannedMoves(plannedMoves, plannedRenames, renamedFiles, result, io, paths,
+            applyCategoryChange, rollbackCategoryChange);
+        if (result.Success)
+            foreach (var oldFolder in oldFolders.AsEnumerable().Reverse())
+            {
+                foreach (var type in AssetFolderTypes)
+                    CleanupEmptyDirectory(Path.Combine(oldFolder, type.ToString()), result, io);
+                CleanupEmptyDirectory(oldFolder, result, io);
+            }
+        return result;
+    }
+
+    internal static string RelativeLocation(string path) =>
+        AppPaths.TryResolveDataPathInsideRoot(path, out var full)
+            ? NormalizeRelativePath(Path.GetRelativePath(AppPaths.DataRoot, full)) : "<outside-data-root>";
+
+    private static void CleanupEmptyDirectory(string path, NodeAssetOperationResult result, NodeAssetFileOperations io)
+    {
+        try
         {
-            CleanupEmptyOldFoldersRecursive(node, oldBaseSegments, relativeSegments);
-            return true;
+            if (!AppPaths.TryResolveDataPathForMutation(path, out var safe))
+                throw new IOException("Unsafe cleanup location.");
+            if (Directory.Exists(safe) && !Directory.EnumerateFileSystemEntries(safe).Any())
+                io.DeleteDirectory(safe);
         }
-
-        if (!TryExecutePlannedMoves(plannedMoves, plannedRenamedFiles, renamedFiles))
-            return false;
-
-        CleanupEmptyOldFoldersRecursive(node, oldBaseSegments, relativeSegments);
-        return true;
+        catch { result.CleanupFailures.Add(RelativeLocation(path)); }
     }
 
     public static void DeleteDirectoryIfEmpty(string path)

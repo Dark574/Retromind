@@ -37,6 +37,10 @@ public partial class NodeSettingsViewModel : ViewModelBase
     /// into the portable library structure (same conventions as media items).
     /// </summary>
     private readonly FileManagementService _fileService;
+    private readonly IErrorService _errorService;
+    internal NodeAssetOperationResult? LastNodeAssetOperation { get; private set; }
+    internal NodeAssetFileOperations? AssetFileOperations { get; set; }
+    private bool _nodeAssetRecoveryRequired;
     private readonly Func<string, Task<bool>>? _confirmDialogAsync;
     private readonly Dictionary<AssetType, string?> _initialNodeAssetPaths = new();
     private readonly Dictionary<AssetType, string> _pendingNodeImports = new();
@@ -356,12 +360,14 @@ public partial class NodeSettingsViewModel : ViewModelBase
         AppSettings settings,
         FileManagementService fileService,
         List<string> nodePath,
+        IErrorService errorService,
         Func<string, Task<bool>>? confirmDialogAsync = null)
     {
         _node = node ?? throw new ArgumentNullException(nameof(node));
         _rootNodes = rootNodes ?? throw new ArgumentNullException(nameof(rootNodes));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
         _fileService = fileService ?? throw new ArgumentNullException(nameof(fileService));
+        _errorService = errorService ?? throw new ArgumentNullException(nameof(errorService));
         _nodePath = nodePath ?? throw new ArgumentNullException(nameof(nodePath));
         _confirmDialogAsync = confirmDialogAsync;
 
@@ -1022,6 +1028,14 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
     private async Task SaveCoreAsync()
     {
+        var traversal = NodeAssetFolderHelper.ValidateTraversal(_rootNodes);
+        if (!traversal.Success)
+        {
+            LastNodeAssetOperation = traversal;
+            NodeAssetDiagnostics.Report(_errorService, traversal, "Rename", _node.Id);
+            SaveErrorMessage = Strings.NodeSettings_RenameFailed;
+            return;
+        }
         if (string.IsNullOrWhiteSpace(Name))
             return;
 
@@ -1085,9 +1099,9 @@ public partial class NodeSettingsViewModel : ViewModelBase
 
             ApplyPreparedNodeAssetEdits(assetEdits, assetTransaction.ImportedAssets);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            Console.WriteLine($"Error preparing node asset changes: {ex}");
+            // FileManagementService has already diagnosed the failed preparation.
             RestoreNodeAssets(originalNodeAssets);
             assetTransaction?.Dispose();
             SaveErrorMessage = T(
@@ -1099,14 +1113,27 @@ public partial class NodeSettingsViewModel : ViewModelBase
         var (renamed, canceled) = await TryRenameNodeFolderIfNeededAsync(oldName, newName);
         if (!renamed)
         {
+            if (LastNodeAssetOperation is { RollbackComplete: false } recovery)
+            {
+                // These imports may now be the sole remaining copies at recovery locations. Do not let
+                // the editor transaction delete them after the category rollback could not finish.
+                assetTransaction.Commit();
+                assetTransaction.Dispose();
+                _nodeAssetRecoveryRequired = true;
+                SaveErrorMessage = Strings.NodeSettings_RenameFailed + "\n" + string.Format(
+                    T("NodeAssets.RecoveryRequired", "Manual recovery is required. Preserve files at: {0}"),
+                    recovery.RecoveryManifest ?? recovery.StagingDirectory ?? recovery.TargetPrefix);
+                SaveCommand.NotifyCanExecuteChanged();
+                return;
+            }
             RestoreNodeAssets(originalNodeAssets);
             try
             {
                 assetTransaction.Rollback();
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                Console.WriteLine($"Error rolling back node asset changes: {ex}");
+                // The editor transaction has already diagnosed its failed rollback.
             }
             finally
             {
@@ -1220,7 +1247,7 @@ public partial class NodeSettingsViewModel : ViewModelBase
     }
 
     private bool CanSave()
-        => IsNameValid && !string.IsNullOrWhiteSpace(Name);
+        => !_nodeAssetRecoveryRequired && IsNameValid && !string.IsNullOrWhiteSpace(Name);
 
     private void ApplyNameSuggestion()
     {
@@ -1312,52 +1339,38 @@ public partial class NodeSettingsViewModel : ViewModelBase
         var oldFolder = PathHelper.ResolveNodeFolder(oldSegments, AppPaths.LibraryRoot);
         var newFolder = PathHelper.ResolveNodeFolder(newSegments, AppPaths.LibraryRoot);
 
-        if (!Directory.Exists(oldFolder) ||
-            string.Equals(oldFolder, newFolder, StringComparison.Ordinal))
-        {
-            return (true, false);
-        }
-
         try
         {
             var hasAssets = NodeAssetFolderHelper.HasAnyAssetFolders(oldFolder);
             if (hasAssets && Directory.Exists(newFolder) && _confirmDialogAsync is not null)
             {
                 var mergeMessage = string.Format(Strings.Dialog_ConfirmMergeNodeAssetsFormat, newName);
-                if (!await _confirmDialogAsync(mergeMessage))
-                    return (false, true);
+                if (!await _confirmDialogAsync(mergeMessage)) return (false, true);
             }
 
-            if (hasAssets)
+            void RefreshPaths()
             {
-                var renamedFiles = new Dictionary<string, string>(StringComparer.Ordinal);
-                if (!NodeAssetFolderHelper.MoveAssetFoldersRecursive(_node, oldSegments, newSegments, renamedFiles))
-                    return (false, false);
-
-                var oldRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, oldFolder);
-                var newRelativePrefix = Path.GetRelativePath(AppPaths.DataRoot, newFolder);
-
-                NodeAssetFolderHelper.UpdateAssetPathsRecursive(_node, oldRelativePrefix, newRelativePrefix, renamedFiles);
+                NodeLogoPath = _node.PrimaryLogoPath;
+                NodeWallpaperPath = _node.PrimaryWallpaperPath;
+                NodeVideoPath = _node.PrimaryVideoPath;
+                NodeMarqueePath = _node.PrimaryMarqueePath;
             }
-            else
-            {
-                NodeAssetFolderHelper.DeleteDirectoryIfEmpty(oldFolder);
-            }
-
-            NodeLogoPath = _node.PrimaryLogoPath;
-            NodeWallpaperPath = _node.PrimaryWallpaperPath;
-            NodeVideoPath = _node.PrimaryVideoPath;
-            NodeMarqueePath = _node.PrimaryMarqueePath;
+            LastNodeAssetOperation = NodeAssetFolderHelper.MoveAndUpdateAssetPaths(_node, oldSegments, newSegments,
+                () => { _node.Name = newName; RefreshPaths(); },
+                () => { _node.Name = oldName; RefreshPaths(); },
+                AssetFileOperations ?? new NodeAssetFileOperations());
+            NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Rename", _node.Id);
+            return (LastNodeAssetOperation.Success, false);
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[Rename] Failed: {ex}");
+            LastNodeAssetOperation = new NodeAssetOperationResult();
+            LastNodeAssetOperation.Fail("NodeAssets.MoveFailed", ex);
+            NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Rename", _node.Id);
             return (false, false);
         }
-
-        return (true, false);
     }
-    
+
     /// <summary>
     /// Updates the node's MediaAsset list for a given asset type.
     /// Removes existing assets of that type and, if a non-empty path is provided,

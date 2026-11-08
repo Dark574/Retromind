@@ -1,137 +1,147 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Retromind.Models;
 
 namespace Retromind.Helpers;
 
 public static partial class NodeAssetFolderHelper
 {
-    private static bool TryUpdateAssetPathsRecursive(
-        MediaNode node,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles,
-        HashSet<MediaNode> visitedNodes,
-        int depth)
+    private sealed record PathChange(Func<string?> Read, Action<string> Write, string Before, string After);
+
+    private sealed class PreparedPathUpdates
     {
-        if (!TryBeginNodeTraversal(node, visitedNodes, depth, nameof(UpdateAssetPathsRecursive)))
-            return false;
+        private readonly List<PathChange> _changes = new();
+        private readonly List<PathChange> _attempted = new();
+        private readonly HashSet<MediaItem> _changedItems = new(ReferenceEqualityComparer.Instance);
+        private readonly List<Func<bool>> _structureChecks = new();
 
-        UpdateNodeAssetPaths(node, oldPrefix, newPrefix, renamedFiles);
+        public void CheckStructure(Func<bool> check) => _structureChecks.Add(check);
 
-        foreach (var item in node.Items)
+        public int Count => _changes.Count;
+
+        public void Add(Func<string?> read, Action<string> write, string oldPrefix, string newPrefix,
+            IReadOnlyDictionary<string, string>? renamedFiles)
         {
-            UpdateAssetPaths(item.Assets, oldPrefix, newPrefix, renamedFiles);
-
-            item.ResetActiveAssets();
-            item.NotifyAssetPathsChanged();
+            var before = read();
+            if (string.IsNullOrWhiteSpace(before)) return;
+            var after = TryMapRenamedPath(before, renamedFiles, out var mapped)
+                ? mapped : ReplaceRelativePrefix(before, oldPrefix, newPrefix);
+            if (!string.Equals(before, after, StringComparison.Ordinal))
+                _changes.Add(new(read, write, before, after));
         }
 
-        foreach (var child in node.Children)
+        public void AddItem(MediaItem item) => _changedItems.Add(item);
+
+        public void Apply()
         {
-            if (!TryUpdateAssetPathsRecursive(
-                    child,
-                    oldPrefix,
-                    newPrefix,
-                    renamedFiles,
-                    visitedNodes,
-                    depth + 1))
+            // Detect intervening model edits before modifying any of the prepared paths.
+            if (_structureChecks.Any(check => !check()) || _changes.Any(change => change.Read() != change.Before))
+                throw new InvalidOperationException("An asset reference changed after preparation.");
+            foreach (var change in _changes)
             {
-                return false;
+                _attempted.Add(change); // A setter may assign its value and then throw from a subscriber.
+                change.Write(change.After);
+            }
+            foreach (var item in _changedItems) item.NotifyAssetPathsChanged();
+            if (_structureChecks.Any(check => !check()))
+                throw new InvalidOperationException("The category structure changed during path publication.");
+        }
+
+        public void Rollback(NodeAssetOperationResult result)
+        {
+            foreach (var change in _attempted.AsEnumerable().Reverse())
+            {
+                try
+                {
+                    var current = change.Read();
+                    if (current != change.Before && current != change.After)
+                        throw new InvalidOperationException("A competing asset reference was preserved.");
+                    if (current != change.Before) change.Write(change.Before);
+                }
+                catch
+                {
+                    result.MetadataRecoveryRequired = true;
+                    result.RollbackComplete = false;
+                }
+            }
+            try
+            {
+                if (_structureChecks.Any(check => !check()))
+                    throw new InvalidOperationException("Concurrent metadata changes require manual recovery.");
+            }
+            catch { result.MetadataRecoveryRequired = true; result.RollbackComplete = false; }
+        }
+
+        public object RecoveryReferences => _changes.Select(change => new
+        {
+            Before = RelativeLocation(change.Before), After = RelativeLocation(change.After),
+            Current = change.Read() is { } current ? RelativeLocation(current) : null
+        }).ToArray();
+    }
+
+    private static PreparedPathUpdates PreparePathUpdates(IReadOnlyList<MediaNode> nodes, string oldPrefix,
+        string newPrefix, IReadOnlyDictionary<string, string>? renamedFiles)
+    {
+        var result = new PreparedPathUpdates();
+        var seenAssets = new HashSet<MediaAsset>(ReferenceEqualityComparer.Instance);
+        var seenItems = new HashSet<MediaItem>(ReferenceEqualityComparer.Instance);
+        foreach (var node in nodes)
+        {
+            var children = node.Children.ToArray();
+            var items = node.Items.ToArray();
+            var assets = node.Assets.ToArray();
+            var name = node.Name;
+            result.CheckStructure(() => node.Name == name && node.Children.SequenceEqual(children) &&
+                node.Items.SequenceEqual(items) && node.Assets.SequenceEqual(assets));
+            // Snapshot active choices before touching asset paths, including references outside the asset list.
+            foreach (var type in AssetFolderTypes)
+            {
+                var captured = type;
+                result.Add(() => node.GetPrimaryAssetPath(captured), value => node.SetActiveAsset(captured, value),
+                    oldPrefix, newPrefix, renamedFiles);
+            }
+            foreach (var asset in node.Assets)
+                if (seenAssets.Add(asset))
+                    result.Add(() => asset.RelativePath, value => asset.RelativePath = value, oldPrefix, newPrefix, renamedFiles);
+            foreach (var item in node.Items)
+            {
+                if (!seenItems.Add(item)) continue;
+                var itemAssets = item.Assets.ToArray();
+                result.CheckStructure(() => item.Assets.SequenceEqual(itemAssets));
+                var beforeCount = result.Count;
+                foreach (var type in AssetFolderTypes)
+                {
+                    var captured = type;
+                    result.Add(() => item.GetPrimaryAssetPath(captured), value => item.SetActiveAsset(captured, value),
+                        oldPrefix, newPrefix, renamedFiles);
+                }
+                foreach (var asset in item.Assets)
+                    if (seenAssets.Add(asset))
+                        result.Add(() => asset.RelativePath, value => asset.RelativePath = value, oldPrefix, newPrefix, renamedFiles);
+                if (result.Count != beforeCount) result.AddItem(item);
             }
         }
-
-        return true;
+        return result;
     }
 
-    private static void UpdateNodeAssetPaths(
-        MediaNode node,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles)
-    {
-        var activeByType = new Dictionary<AssetType, string?>();
-        foreach (AssetType type in Enum.GetValues(typeof(AssetType)))
-        {
-            if (type == AssetType.Unknown)
-                continue;
-
-            activeByType[type] = node.GetPrimaryAssetPath(type);
-        }
-
-        UpdateAssetPaths(node.Assets, oldPrefix, newPrefix, renamedFiles);
-
-        foreach (var kvp in activeByType)
-        {
-            var activePath = kvp.Value;
-            if (string.IsNullOrWhiteSpace(activePath))
-                continue;
-
-            var updated = TryMapRenamedPath(activePath, renamedFiles, out var mapped)
-                ? mapped
-                : ReplaceRelativePrefix(activePath, oldPrefix, newPrefix);
-            if (!string.Equals(updated, activePath, StringComparison.Ordinal))
-                node.SetActiveAsset(kvp.Key, updated);
-        }
-    }
-
-    private static void UpdateAssetPaths(
-        IEnumerable<MediaAsset> assets,
-        string oldPrefix,
-        string newPrefix,
-        IReadOnlyDictionary<string, string>? renamedFiles)
-    {
-        foreach (var asset in assets)
-        {
-            if (string.IsNullOrWhiteSpace(asset.RelativePath))
-                continue;
-
-            if (TryMapRenamedPath(asset.RelativePath, renamedFiles, out var mapped))
-                asset.RelativePath = mapped;
-            else
-                asset.RelativePath = ReplaceRelativePrefix(asset.RelativePath, oldPrefix, newPrefix);
-        }
-    }
-
-    private static bool TryMapRenamedPath(
-        string path,
-        IReadOnlyDictionary<string, string>? renamedFiles,
-        out string mapped)
+    private static bool TryMapRenamedPath(string path, IReadOnlyDictionary<string, string>? renamedFiles, out string mapped)
     {
         mapped = string.Empty;
-
-        if (renamedFiles == null || renamedFiles.Count == 0)
-            return false;
-
-        var normalized = NormalizeRelativePath(path);
-        if (!renamedFiles.TryGetValue(normalized, out var mappedValue))
-            return false;
-
-        mapped = mappedValue;
+        if (renamedFiles == null || renamedFiles.Count == 0 ||
+            !renamedFiles.TryGetValue(NormalizeRelativePath(path), out var value)) return false;
+        mapped = value;
         return true;
     }
 
     private static string ReplaceRelativePrefix(string path, string oldPrefix, string newPrefix)
     {
-        if (string.IsNullOrWhiteSpace(path))
-            return path;
-
         var normalizedPath = NormalizeRelativePath(path);
         var normalizedOld = NormalizeRelativePath(oldPrefix);
         var normalizedNew = NormalizeRelativePath(newPrefix);
-
-        if (string.Equals(normalizedPath, normalizedOld, StringComparison.Ordinal))
-            return normalizedNew;
-
-        var oldWithSlash = normalizedOld.EndsWith("/", StringComparison.Ordinal) ? normalizedOld : normalizedOld + "/";
-        if (normalizedPath.StartsWith(oldWithSlash, StringComparison.Ordinal))
-        {
-            var normalizedNewWithSlash = normalizedNew.EndsWith("/", StringComparison.Ordinal)
-                ? normalizedNew
-                : normalizedNew + "/";
-            return normalizedNewWithSlash + normalizedPath.Substring(oldWithSlash.Length);
-        }
-
-        return path;
+        if (string.Equals(normalizedPath, normalizedOld, StringComparison.Ordinal)) return normalizedNew;
+        var oldWithSlash = normalizedOld + "/";
+        return normalizedPath.StartsWith(oldWithSlash, StringComparison.Ordinal)
+            ? normalizedNew + "/" + normalizedPath[oldWithSlash.Length..] : path;
     }
 }
