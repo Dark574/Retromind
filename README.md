@@ -168,7 +168,7 @@ The Wayland/X11 note below still applies because it affects how video is embedde
 
 ### Build requirements (host)
 - Docker with the Buildx plugin (for the locked BuildKit/Bookworm build pipeline)
-- `curl` (to download `appimagetool` if missing)
+- `curl` (to download packaging tools when no verified cached copy exists)
 - `sha256sum` (normally provided by GNU coreutils)
 
 Updating the locked build environment additionally requires `jq` and a trusted host CA bundle
@@ -196,6 +196,14 @@ mounting through FUSE is unavailable.
 chmod +x build/AppRun build/build-appimage.sh 
 ./build/build-appimage.sh
 ```
+
+Before starting Docker or clearing `.build-work`, the script prepares `appimagetool` and the Type-2 runtime.
+Their pinned SHA-256 values identify persistent copies under `.build-cache/appimage-tools/`; every reuse
+checks both the checksum and ELF header. Downloads are published atomically only after verification.
+Once both tools are cached, this step needs no network connection. Other build steps can still need network
+access. If a tool cannot be downloaded or verified, the build stops before Docker work begins and preserves
+the preceding `.build-work` directory. The tool cache is excluded from Git and the Docker context and can be
+deleted when no build is using it; the next build will download the pinned tools again.
 
 Official builds provide Retromind's ScreenScraper application credentials through two environment variables.
 They are passed to BuildKit as secrets and embedded in the resulting assembly without being written to the
@@ -295,6 +303,11 @@ Docker builders:
 ```bash
 RETROMIND_BUILDX_CACHE_LIMIT=10gb ./build/build-appimage.sh
 ```
+
+This override controls only the final pruning pass. Automatic BuildKit GC retains the limits configured
+when the builder was created from `build/buildkitd.appimage.toml`; increasing the override alone does not
+raise that automatic limit. The current 30 GiB limit is unchanged. Nested `bin`/`obj` directories, including
+local test outputs, are excluded from the Docker context to avoid filling it with generated files.
 
 Docker caching is only an optimization. The committed OCI digest, snapshot timestamps and verified download
 hashes are the persistent environment definition when caches are empty or moved to another machine. The

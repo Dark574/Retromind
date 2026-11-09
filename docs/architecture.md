@@ -1612,6 +1612,14 @@ Parental behavior is not isolated to one screen:
 
 ## AppImage build environment
 
+Packaging tools are prepared before Docker work or `.build-work` cleanup. `build/cache-appimage-tool.sh`
+checks the existing ELF header and pinned SHA-256 on every reuse, or downloads into a unique temporary file
+and publishes it atomically after verification. `build/build-appimage.sh` assigns checksum-addressed paths
+under `.build-cache/appimage-tools/`, outside the disposable work directory. These two directories and generated
+`bin`/`obj` directories at any depth are excluded from the Docker context. Failed tool preparation leaves
+the preceding work directory and Docker cache untouched. The packaging-tool pins and BuildKit size limits
+remain unchanged; the final prune override is independent of the builder's automatic GC configuration.
+
 `build/appimage-environment.env` pins the Debian Bookworm OCI digest, signed Debian/security snapshot timestamps,
 and the SHA-512-verified .NET SDK/runtime artifact. Normal builds reuse these values; only the explicit
 `update-appimage-environment.sh` maintenance operation resolves and atomically publishes validated replacements.

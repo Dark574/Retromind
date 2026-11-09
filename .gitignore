@@ -30,6 +30,7 @@ config.yaml
 .build-secrets/
 
 # Local build artifacts for AppImage packaging
+.build-cache/
 .build-work/
 dist/
 build-appimage.log

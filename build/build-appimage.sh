@@ -6,6 +6,7 @@ BUILD_DIR="$PROJECT_ROOT/build"
 OUT_DIR="$PROJECT_ROOT/dist"
 WORK_DIR="$PROJECT_ROOT/.build-work"
 APPDIR="$WORK_DIR/AppDir"
+TOOL_CACHE_DIR="$PROJECT_ROOT/.build-cache/appimage-tools"
 LEGENDARY_VERSION_FILE="$BUILD_DIR/legendary-version.env"
 COMET_VERSION_FILE="$BUILD_DIR/comet-version.env"
 ENVIRONMENT_FILE="$BUILD_DIR/appimage-environment.env"
@@ -175,11 +176,32 @@ else
   GIT_WORKTREE_STATE="clean"
 fi
 
-echo "[1/8] Prepare folders..."
+echo "[1/8] Prepare verified AppImage packaging tools..."
+# Content-addressed tools survive .build-work cleanup and are checked on every
+# use. Resolve both before touching the previous work directory or Docker cache.
+APPIMAGETOOL="$TOOL_CACHE_DIR/$APPIMAGETOOL_SHA256/appimagetool"
+APPIMAGE_RUNTIME="$TOOL_CACHE_DIR/$APPIMAGE_RUNTIME_SHA256/runtime-x86_64"
+
+sh "$BUILD_DIR/cache-appimage-tool.sh" \
+  "appimagetool $APPIMAGETOOL_VERSION" \
+  "$APPIMAGETOOL_URL" \
+  "$APPIMAGETOOL_SHA256" \
+  "$APPIMAGETOOL"
+
+if ! sh "$BUILD_DIR/cache-appimage-tool.sh" \
+    "AppImage type2 runtime ($APPIMAGE_RUNTIME_COMMIT)" \
+    "$APPIMAGE_RUNTIME_URL" \
+    "$APPIMAGE_RUNTIME_SHA256" \
+    "$APPIMAGE_RUNTIME"; then
+  echo "Hint: the upstream continuous runtime may have changed; review and update the pinned commit and checksum together."
+  exit 1
+fi
+
+echo "[2/8] Prepare folders..."
 rm -rf "$WORK_DIR"
 mkdir -p "$OUT_DIR" "$WORK_DIR"
 
-echo "[2/8] Build Debian Bookworm appimage builder image..."
+echo "[3/8] Build Debian Bookworm appimage builder image..."
 BUILDX_CLEANUP_ENABLED=1
 PREVIOUS_BUILDER_IMAGE_ID="$(
   docker image inspect --format '{{.Id}}' "$BUILDER_IMAGE" 2>/dev/null || true
@@ -231,7 +253,7 @@ fi
 
 docker buildx build "$@" "$PROJECT_ROOT"
 
-echo "[3/8] Export publish output + runtime bundles from container..."
+echo "[4/8] Export publish output + runtime bundles from container..."
 CID="$(docker create "$BUILDER_IMAGE")"
 
 docker cp "$CID:/out/publish" "$WORK_DIR/publish"
@@ -255,7 +277,7 @@ if [ ! -d "$WORK_DIR/vlc" ]; then
   exit 1
 fi
 
-echo "[4/8] Build AppDir layout..."
+echo "[5/8] Build AppDir layout..."
 mkdir -p "$APPDIR/usr/bin" "$APPDIR/usr/lib/vlc" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/metainfo"
 
 cp "$BUILD_DIR/AppRun" "$APPDIR/AppRun"
@@ -312,7 +334,7 @@ if [ -d "$WORK_DIR/runtime-libs" ]; then
   cp -a "$WORK_DIR/runtime-libs/." "$APPDIR/usr/lib/" || true
 fi
 
-echo "[5/8] Copy themes and app metadata..."
+echo "[6/8] Copy themes and app metadata..."
 THEMES_SOURCE_DIR="$PROJECT_ROOT/Themes"
 if [ ! -d "$THEMES_SOURCE_DIR" ]; then
   echo "ERROR: Themes source directory not found at '$THEMES_SOURCE_DIR'."
@@ -483,78 +505,6 @@ done
 
 # The internal manifest intentionally has no checksum for its enclosing
 # AppImage. The external copy receives that checksum after packaging.
-
-echo "[6/8] Download verified AppImage packaging tools..."
-APPIMAGETOOL="$WORK_DIR/appimagetool"
-APPIMAGE_RUNTIME="$WORK_DIR/runtime-x86_64"
-
-is_elf_file() {
-  [ -f "$1" ] || return 1
-  magic="$(head -c 4 "$1" | od -An -tx1 | tr -d ' \n')"
-  [ "$magic" = "7f454c46" ]
-}
-
-download_verified_elf() {
-  artifact_name="$1"
-  artifact_url="$2"
-  expected_sha256="$3"
-  artifact_destination="$4"
-  artifact_tmp="$artifact_destination.tmp"
-
-  rm -f "$artifact_tmp"
-  echo "Downloading $artifact_name from: $artifact_url"
-  if ! curl --fail --location \
-      --retry 5 --retry-delay 2 --retry-connrefused --retry-all-errors \
-      -o "$artifact_tmp" "$artifact_url"; then
-    echo "ERROR: Download failed for $artifact_url"
-    rm -f "$artifact_tmp"
-    return 1
-  fi
-
-  if ! is_elf_file "$artifact_tmp"; then
-    echo "ERROR: Downloaded $artifact_name is not a valid ELF binary."
-    if head -c 120 "$artifact_tmp" | tr -d '\000' | grep -Eiq "<html|<body|gateway|error"; then
-      echo "Hint: server returned an HTML error response. Please retry in a few minutes."
-    fi
-    rm -f "$artifact_tmp"
-    return 1
-  fi
-
-  actual_sha256="$(sha256sum "$artifact_tmp" | awk '{print $1}')"
-  if [ "$actual_sha256" != "$expected_sha256" ]; then
-    echo "ERROR: SHA-256 verification failed for $artifact_name."
-    echo "       Expected: $expected_sha256"
-    echo "       Actual:   $actual_sha256"
-    rm -f "$artifact_tmp"
-    return 1
-  fi
-
-  mv "$artifact_tmp" "$artifact_destination"
-  chmod +x "$artifact_destination"
-  return 0
-}
-
-if ! command -v sha256sum >/dev/null 2>&1; then
-  echo "ERROR: sha256sum is required to verify AppImage packaging downloads."
-  exit 1
-fi
-
-if ! download_verified_elf \
-    "appimagetool $APPIMAGETOOL_VERSION" \
-    "$APPIMAGETOOL_URL" \
-    "$APPIMAGETOOL_SHA256" \
-    "$APPIMAGETOOL"; then
-  exit 1
-fi
-
-if ! download_verified_elf \
-    "AppImage type2 runtime ($APPIMAGE_RUNTIME_COMMIT)" \
-    "$APPIMAGE_RUNTIME_URL" \
-    "$APPIMAGE_RUNTIME_SHA256" \
-    "$APPIMAGE_RUNTIME"; then
-  echo "Hint: the upstream continuous runtime may have changed; review and update the pinned commit and checksum together."
-  exit 1
-fi
 
 echo "[7/8] Debug: listing desktop files..."
 find "$APPDIR" -maxdepth 4 -type f -name "*.desktop" -print
