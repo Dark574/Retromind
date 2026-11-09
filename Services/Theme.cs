@@ -1,6 +1,7 @@
 using System;
 using Avalonia.Controls;
 using Retromind.Models;
+using Retromind.Extensions;
 
 namespace Retromind.Services;
 
@@ -56,6 +57,7 @@ public class Theme
     /// Whether this root theme allows Retromind's host-owned Home screen.
     /// </summary>
     public bool SupportsHome { get; }
+    public NavigationPresentation NavigationPresentation { get; }
 
     // Optional metadata (for UI / diagnostics / theme browser)
     public string? Name { get; }
@@ -98,7 +100,8 @@ public class Theme
         TimeSpan? attractModeIdleInterval = null,
         string? attractModeSoundPath = null,
         bool supportsHome = false,
-        Func<Control>? viewFactory = null)
+        Func<Control>? viewFactory = null,
+        NavigationPresentation navigationPresentation = NavigationPresentation.LegacySeparate)
     {
         View = view ?? throw new ArgumentNullException(nameof(view));
         Sounds = sounds ?? throw new ArgumentNullException(nameof(sounds));
@@ -120,6 +123,7 @@ public class Theme
         AttractModeIdleInterval = attractModeIdleInterval;
         AttractModeSoundPath = attractModeSoundPath;
         SupportsHome = supportsHome;
+        NavigationPresentation = navigationPresentation;
         
         _viewFactory = viewFactory;
     }

@@ -64,7 +64,8 @@ If you just want to get started quickly:
     - Optionally configure `ThemeProperties.VideoSlotName` if you do not want to use `VideoSlot` as the name.
 
 6. **Bind to `BigModeViewModel` properties**
-    - Use `Items`, `SelectedItem`, `CurrentCategories`, `SelectedCategory`, etc.
+    - Use `NavigationEntries`, `SelectedEntry` and `SelectedEntryIndex` for library navigation.
+      Media/node properties remain available for type-specific preview details.
     - Show covers, logos and text using the properties exposed by the view model.
 
 7. **Test in Retromind**
@@ -441,9 +442,9 @@ nodes or items. Retromind keeps the original source node with every shortcut so 
 artwork, video, launch settings, and parental filtering remain intact.
 
 The Library row is a shallow navigator over the actual node tree. With one root it starts
-at that root; with multiple roots it starts at a virtual Library overview. Activating a child
-that has children drills into it, while activating a leaf opens the regular themed library
-view. The left current-node card opens that node directly, and a Back card appears at the end
+at that root; with multiple roots it starts at a virtual Library overview. Activating any child
+opens its level in the Home library row, including leaves and mixed nodes. Direct media appear
+after the child nodes and activate through the existing launcher. The left current-node card opens that node directly, and a Back card appears at the end
 of the row below the initial level (also reachable by moving left from the current card).
 Library cards activate with A/Enter or a primary mouse click. This navigation state is UI-only
 and does not alter or persist the real tree.
@@ -715,7 +716,7 @@ Example (Arcade theme):
 Details:
 
 - Attract mode only operates while **game list view** is active
-  (`IsGameListActive == true`) and `Items.Count > 0`.
+  with visible direct media. Nodes are never automatically opened and media are never automatically launched.
 - Selections are performed using Retromind’s `RandomHelper`; the ViewModel
   simply moves the selection to a random item in the current list.
 - Any user input (navigation, select, back) resets the idle timer and the
@@ -1194,6 +1195,49 @@ Retromind supports a **two-level theming model** for the platform selection in B
 
 This section describes how to build both.
 
+### Navigation presentation contract
+
+Declare `ext:ThemeProperties.NavigationPresentation` on the root:
+
+- `MixedEntries`: your list/wheel displays nodes and media together.
+- `MediaItemsOnly`: your scene presents media; the host adds structural access on mixed/node levels.
+- `NodeBrowser`: a structural browser using the same mixed list; System Host additionally supplies previews.
+- `LegacySeparate`: default for existing themes without this metadata. The host supplements existing bindings
+  so presentation limits cannot hide library contents, even with Home disabled.
+
+```xml
+<UserControl ... ext:ThemeProperties.NavigationPresentation="MixedEntries">
+    <ListBox ItemsSource="{Binding NavigationEntries}"
+             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+             SelectedIndex="{Binding SelectedEntryIndex, Mode=OneWay}">
+        <ListBox.ItemsPanel>
+            <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
+        </ListBox.ItemsPanel>
+        <ListBox.ItemTemplate>
+            <DataTemplate><TextBlock Text="{Binding Title}" /></DataTemplate>
+        </ListBox.ItemTemplate>
+    </ListBox>
+</UserControl>
+```
+
+Entries expose `Kind`, typed `Key`, `Title`, `Description`, `CoverPath` and `LogoPath`; `PrimaryCoverPath`,
+`PrimaryLogoPath` and `ItemLogoPath` support existing card templates. Node entries expose `Node` and
+`ParentNode`; media entries expose `Item` and the actual `SourceNode`. Nodes precede direct media in existing
+collection order. No descendant aggregation or synthetic nodes are performed. Binding changes selection;
+`PlayCurrentCommand` opens nodes or activates media through the normal launcher. Nodes are previewed when
+marked; theme ownership changes only when opening a node. Do not modify `Items` or toggle presentation flags
+to navigate.
+
+`CurrentNode` / `ThemeContextNode` describe the opened location/theme owner. `SelectedCategory` and
+`SelectedItem` describe the mutually exclusive selected entry. `IsGameListActive` selects media preview
+panels, not a separate navigation mode. The old `Items` / `CurrentCategories` remain direct-media/node
+projections. Do not use either alone as a universal library list. Keep virtualized panels for large lists.
+
+Wheel uses `WheelEntries` / `WheelSelectedEntryIndex` and its existing WheelPanel; Arcade retains its
+media-only `CircularItems` and carousel recycling. Home uses the same navigation rules in its library row,
+including direct media cards. Attract Mode only selects visible direct media in the current frame, even if
+that frame also has nodes.
+
 ### 13.1 System host themes (BigMode themes with `SystemLayoutHost`)
 
 A **system host theme** is just a normal BigMode theme stored under:
@@ -1204,7 +1248,8 @@ and recognized by the host because it contains a `ContentControl` named `SystemL
 
 ```xml
 <UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:Retromind.ViewModels" xmlns:ext="clr-namespace:Retromind.Extensions" x:DataType="vm:BigModeViewModel" Background="Black"
-         ext:ThemeProperties.Name="System Host (Classic)">
+         ext:ThemeProperties.Name="System Host (Classic)"
+         ext:ThemeProperties.NavigationPresentation="NodeBrowser">
 <Grid ColumnDefinitions="*,2*">
 
     <!-- LEFT: system list -->
@@ -1212,14 +1257,14 @@ and recognized by the host because it contains a `ContentControl` named `SystemL
             Background="#66000000"
             Padding="16"
             Margin="24,24,12,24">
-        <ListBox ItemsSource="{Binding CurrentCategories}"
-                 SelectedItem="{Binding SelectedCategory}"
+        <ListBox ItemsSource="{Binding NavigationEntries}"
+                 SelectedItem="{Binding SelectedEntry}"
                  BorderThickness="0"
                  Background="Transparent"
                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
             <ListBox.ItemTemplate>
                 <DataTemplate>
-                    <TextBlock Text="{Binding Name}"
+                    <TextBlock Text="{Binding Title}"
                                FontSize="20"
                                Margin="0,4"
                                Foreground="White"
@@ -1246,7 +1291,8 @@ Any BigMode theme that defines a `ContentControl x:Name="SystemLayoutHost"` is a
 
 - The host continues to provide `BigModeViewModel` as `DataContext`.
 - The left side is up to the theme author (list, wheel, carousel, …).
-- The right `SystemLayoutHost` is filled by the host with a **system subtheme** based on the selected node.
+- The right `SystemLayoutHost` contains a **system subtheme** for a selected node, or a host-owned media
+  preview with the selected item's actual artwork, metadata and shared video channel.
 
 > You can ship multiple host variants, e.g. `Themes/SystemHostClassic/theme.axaml`,  
 > `Themes/SystemHostCarousel/theme.axaml`, …  
@@ -1362,7 +1408,7 @@ Requirements for a subtheme:
 ### 13.3 Wiring: how the host selects subthemes
 
 - For the active system host theme, `BigModeHostView`:
-    - watches `BigModeViewModel.SelectedCategory`,
+    - watches `BigModeViewModel.SelectedEntry`,
     - reads `SystemPreviewThemeId` from the selected `MediaNode`,
     - resolves it to a folder under `Themes/System/<Id>/`,
     - loads `System/<Id>/theme.axaml` through `ThemeLoader`,

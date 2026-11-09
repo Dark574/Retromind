@@ -7,11 +7,12 @@
              xmlns:video="using:Retromind.Helpers.Video"
              x:DataType="vm:BigModeViewModel"
              Background="#090B11"
-             
+
              ext:ThemeProperties.Name="Default"
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.5.1"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="MixedEntries"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
              ext:ThemeProperties.VideoFadeDurationMs="600"
@@ -71,7 +72,7 @@
             <Setter Property="Focusable" Value="False" />
         </Style>
     </UserControl.Styles>
-    
+
     <!-- Background layer + actual content -->
     <Grid>
         <!-- Use a screenshot only when the current game has no wallpaper. -->
@@ -223,13 +224,11 @@
                         </Grid>
                     </Border>
 
-                    <!-- Row 2: categories OR games depending on view mode -->
-
-                    <!-- Category list (e.g. systems) -->
+                    <!-- Mixed direct library entries -->
                     <ListBox Grid.Row="2"
                              Classes="bm-nav-list"
-                             ItemsSource="{Binding CurrentCategories}"
-                             SelectedItem="{Binding SelectedCategory}"
+                             ItemsSource="{Binding NavigationEntries}"
+                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
                              Background="#44101620"
                              BorderThickness="0"
                              Padding="0"
@@ -241,41 +240,7 @@
                              ext:ThemeProperties.UnselectedOpacity="0.78"
                              ext:ThemeProperties.SelectedGlowOpacity="0.30"
                              ext:ThemeProperties.SelectedGlowRadius="14"
-                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
-                             IsVisible="{Binding IsCategorySelectionActive}">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <VirtualizingStackPanel />
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <TextBlock Text="{Binding Name}"
-                                           FontSize="18"
-                                           Foreground="White"
-                                           TextTrimming="CharacterEllipsis" />
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <!-- Game list -->
-                    <ListBox Grid.Row="2"
-                             Classes="bm-nav-list"
-                             ItemsSource="{Binding Items}"
-                             SelectedItem="{Binding SelectedItem}"
-                             Background="#44101620"
-                             BorderThickness="0"
-                             Padding="0"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             ext:ThemeProperties.FadeDurationMs="220"
-                             ext:ThemeProperties.MoveDurationMs="220"
-                             ext:ThemeProperties.AccentColor="#7BA3FF"
-                             ext:ThemeProperties.SelectedScale="1.02"
-                             ext:ThemeProperties.UnselectedOpacity="0.78"
-                             ext:ThemeProperties.SelectedGlowOpacity="0.30"
-                             ext:ThemeProperties.SelectedGlowRadius="14"
-                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
-                             IsVisible="{Binding IsGameListActive}">
+                             helpers:ListBoxBehaviors.CenterSelectedItem="True">
                         <ListBox.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <VirtualizingStackPanel />

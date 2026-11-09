@@ -15,6 +15,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.BigMode;
 using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.Stores;
@@ -564,50 +565,10 @@ public partial class MainWindowViewModel
         host.SetThemeContent(initialTheme.View, initialTheme);
         host.RevealAfterInitialLayout();
 
-        // Prevent out-of-order theme swaps when the user navigates quickly.
-        var themeSwapGeneration = 0;
-        var currentThemePath = initialThemePath;
-
-        async Task SwapThemeIfNeededAsync()
-        {
-            var newThemePath = GetEffectiveThemePath(bigVm.ThemeContextNode);
-            if (newThemePath == currentThemePath)
-                return;
-
-            currentThemePath = newThemePath;
-            var myGeneration = ++themeSwapGeneration;
-
-            // Marshal to UI thread (theme swap touches visual tree / VM state).
-            await UiThreadHelper.InvokeAsync(async () =>
-            {
-                if (myGeneration != themeSwapGeneration)
-                    return;
-
-                await bigVm.PrepareForThemeSwapAsync();
-
-                if (myGeneration != themeSwapGeneration)
-                    return;
-
-                var newTheme = ThemeLoader.LoadTheme(newThemePath);
-                bigVm.UpdateTheme(newTheme);
-
-                host.SetThemeContent(newTheme.View, newTheme);
-                host.Focus();
-            });
-        }
-
-        System.ComponentModel.PropertyChangedEventHandler? themeChangedHandler = null;
-        themeChangedHandler = (_, args) =>
-        {
-            if (args.PropertyName != nameof(BigModeViewModel.ThemeContextNode))
-                return;
-
-            _ = SwapThemeIfNeededAsync();
-        };
-        bigVm.PropertyChanged += themeChangedHandler;
-
-        // Ensure initial theme matches the current BigMode context (e.g. root selection).
-        _ = SwapThemeIfNeededAsync();
+        var themeSwitcher = new BigModeThemeSwitcher(
+            bigVm, host, initialThemePath, GetEffectiveThemePath,
+            ThemeLoader.LoadTheme, bigVm.PrepareForThemeSwapAsync);
+        themeSwitcher.Refresh();
 
         // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back.
         bigVm.RequestClose += async () =>
@@ -619,8 +580,7 @@ public partial class MainWindowViewModel
                     if (ReferenceEquals(_activeBigModeViewModel, bigVm))
                         _activeBigModeViewModel = null;
 
-                    if (themeChangedHandler != null)
-                        bigVm.PropertyChanged -= themeChangedHandler;
+                    themeSwitcher.Dispose();
 
                     // Capture BigMode selection before the visual tree is torn down.
                     bigVm.SaveState();
@@ -652,9 +612,6 @@ public partial class MainWindowViewModel
 
         // Cache refresh hook (optional, safe).
         bigVm.InvalidatePreviewCaches(stopCurrentPreview: false);
-
-        if (bigVm.CurrentCategories.Any() && bigVm.SelectedCategory == null)
-            bigVm.SelectedCategory = bigVm.CurrentCategories.First();
     }
 
     private async Task PlayMediaFromBigModeAsync(
@@ -686,40 +643,19 @@ public partial class MainWindowViewModel
         }, DispatcherPriority.Input);
     }
     
+    private bool _synchronizingSelectionFromBigMode;
+
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
     {
-        // Reverse chain to find the nearest configuration (bottom-up).
-        var chain = PathHelper.GetNodeChain(node, RootItems, matchById: true);
-        _currentSettings.LastBigModeNavigationPath = chain.Select(n => n.Id).ToList();
-
-        if (selectedItem != null)
-        {
-            _currentSettings.LastBigModeWasItemView = true;
-            _currentSettings.LastBigModeSelectedNodeId = selectedItem.Id;
-        }
-        else
-        {
-            // If the node is a leaf with items, BigMode should directly open the item list.
-            var isLeaf = node.Children.Count == 0;
-            var hasItems = node.Items.Count > 0;
-
-            if (isLeaf && hasItems)
-            {
-                _currentSettings.LastBigModeWasItemView = true;
-                _currentSettings.LastBigModeSelectedNodeId = null;
-            }
-            else
-            {
-                _currentSettings.LastBigModeWasItemView = false;
-                _currentSettings.LastBigModeSelectedNodeId = node.Id;
-            }
-        }
+        if (IsLibraryLoading || _synchronizingSelectionFromBigMode || _activeBigModeViewModel != null) return;
+        BigModeNavigationPersistence.RecordDesktopSelection(_currentSettings, node, selectedItem);
 
         SaveSettingsOnly();
     }
     
     public async Task SyncSelectionFromBigModeAsync()
     {
+        _synchronizingSelectionFromBigMode = true;
         try
         {
             if (RootItems.Count == 0) return;
@@ -789,6 +725,10 @@ public partial class MainWindowViewModel
         catch (Exception ex)
         {
             Debug.WriteLine($"[CoreApp] SyncSelectionFromBigModeAsync failed: {ex}");
+        }
+        finally
+        {
+            _synchronizingSelectionFromBigMode = false;
         }
     }
 

@@ -15,6 +15,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.1.1"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="MediaItemsOnly"
              ext:ThemeProperties.ProvidesSystemMenuHint="True"
              ext:ThemeProperties.SelectedScale="1.06"
              ext:ThemeProperties.UnselectedOpacity="0.75"

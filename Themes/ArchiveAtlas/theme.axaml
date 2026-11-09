@@ -11,6 +11,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="MixedEntries"
              ext:ThemeProperties.ProvidesSystemMenuHint="True"
              ext:ThemeProperties.PrimaryVideoEnabled="True"
              ext:ThemeProperties.VideoSlotName="VideoSlot"
@@ -192,45 +193,14 @@
                             Height="1"
                             Background="#D8CBB9" />
 
-                    <!-- Category list -->
+                    <!-- Mixed direct library entries -->
                     <ListBox Grid.Row="3"
-                             ItemsSource="{Binding CurrentCategories}"
-                             SelectedItem="{Binding SelectedCategory}"
+                             ItemsSource="{Binding NavigationEntries}"
+                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
                              Background="Transparent"
                              BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                             ext:ThemeProperties.UseHostSelectionEffects="False"
-                             helpers:ListBoxBehaviors.CenterSelectedItem="True"
-                             IsVisible="{Binding IsCategorySelectionActive}">
-                        <ListBox.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <VirtualizingStackPanel />
-                            </ItemsPanelTemplate>
-                        </ListBox.ItemsPanel>
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border x:Name="ItemFrame"
-                                        CornerRadius="10"
-                                        Padding="10,7"
-                                        Margin="0,3">
-                                    <TextBlock Text="{Binding Name}"
-                                               FontSize="17"
-                                               TextTrimming="CharacterEllipsis" />
-                                </Border>
-                            </DataTemplate>
-                        </ListBox.ItemTemplate>
-                    </ListBox>
-
-                    <!-- Game list -->
-                    <ListBox Grid.Row="3"
-                             ItemsSource="{Binding Items}"
-                             SelectedItem="{Binding SelectedItem}"
-                             Background="Transparent"
-                             BorderThickness="0"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
-                             ScrollViewer.VerticalScrollBarVisibility="Hidden"
-                             IsVisible="{Binding IsGameListActive}"
                              helpers:ListBoxBehaviors.CenterSelectedItem="True"
                              ext:ThemeProperties.UseHostSelectionEffects="False">
                         <ListBox.ItemsPanel>

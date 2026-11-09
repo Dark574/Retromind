@@ -12,6 +12,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.2.0"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="MixedEntries"
              ext:ThemeProperties.ProvidesSystemMenuHint="True"
              ext:ThemeProperties.AccentColor="#FFD700"
              ext:ThemeProperties.BackgroundDimOpacity="0.30"
@@ -43,7 +44,7 @@
             </Setter>
         </Style>
         <Style Selector="ListBoxItem TextBlock">
-            <Setter Property="Foreground" Value="#CCCCCC" /> 
+            <Setter Property="Foreground" Value="#CCCCCC" />
         </Style>
         <Style Selector="ListBoxItem:selected TextBlock">
             <Setter Property="Foreground" Value="White" />
@@ -56,7 +57,7 @@
             <Setter Property="Background" Value="Transparent" />
         </Style>
     </UserControl.Styles>
-    
+
     <UserControl.Resources>
         <helpers:TimeSpanToHumanReadableConverter x:Key="TimeConverter" />
 
@@ -77,7 +78,7 @@
             <GradientStop Color="#C9080A0F" Offset="1" />
         </LinearGradientBrush>
     </UserControl.Resources>
-    
+
     <Panel>
         <!-- LAYER 1: Background -->
         <Grid x:Name="BackgroundVisual">
@@ -102,7 +103,7 @@
                                 Stretch="UniformToFill"
                                 IsVisible="{Binding IsGameListActive}"
                                 Opacity="{Binding ElementName=BigModeRoot, Path=(ext:ThemeProperties.BackgroundDimOpacity)}" />
-            
+
             <!-- Wallpaper for Categories-View -->
             <ext:CrossfadeImage Name="CategoryWallpaper"
                                 Url="{Binding ActiveCategoryWallpaperPath}"
@@ -117,21 +118,21 @@
 
             <Rectangle Fill="{StaticResource BackgroundWash}" />
         </Grid>
-        
-        <!-- Games-Wheel -->
-        <ListBox ItemsSource="{Binding WheelItems}"
-                 IsVisible="{Binding IsGameListActive}"
+
+        <!-- Mixed direct library entries use the existing wheel geometry. -->
+        <ListBox ItemsSource="{Binding WheelEntries}"
+
                  Background="Transparent"
-                 SelectedIndex="{Binding WheelSelectedItemIndex, Mode=OneWay}"
+                 SelectedIndex="{Binding WheelSelectedEntryIndex, Mode=OneWay}"
                  ClipToBounds="False"
                  VerticalAlignment="Stretch"
                  HorizontalAlignment="Left"
                  Width="450"
                  ext:ThemeProperties.UseHostSelectionEffects="False">
-            
+
             <ListBox.ItemsPanel>
                 <ItemsPanelTemplate>
-                    <helpers:WheelPanel WheelRadius="500" 
+                    <helpers:WheelPanel WheelRadius="500"
                                         ItemSpacingAngle="18"
                                         helpers:WheelPanel.OffsetX="225"
                                         helpers:WheelPanel.SelectedScale="1.14"
@@ -167,47 +168,6 @@
             </ListBox.ItemTemplate>
         </ListBox>
 
-        <!-- Categories-Wheel -->
-        <ListBox ItemsSource="{Binding WheelCategories}"
-                 IsVisible="{Binding IsCategorySelectionActive}"
-                 Background="Transparent"
-                 SelectedIndex="{Binding WheelSelectedCategoryIndex, Mode=OneWay}"
-                 ClipToBounds="False"
-                 VerticalAlignment="Stretch"
-                 HorizontalAlignment="Left"
-                 Width="450"
-                 ext:ThemeProperties.UseHostSelectionEffects="False">
-            
-            <ListBox.ItemsPanel>
-                <ItemsPanelTemplate>
-                    <helpers:WheelPanel WheelRadius="500" 
-                                        ItemSpacingAngle="18"
-                                        helpers:WheelPanel.OffsetX="225"
-                                        helpers:WheelPanel.SelectedScale="1.14"
-                                        helpers:WheelPanel.SelectedItemIndex="{Binding $parent[ListBox].SelectedIndex}"/>
-                </ItemsPanelTemplate>
-            </ListBox.ItemsPanel>
-
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <Panel Width="300" Height="140">
-                        <!-- Category logo, if available -->
-                        <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoPath}" Stretch="Uniform"
-                               IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                        
-                        <!-- Fallback: category name -->
-                        <TextBlock Text="{Binding Name}"
-                                   FontSize="32"
-                                   FontWeight="Bold"
-                                   TextWrapping="Wrap"
-                                   TextAlignment="Center"
-                                   VerticalAlignment="Center"
-                                   IsVisible="{Binding PrimaryLogoPath, Converter={x:Static StringConverters.IsNullOrEmpty}}"/>
-                    </Panel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        
         <!-- RIGHT: one coherent hero panel for media, description and metadata. -->
         <Border Margin="470,28,32,28"
                 Background="{StaticResource HeroPanelBrush}"

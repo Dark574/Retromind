@@ -128,7 +128,8 @@ public static class ThemeLoader
                 attractModeIdleInterval: attractInterval,
                 attractModeSoundPath: attractSound,
                 supportsHome: supportsHome,
-                viewFactory: ViewFactory);
+                viewFactory: ViewFactory,
+                navigationPresentation: ThemeProperties.GetNavigationPresentation(view));
         }
         catch (Exception ex)
         {

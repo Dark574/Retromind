@@ -307,6 +307,8 @@ public class SettingsService
             throw InvalidNull("$.SavedSearchOnlyFavorites");
         ValidateRequiredList(settings.SteamLibraryPaths, "$.SteamLibraryPaths");
         ValidateOptionalList(settings.LastBigModeNavigationPath, "$.LastBigModeNavigationPath");
+        if (settings.BigModeNavigation != null)
+            ValidateOptionalList(settings.BigModeNavigation.EnteredNodeIds, "$.BigModeNavigation.EnteredNodeIds");
 
         if (settings.ControllerBindings == null)
             throw InvalidNull("$.ControllerBindings");

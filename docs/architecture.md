@@ -699,6 +699,11 @@ BigMode is an overlay workflow with clear host/VM split:
 - theme root attachment/swapping (`SetThemeContent`)
 - shared, theme-independent Home presentation for every opted-in root theme
 - shared video control attachment to theme-defined slots
+- `BigModeThemeSwitcher` coordinates root-theme replacement on the UI thread using the application's
+  existing path resolver. Theme ownership is published before incoming selection/list notifications;
+  the host gates the outgoing library presentation while VLC stops and the existing render pass completes.
+  Only the latest pending request may install/reveal a theme; closing disposes the switcher and invalidates
+  pending requests. Navigation within the same theme does not gate the view or interrupt playback
 - theme-independent system menu presentation, including the live controller-binding overview and application-exit confirmation
 - system-host mode with per-system subtheme loading (`Themes/System/<id>/theme.axaml`)
 - each subtheme instance receives a fixed `SystemPreviewNode`, keeping the outgoing
@@ -709,7 +714,8 @@ BigMode is an overlay workflow with clear host/VM split:
 - global cursor idle hide/show behavior (mouse-only)
 
 ### ViewModel (`BigModeViewModel`)
-- navigation state (categories/items), selection memory, and robust restore from persisted settings
+- one `BigModeNavigationSession` for location, mixed entries, selection, history and persisted restore;
+  category/item properties are presentation projections
 - receives semantic controller actions from `GamepadService`; action-button assignments and the two-button
   tracked-session stop gesture live in `AppSettings.ControllerBindings`, while D-pad/left-stick navigation stays fixed
 - routes BigMode key events through semantic actions backed by `AppSettings.KeyboardBindings`; bindings are stored as
@@ -741,92 +747,94 @@ BigMode is an overlay workflow with clear host/VM split:
 - root themes can opt into a non-persisted Home dashboard through `ThemeProperties.SupportsHome`; the user-facing
   `AppSettings.EnableBigModeHomeScreen` switch must also be enabled. Its recent,
   favorite, and library shortcuts retain their real source nodes for inherited artwork and launch behavior.
-  The Library row keeps a transient mini-navigation path over the real node hierarchy without mutating the tree
-  or the regular BigMode navigation stacks.
+  The Library row uses a temporary instance of the same navigation session, without mutating the tree
+  or the regular library cursor.
   Y/Triangle or the keyboard Home key toggles Home against an untouched library navigation snapshot, while direct
   BigMode startup opens Home and an explicit desktop item selection keeps the established library start position
 - mirrors final BigMode selection back into core app settings on exit
 
-### Mixed-library navigation core (Stage A)
+### Mixed-library navigation (Stages A and B)
 
-`Services/BigMode/` contains a UI-independent navigation core for direct children and media on the same
-library level. **The session is not instantiated by the production BigMode workflow yet.** The current
-`BigModeViewModel`, host and theme bindings still use their existing category/item navigation. Consequently,
-the mixed-node reachability bug in the visible BigMode workflow is not fixed until Stage B integrates the core.
-Do not run the new session alongside the old stacks as a second live source of navigation state.
+`Services/BigMode/` owns the UI-independent navigation contract. Production BigMode uses exactly one
+`BigModeNavigationSession` as its library cursor. The old navigation/title/path stacks and the exclusive
+category-versus-item navigation branches have been removed. Media activation still requests the existing
+application launch path; no launcher, emulator, wrapper, or portable asset-path semantics changed.
 
-Components:
+- `BigModeNavigationEntry` is a typed `(Kind, Id)` reference to an actual node or media item. Media entries
+  retain their indexed `SourceNode`; node entries retain their actual parent. Read-only presentation getters
+  use the live model and existing asset resolver. Only bound/realized rows subscribe to model/owner property
+  changes; removing the last listener releases those subscriptions. No synthetic library objects are used.
+- `BigModeVisibilityPolicy` owns protection and visibility rules. Empty nodes remain visible. Otherwise
+  visible direct media or visible descendants keep a node visible. Protected items cannot be selected,
+  revealed or activated while the filter is enabled.
+- `BigModeLibrarySnapshot` indexes ownership, identity, visibility and subtree media counts iteratively in
+  O(nodes + items). IDs must be unique within each kind; a node and item can share a string ID. Cycles/repeated
+  nodes are rejected. Snapshots are rebuilt only at explicit edit/filter boundaries, never per selection.
+- `BigModeNavigationFrame` owns a read-only list of visible direct child nodes followed by direct media,
+  preserving each original order, plus a typed selection and validated index. A dictionary resolves stale
+  index hints. Selection changes retain the frame/list; unchanged refreshes retain the list as well.
+- `BigModeNavigationSession` owns frames, per-location selection memory, wrap selection, activation, Back,
+  direct open/reveal, capture/restore and refresh. Node activation opens that real node; media activation
+  returns a request containing the real media/owner. Back at virtual root requests exit; direct exit bypasses
+  history. Restore validates every parent-child edge and recovers the deepest valid visible prefix. Refresh
+  preserves surviving keys and truncates invalid history after removals/moves/identity edits.
+- `BigModeLibraryObserver` observes collections, collection replacements, identities and protection. The VM
+  coalesces edits on the UI dispatcher and calls Refresh/Rebind once; input flushes pending edits before
+  selecting/activating. Subscriptions are rebound after edits and removed on disposal. Model name/artwork
+  notifications update presentation without topology rebuilds. `MediaNode.Id`, `Children` and `Items` now
+  notify replacement/identity changes; their serialized property names, types and tree structure are unchanged.
+- `BigModeNavigationPersistence` maps the session bookmark to versioned `AppSettings.BigModeNavigation` and
+  migrates legacy path/selected-ID/mode settings. Selection retains its kind, ID and index hint. Legacy fields
+  are mirrored for compatibility. Desktop selection records intent in the existing desktop IDs and invalidates
+  the old bookmark without tree traversal; session entry resolves actual ownership through the index. Startup validation
+  uses the same restore contract, so a mixed frame's direct media selection remains valid. Startup and exit-sync
+  selection notifications do not overwrite the bookmark. Final state mirrors
+  the real selected media owner (or selected node) back to desktop settings.
 
-- `BigModeNavigationEntry`: a closed set of real node/media references with typed `(Kind, Id)` keys.
-  Node entries retain their actual parent; media entries retain their actual owning `SourceNode`. Read-only
-  presentation getters use the live model and existing artwork resolver. No fake nodes, media copies,
-  model mutations, bitmap decoding or theme decisions are involved. Entries install no model subscriptions;
-  Stage B row view models must forward model property notifications or bind directly to `Node`/`Item`.
-- `BigModeVisibilityPolicy`: common item-protection and node-visibility rules. The existing BigMode,
-  Home builder and Home library navigator already delegate to this policy. An actually empty node remains
-  visible; otherwise visible direct media or visible descendants keep a node visible. Standalone node
-  queries are iterative and the indexed core computes visibility bottom-up once per snapshot.
-- `BigModeLibrarySnapshot`: an internal topology/ownership index built at session construction or explicit
-  `Refresh`. It validates unique IDs within each entry kind and rejects repeated node instances/cycles.
-  A node and an item may have the same string ID because keys include their kind. Indexing and visibility
-  cost O(nodes + items); lookup and ordinary selection do not walk the tree.
-- `BigModeNavigationFrame`: the opened real node (`null` for the virtual root), a read-only direct-entry list,
-  and a selected typed key/checked index. Visible child nodes precede direct visible items, preserving each
-  collection's existing order. A per-frame key/index dictionary handles stale hints without linear searches.
-  Ordinary selection retains both frame and entry-list instances; unchanged refreshes retain the list too.
-- `BigModeNavigationSession`: one current frame plus a frame history, per-location selection memory,
-  step/wrap selection, activation, Back, direct reveal/open and state capture/restore. Node activation opens
-  a frame; media activation returns the actual media and owner as a request for the adapter. Back at root
-  returns an exit request. Direct exit returns the same request without popping the current location.
-- `BigModeNavigationState`: a detached, copied bookmark of entered real-node IDs and a typed selection/index
-  hint. This is a core contract for future Home/settings adapters, not a new persisted AppSettings format.
+`BigModeViewModel.Library` adapts this contract to bindings. `NavigationEntries`, `SelectedEntry` and
+`SelectedEntryIndex` are the canonical presentation interface. `CurrentCategories`, `Items`, `SelectedCategory`,
+`SelectedItem` and their indices are projections for existing details/carousels. `IsGameListActive` describes
+selected-entry presentation, not a separate navigation location. Legacy selection setters route into the
+session; list-reset nulls cannot erase a valid canonical selection. Projection lists change only when the
+frame's entry list changes; ordinary selection updates neither library membership nor topology. Carousel
+windows remain demand-driven and preserve Phase 1 recycling; `WheelEntries` extends that mechanism to both
+entry kinds without activating the old category/media windows.
 
-Calls are serialized by the consumer; the core performs no dispatcher operations, file writes or native
-playback/launch calls. `Changed` fires once after each committed selection/location change or explicit refresh.
-Ordinary unchanged/invalid selection requests do not notify; detecting newly protected data may trigger a
-refresh. `Revision` can invalidate delayed adapter work; `LibraryVersion` identifies explicit refresh boundaries.
-Activation alone does not change the selection or location for media.
+Context boundaries:
 
-Library-edit contract:
+- `CurrentNode` is the opened library node (`null` at virtual root).
+- `ThemeContextNode` is its theme owner; marking entries within that frame does not change it. The application
+  still resolves the owner's local theme, never its parent's theme. Home temporarily presents the root context.
+- `SelectedCategory` is the selected child node; `SelectedItem` is the selected media, never both.
+- Media artwork/video use the actual source owner. Node previews use the selected node; System subtheme
+  instances retain their fixed `SystemPreviewNode` throughout outgoing transitions.
 
-- The adapter must call `Refresh` after additions/removals, moves, collection replacements, ID edits,
-  protection edits or a parental-filter change. The core intentionally installs no model/event observers.
-  It keeps a topology snapshot between refreshes rather than rescanning for membership on every input.
-- Refresh preserves typed selections across reorder/replacement, falls back to the nearest remaining index
-  when a selection disappears, and truncates invalid history to the nearest valid ancestor. Reopening a moved
-  node uses its newly indexed path. Removed nodes' stored selection bookmarks are discarded.
-- A newly protected item is also checked immediately before selection, reveal and activation. A stale protected
-  activation refreshes and returns no action, rather than activating the fallback selection. This guard does
-  not replace the adapter's refresh obligation for live display, topology changes or newly unprotected content.
-- Restore validates each parent/child edge and visibility, recovers the deepest valid prefix, and reports
-  whether the bookmark was restored exactly. An ancestor recovery does not reuse a descendant's selection.
-  Malformed refresh input is validated before it can replace the active session.
+`ThemeProperties.NavigationPresentation` declares presentation capabilities, not navigation rules:
 
-Stage B integration remains required:
+| Presentation | Shipped themes | Navigation surface |
+| --- | --- | --- |
+| `MixedEntries` | Default, Prism, HorizontalRow, ArchiveAtlas | One mixed virtualized list using existing row/card layouts |
+| `MixedEntries` | Wheel | Mixed bounded/repeating wheel using the existing WheelPanel |
+| `MediaItemsOnly` | Arcade, LivingRoom | Existing media scenes plus a host-owned structural browser on node/mixed levels |
+| `NodeBrowser` | System | Mixed browser; fixed system presentation for nodes and host media preview for media |
+| `LegacySeparate` (default) | Existing external themes without metadata | Existing projections plus host structural access |
 
-1. Make the session the sole library cursor; retire the existing navigation/title/path stacks and mode-based
-   opening/Back logic. Project its state into existing selection indices and demand-driven carousel windows
-   during migration, preserving Phase 1 image/cache and recycling behavior.
-2. Keep opened-node/theme ownership separate from selected-entry preview ownership. Marking changes previews;
-   opening a node changes its theme. Remove the host behavior that clears Items to force System Host mode.
-3. Integrate Home through the same visibility/entry/activation rules and a separately saved library bookmark.
-   Replace Home's leaf/branch assumptions and remaining recursive traversal/counting where necessary. Adapt
-   Attract Mode to visible media positions and revision checks, without opening nodes or starting media.
-4. Migrate `AppSettings` state, startup validation and both desktop/BigMode selection bridges together; the
-   existing overloaded selected-ID and category/item boolean cannot describe the new contract independently.
-5. Default, Prism, HorizontalRow, ArchiveAtlas and Wheel must expose mixed entries in their own layouts.
-   Arcade and LivingRoom retain media-only presentations with a host-owned structural access path. System Host
-   must expose both kinds; node selection uses the chosen system presentation and media selection a suitable
-   media preview. Its ten system presentations need no navigation logic. Presentation restrictions must never
-   make visible content unreachable, including with Home disabled. No theme-name dispatch is needed.
-6. Implement these projections/presentation scopes and the final theme capability contract together, without
-   inserting UI actions into `MediaNode.Children`/`Items`. Cinematic and Navigator remain future themes.
+The host browser uses the same entries/cursor and works with Home disabled. It introduces no portal/fake
+node. All visible library entries therefore remain reachable regardless of the selected theme. System Host
+never clears or overwrites navigation projections to impose a visual mode. Its ten presentations (Default,
+Amiga, C64, GBA, MAME, MegaDrive, PC, PS1, PS2, SNES) contain no separate navigation logic.
 
-Stage A tests cover pure/mixed/empty levels, a 10,000-level tree, complete root-driven reachability with and
-without filtering, direct-entry protection guards, state/selection restoration, removal/moves/replacement,
-malformed edits and a 51,000-entry mixed frame with stable lists during repeated selection. Core tests need
-no window, VLC or SDL initialization. Production theme transitions and screen presentation still require
-Stage B integration tests and manual Linux/AppImage validation.
+Home's library row uses a temporary session with identical visibility/entry/activation rules, indexed subtree
+counts and mixed direct media cards. Favorites/recent shortcuts retain actual owners. Entering Home captures
+the complete normal-library bookmark; leaving restores it. Topology/filter edits refresh both views. Attract
+Mode uses precomputed direct-media positions, never opens nodes or starts media, and invalidates delayed
+work on user selection, location changes, edits, filter changes, overlays and theme replacement.
+
+Core tests retain deep-tree and complete root-driven reachability checks. Integration tests exercise the
+production VM adapter and actual runtime theme XAML on the managed Avalonia dispatcher without native
+VLC/SDL. They cover mixed projections, input/pages, Home, Attract cancellation, persistence, observation,
+theme capabilities, System Host media previews and large-frame collection/window stability. Visual fades,
+real playback/gamepad input and AppImage behavior require manual Linux verification.
 
 ### Controller input and lifecycle
 

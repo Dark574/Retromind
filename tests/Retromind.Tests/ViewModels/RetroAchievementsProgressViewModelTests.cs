@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Http;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Achievements;
@@ -321,6 +323,45 @@ public sealed class RetroAchievementsProgressViewModelTests
         await viewModel.RefreshCommand.ExecuteAsync(null);
 
         Assert.Equal([false, true], forceRefreshValues);
+    }
+
+    [Theory]
+    [InlineData("clear")]
+    [InlineData("next")]
+    [InlineData("dispose")]
+    public async Task SelectionCancellation_HandlesHttpClientTaskCancellationWithoutFaulting(string action)
+    {
+        using var handler = new PendingProgressHandler();
+        using var httpClient = new HttpClient(handler);
+        var api = new RetroAchievementsApiClient(httpClient);
+        using var viewModel = CreateViewModel(async (gameId, forceRefresh, cancellationToken) =>
+            new RetroAchievementsProgressSnapshot(
+                await api.GetGameInfoAndUserProgressAsync(gameId, "TestUser", "test-key", cancellationToken),
+                DateTimeOffset.UtcNow,
+                UsedCachedFallback: false));
+
+        var firstLoad = viewModel.SelectItemAsync(CreateIdentifiedItem(gameId: 123));
+        var transportToken = await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Exercise a real HttpClient/RetroAchievementsApiClient cancellation,
+        // rather than a progress stub that ignores the caller's token.
+        if (action == "dispose") viewModel.Dispose();
+        else await viewModel.SelectItemAsync(action == "next" ? CreateIdentifiedItem(gameId: 456) : null);
+        await firstLoad.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(transportToken.IsCancellationRequested);
+        Assert.True(firstLoad.IsCompletedSuccessfully); // Cancellation is consumed at the VM boundary.
+        if (action != "dispose") Assert.False(viewModel.IsLoading);
+        if (action == "next")
+        {
+            Assert.Equal(456, viewModel.Snapshot?.Progress.GameId);
+            Assert.False(viewModel.ShowStatus);
+        }
+        else
+        {
+            Assert.Null(viewModel.Snapshot);
+            Assert.False(viewModel.IsVisible);
+        }
     }
 
     [Fact]
@@ -922,6 +963,33 @@ public sealed class RetroAchievementsProgressViewModelTests
             },
             new DateTimeOffset(2026, 9, 16, 8, 0, 0, TimeSpan.Zero),
             usedCachedFallback);
+    }
+
+    private sealed class PendingProgressHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource<CancellationToken> Started { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            if (request.RequestUri!.Query.Contains("g=123", StringComparison.Ordinal))
+            {
+                var response = new TaskCompletionSource<HttpResponseMessage>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                using var registration = cancellationToken.Register(() => response.TrySetCanceled(cancellationToken));
+                Started.TrySetResult(cancellationToken);
+                return await response.Task.ConfigureAwait(false);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""
+                    {"ID":456,"Title":"Next game","ConsoleID":4,"NumAchievements":1,
+                     "Achievements":{"1":{"ID":1,"Title":"Achievement","Points":5}}}
+                    """)
+            };
+        }
     }
 
     private sealed class StubProgressService(

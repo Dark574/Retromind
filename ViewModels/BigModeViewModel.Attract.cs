@@ -16,6 +16,7 @@ public partial class BigModeViewModel
     private int _attractStepsExecuted;
     private int _attractAnimationGeneration;
     private bool _isAttractAnimating;
+    private bool _applyingAttractSelection;
 
     // Minimum delay between visual attract-mode steps so that users can
     // actually see the list "spinning" instead of jumping instantly.
@@ -88,11 +89,11 @@ public partial class BigModeViewModel
         if (!_theme.AttractModeEnabled || _theme.AttractModeIdleInterval is null)
             return;
 
-        if (_isLaunching || IsSystemMenuOpen)
+        if (_isLaunching || IsSystemMenuOpen || IsAchievementsOverlayOpen)
             return;
 
-        // Attract mode only makes sense while the game list is active.
-        if (IsHomeActive || !IsGameListActive || Items.Count == 0)
+        // Mixed frames can begin on a node; attract only visits their direct visible media.
+        if (IsHomeActive || _mediaEntryPositions.Count == 0)
         {
             _attractStepsExecuted = 0;
             return;
@@ -133,10 +134,12 @@ public partial class BigModeViewModel
         if (Volatile.Read(ref _disposed) == 1)
             return;
 
-        if (IsHomeActive || !IsGameListActive || Items.Count == 0)
+        if (IsHomeActive || _mediaEntryPositions.Count == 0)
             return;
 
-        var count = Items.Count;
+        var count = _mediaEntryPositions.Count;
+        var entries = _navigation.Current.Entries;
+        var libraryVersion = _navigation.LibraryVersion;
         if (count == 0)
             return;
 
@@ -146,6 +149,9 @@ public partial class BigModeViewModel
         _isAttractAnimating = true;
         var generation = Interlocked.Increment(ref _attractAnimationGeneration);
 
+        bool IsCurrent() => generation == Volatile.Read(ref _attractAnimationGeneration) &&
+            Volatile.Read(ref _disposed) == 0 && !IsHomeActive && !_isLaunching &&
+            ReferenceEquals(entries, _navigation.Current.Entries) && libraryVersion == _navigation.LibraryVersion;
         try
         {
             await UiThreadHelper.InvokeAsync(() =>
@@ -195,16 +201,10 @@ public partial class BigModeViewModel
                     generation != Volatile.Read(ref _attractAnimationGeneration))
                     break;
 
-                if (!IsGameListActive || Items.Count == 0 || _isLaunching)
-                    break;
-
-                var nextIndex = SelectedItemIndex;
-                if (nextIndex < 0 || nextIndex >= Items.Count)
-                    nextIndex = 0;
-
-                nextIndex = (nextIndex + 1) % Items.Count;
-                SelectedItemIndex = nextIndex;
-                SelectedItem = Items[nextIndex];
+                if (!IsCurrent()) break;
+                var mediaIndex = SelectedItemIndex;
+                var nextIndex = mediaIndex < 0 ? 0 : (mediaIndex + 1) % count;
+                SelectAttractMedia(nextIndex);
 
                 // Keep the whole attract-mode spin on the UI thread so that
                 // bindings (logo highlight, marquee, bezel) stay consistent.
@@ -213,47 +213,13 @@ public partial class BigModeViewModel
             }
 
             // Finally jump to a random title.
-            if (generation == Volatile.Read(ref _attractAnimationGeneration) &&
-                IsGameListActive && Items is { Count: > 0 } && !_isLaunching)
+            if (IsCurrent())
             {
-                var currentIndex = SelectedItemIndex >= 0 && SelectedItemIndex < Items.Count
-                    ? SelectedItemIndex
-                    : -1;
-
-                var newIndex = RandomHelper.Next(0, Items.Count);
-
-                if (Items.Count > 1 && newIndex == currentIndex)
-                    newIndex = (newIndex + 1) % Items.Count;
-
+                var newIndex = RandomHelper.Next(0, count);
+                if (count > 1 && newIndex == SelectedItemIndex) newIndex = (newIndex + 1) % count;
                 await UiThreadHelper.InvokeAsync(() =>
                 {
-                    if (Volatile.Read(ref _disposed) == 1 ||
-                        generation != Volatile.Read(ref _attractAnimationGeneration))
-                        return;
-
-                    if (!IsGameListActive || Items.Count == 0)
-                        return;
-
-                    // Update selection to the final random item
-                    SelectedItemIndex = newIndex;
-                    SelectedItem = Items[newIndex];
-                    
-                    // Keep theme context in sync with the node whose items are shown.
-                    // This is important for artwork resolution (marquee, bezel, etc.).
-                    if (CurrentNode != null)
-                    {
-                        ThemeContextNode = CurrentNode;
-                    }
-                    
-                    // Force dependent properties to refresh, even if some bindings
-                    // missed intermediate notifications during the spin.
-                    OnPropertyChanged(nameof(ActiveMarqueePath));
-                    RequestActiveBezelRefresh();
-                    OnPropertyChanged(nameof(ActiveControlPanelPath));
-
-                    // Keep game counter and preview in sync with the final attract-mode result.
-                    UpdateGameCounters();
-                    TriggerPreviewPlaybackWithDebounce();
+                    if (IsCurrent()) SelectAttractMedia(newIndex);
                 }, DispatcherPriority.Background);
             }
         }
@@ -281,6 +247,13 @@ public partial class BigModeViewModel
 
             _isAttractAnimating = false;
         }
+    }
+
+    private void SelectAttractMedia(int mediaIndex)
+    {
+        _applyingAttractSelection = true;
+        try { _navigation.TrySelect(_mediaEntryPositions[mediaIndex]); }
+        finally { _applyingAttractSelection = false; }
     }
 
     /// <summary>

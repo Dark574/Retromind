@@ -29,6 +29,9 @@ namespace Retromind.Views;
 public partial class BigModeHostView : UserControl
 {
     private ContentPresenter _themePresenter = null!;
+    private Grid _libraryPresentation = null!;
+    private Border _themeSwapBackdrop = null!;
+    private bool _themeSwapPending;
     private BigModeHomeView _homeView = null!;
     private Border _systemMenuHint = null!;
     private bool _themeProvidesSystemMenuHint;
@@ -76,7 +79,7 @@ public partial class BigModeHostView : UserControl
     private readonly VideoSurfaceControl _secondaryVideoControl;
     private Theme? _activeTheme;
     
-    // Track ViewModel notifications so we can react to SelectedCategory changes
+    // Track ViewModel notifications so we can react to the canonical selection
     // while the SystemHost theme is active.
     private INotifyPropertyChanged? _vmNotifications;
     
@@ -95,6 +98,10 @@ public partial class BigModeHostView : UserControl
     {
         InitializeComponent();
 
+        _themeSwapBackdrop = this.FindControl<Border>("ThemeSwapBackdrop")
+                             ?? throw new InvalidOperationException("ThemeSwapBackdrop not found in BigModeHostView.");
+        _libraryPresentation = this.FindControl<Grid>("LibraryPresentation")
+                               ?? throw new InvalidOperationException("LibraryPresentation not found in BigModeHostView.");
         _themePresenter = this.FindControl<ContentPresenter>("ThemePresenter")
                           ?? throw new InvalidOperationException("ThemePresenter control not found in BigModeHostView.");
         _homeView = this.FindControl<BigModeHomeView>("HomeView")
@@ -264,6 +271,15 @@ public partial class BigModeHostView : UserControl
         }, DispatcherPriority.Input);
     }
 
+    private void OnHostLibraryDoubleTapped(object? sender, TappedEventArgs args)
+    {
+        if (DataContext is Retromind.ViewModels.BigModeViewModel vm && vm.ShowHostNavigation)
+        {
+            args.Handled = true;
+            vm.PlayCurrentCommand.Execute(null);
+        }
+    }
+
     private void OnMouseCursorTimerTick(object? sender, EventArgs e)
     {
         _mouseCursorTimer.Stop();
@@ -299,8 +315,7 @@ public partial class BigModeHostView : UserControl
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        var isItemChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedItem);
-        var isCategoryChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedCategory);
+        var isSelectionChange = e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.SelectedEntry);
         var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
 
         if (e.PropertyName is nameof(Retromind.ViewModels.BigModeViewModel.IsHomeActive)
@@ -308,6 +323,10 @@ public partial class BigModeHostView : UserControl
         {
             UpdateSystemMenuHintVisibility();
         }
+
+        // The outgoing theme keeps live bindings, but must not build previews,
+        // reparent video or start selection effects for the incoming location.
+        if (_themeSwapPending) return;
 
         if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.IsHomeActive) &&
             _themePresenter.Content is Control activeThemeRoot &&
@@ -322,7 +341,7 @@ public partial class BigModeHostView : UserControl
             AttachPrimaryVideoToSlot(activeThemeRoot, _activeTheme);
 
             if (_isSystemHostTheme && vm?.IsHomeActive == false)
-                UpdateSystemLayoutForSelectedCategory(animateTransition: false);
+                UpdateSystemLayoutForSelection(animateTransition: false);
         }
 
         if (e.PropertyName == nameof(Retromind.ViewModels.BigModeViewModel.MainVideoFrameRevision))
@@ -331,16 +350,16 @@ public partial class BigModeHostView : UserControl
             TryCompletePrimaryMediaGate();
         }
 
-        // SystemHost theme only: refresh the system layout on category change
-        if (_isSystemHostTheme && isCategoryChange && vm?.IsHomeActive != true)
-            UpdateSystemLayoutForSelectedCategory();
+        // System Host previews follow the canonical selection after projections are synchronized.
+        if (_isSystemHostTheme && isSelectionChange && vm?.IsHomeActive != true)
+            UpdateSystemLayoutForSelection();
 
         // The theme presenter is hidden on Home. Avoid animating and repainting
         // its potentially expensive visual tree for Home shortcut selection.
         if (vm?.IsHomeActive == true)
             return;
 
-        if (!isItemChange && !isCategoryChange)
+        if (!isSelectionChange)
             return;
 
         if (_themePresenter.Content is Control currentThemeRoot)
@@ -569,6 +588,28 @@ public partial class BigModeHostView : UserControl
         Dispatcher.UIThread.Post(InvalidatePass, DispatcherPriority.Background);
     }
     
+    internal void BeginThemeSwap()
+    {
+        _themeSwapPending = true;
+        ++_viewReadyGeneration;
+        ++_systemLayoutTransitionGeneration;
+        _waitingForSystemVideoFrame = false;
+        CancelPrimaryMediaGate();
+        // Keep layout/virtualization intact while VLC settles. Gate the common
+        // ancestor so specialized host navigation cannot flash either.
+        _themeSwapBackdrop.IsVisible = true;
+        _libraryPresentation.Opacity = 0;
+        _libraryPresentation.IsHitTestVisible = false;
+    }
+
+    internal void CompleteThemeSwap()
+    {
+        _themeSwapPending = false;
+        _libraryPresentation.Opacity = 1;
+        _themeSwapBackdrop.IsVisible = false;
+        _libraryPresentation.IsHitTestVisible = true;
+    }
+
     public void SetThemeContent(Control themeRoot, Theme theme)
     {
         var viewReadyGeneration = ++_viewReadyGeneration;
@@ -600,23 +641,6 @@ public partial class BigModeHostView : UserControl
 
         var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
 
-        // System Host theme is category-first; avoid being stuck in game list mode.
-        if (_isSystemHostTheme && vm is { IsHomeActive: false })
-        {
-            if (vm.CurrentCategories.Count > 0)
-            {
-                if (vm.IsGameListActive)
-                {
-                    vm.IsGameListActive = false;
-                    vm.Items = new ObservableCollection<MediaItem>();
-                    vm.SelectedItem = null;
-                }
-
-                if (vm.SelectedCategory == null || !vm.CurrentCategories.Contains(vm.SelectedCategory))
-                    vm.SelectedCategory = vm.CurrentCategories[0];
-            }
-        }
-
         // Theme-based video capability (no more slot-based shutdown)
         if (vm != null)
         {
@@ -646,10 +670,10 @@ public partial class BigModeHostView : UserControl
         RequestSelectionArtifactRepaint(themeRoot);
 
         // If this is the SystemHost theme, initialize the right-hand system layout
-        // immediately for the current SelectedCategory
+        // immediately for the current canonical selection
         if (_isSystemHostTheme && vm?.IsHomeActive != true)
         {
-            UpdateSystemLayoutForSelectedCategory(animateTransition: false);
+            UpdateSystemLayoutForSelection(animateTransition: false);
         }
         else
         {
@@ -813,7 +837,7 @@ public partial class BigModeHostView : UserControl
     /// This keeps category switching fast while avoiding "already has a visual parent"
     /// crashes from reusing the same UserControl instance.
     /// </summary>
-    private void UpdateSystemLayoutForSelectedCategory(bool animateTransition = true)
+    private void UpdateSystemLayoutForSelection(bool animateTransition = true)
     {
         if (!_isSystemHostTheme || _systemLayoutHost is null)
             return;
@@ -832,7 +856,7 @@ public partial class BigModeHostView : UserControl
     {
         try
         {
-            await UpdateSystemLayoutForSelectedCategoryAsync(vm, generation, animateTransition);
+            await UpdateSystemLayoutForSelectionAsync(vm, generation, animateTransition);
         }
         catch (Exception ex)
         {
@@ -843,13 +867,35 @@ public partial class BigModeHostView : UserControl
         }
     }
 
-    private async Task UpdateSystemLayoutForSelectedCategoryAsync(
+    private async Task UpdateSystemLayoutForSelectionAsync(
         Retromind.ViewModels.BigModeViewModel vm,
         int generation,
         bool animateTransition)
     {
         if (!_isSystemHostTheme || _systemLayoutHost is null)
             return;
+
+        if (vm.SelectedEntry is Retromind.Services.BigMode.BigModeMediaNavigationEntry)
+        {
+            // Reuse the media view within a level; selection updates bindings and
+            // the existing video pipeline. Never replace the library projections.
+            if (_systemLayoutHost.Content is not BigModeMediaPreviewView mediaView)
+            {
+                SetPrimaryVideoPresentationVisible(visible: false, animate: false);
+                mediaView = new BigModeMediaPreviewView { DataContext = vm };
+                _systemLayoutHost.Content = mediaView;
+                PruneDetachedTunedListBoxes();
+                AttachPrimaryVideoToSlot(mediaView, new Theme(mediaView, new ThemeSounds(),
+                    _activeTheme!.BasePath, primaryVideoEnabled: _activeTheme.PrimaryVideoEnabled, secondaryVideoEnabled: false));
+            }
+            _systemLayoutHost.Opacity = 1;
+            vm.CanShowVideo = _activeTheme!.PrimaryVideoEnabled;
+            vm.VideoFadeDurationMs = ThemeProperties.GetVideoFadeDurationMs(_activeTheme.View);
+            _primaryVideoControl.RetainPreviousSurfaceDuringFade =
+                ThemeProperties.GetVideoRetainPreviousFrameDuringFade(_activeTheme.View);
+            ConfigureSystemVideoPresentationGate(vm, generation);
+            return;
+        }
 
         PreserveOutgoingVideoSlotDuringSystemTransition(animateTransition);
 

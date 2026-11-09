@@ -10,6 +10,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.3.0"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="NodeBrowser"
              ext:ThemeProperties.VideoFadeDurationMs="600">
 
     <UserControl.Resources>
@@ -68,8 +69,8 @@
                     <!-- System list -->
                     <ListBox Grid.Row="1"
                              Classes="bm-nav-list"
-                             ItemsSource="{Binding CurrentCategories}"
-                             SelectedItem="{Binding SelectedCategory}"
+                             ItemsSource="{Binding NavigationEntries}"
+                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
                              Background="#44101620"
                              BorderThickness="0"
                              Padding="0"
@@ -89,7 +90,7 @@
                         </ListBox.ItemsPanel>
                         <ListBox.ItemTemplate>
                             <DataTemplate>
-                                <TextBlock Text="{Binding Name}"
+                                <TextBlock Text="{Binding Title}"
                                            FontSize="18"
                                            Foreground="White"
                                            TextTrimming="CharacterEllipsis" />

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
+using Retromind.Services.BigMode;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
@@ -333,32 +334,8 @@ public partial class BigModeViewModel
 
         ResetAttractIdleTimer();
         
-        if (IsGameListActive)
-        {
-            if (Items.Count == 0) return;
-
-            if (SelectedItemIndex < 0)
-                SelectedItemIndex = 0;
-
-            // Wrap-around navigation.
-            SelectedItemIndex = (SelectedItemIndex - 1 + Items.Count) % Items.Count;
-            SelectedItem = Items[SelectedItemIndex];
-        }
-        else
-        {
-            if (CurrentCategories.Count == 0) return;
-
-            if (SelectedCategoryIndex < 0)
-                SelectedCategoryIndex = 0;
-
-            // Wrap-around navigation.
-            SelectedCategoryIndex = (SelectedCategoryIndex - 1 + CurrentCategories.Count) % CurrentCategories.Count;
-            SelectedCategory = CurrentCategories[SelectedCategoryIndex];
-        }
-
-        // Defensive fallback (should rarely be needed).
-        if (SelectedCategory == null && CurrentCategories.Any())
-            SelectedCategory = CurrentCategories.First();
+        FlushNavigationChanges();
+        _navigation.MoveSelection(-1);
     }
 
     [RelayCommand]
@@ -368,32 +345,8 @@ public partial class BigModeViewModel
 
         ResetAttractIdleTimer();
         
-        if (IsGameListActive)
-        {
-            if (Items.Count == 0) return;
-
-            if (SelectedItemIndex < 0)
-                SelectedItemIndex = 0;
-
-            // Wrap-around navigation.
-            SelectedItemIndex = (SelectedItemIndex + 1) % Items.Count;
-            SelectedItem = Items[SelectedItemIndex];
-        }
-        else
-        {
-            if (CurrentCategories.Count == 0) return;
-
-            if (SelectedCategoryIndex < 0)
-                SelectedCategoryIndex = 0;
-
-            // Wrap-around navigation.
-            SelectedCategoryIndex = (SelectedCategoryIndex + 1) % CurrentCategories.Count;
-            SelectedCategory = CurrentCategories[SelectedCategoryIndex];
-        }
-
-        // Defensive fallback (should rarely be needed).
-        if (SelectedCategory == null && CurrentCategories.Any())
-            SelectedCategory = CurrentCategories.First();
+        FlushNavigationChanges();
+        _navigation.MoveSelection(1);
     }
 
     [RelayCommand]
@@ -402,6 +355,18 @@ public partial class BigModeViewModel
         if (_isLaunching) return;
 
         ResetAttractIdleTimer();
+        var selectedKey = SelectedEntry?.Key;
+        var homeSelection = SelectedHomeEntry;
+        FlushNavigationChanges();
+        // A refresh may replace a removed/protected selection. The same press
+        // must not activate that replacement merely because it inherited the index.
+        if (IsHomeActive)
+        {
+            if (homeSelection?.Kind != SelectedHomeEntry?.Kind ||
+                !ReferenceEquals(homeSelection?.Item, SelectedHomeEntry?.Item) ||
+                !ReferenceEquals(homeSelection?.Node, SelectedHomeEntry?.Node)) return;
+        }
+        else if (selectedKey != SelectedEntry?.Key) return;
 
         if (IsHomeActive)
         {
@@ -427,67 +392,18 @@ public partial class BigModeViewModel
                 return;
         }
         
-        // Category view: enter folder (children) or switch into game list (items).
-        if (!IsGameListActive)
+        MediaItem? itemToPlay;
+        if (IsHomeActive)
         {
-            if (SelectedCategory == null) return;
-
-            var node = SelectedCategory;
-
-            if (node.Children is { Count: > 0 })
-            {
-                var visibleChildren = BuildVisibleCategories(node.Children);
-                if (visibleChildren.Count == 0)
-                    return;
-
-                _navigationStack.Push(CurrentCategories);
-                _titleStack.Push(CategoryTitle);
-                _navigationPath.Push(node);
-
-                CategoryTitle = node.Name;
-                CurrentCategories = visibleChildren;
-
-                // Theme context becomes the current node.
-                ThemeContextNode = node;
-
-                SelectedCategory = CurrentCategories.FirstOrDefault();
-
-                TriggerPreviewPlaybackWithDebounce();
-                return;
-            }
-
-            if (node.Items is { Count: > 0 })
-            {
-                var visibleItems = BuildVisibleItems(node);
-                if (visibleItems.Count == 0)
-                    return;
-
-                _navigationStack.Push(CurrentCategories);
-                _titleStack.Push(CategoryTitle);
-
-                // Ensure leaf is part of the navigation path for persistence/restore.
-                if (_navigationPath.Count == 0 || _navigationPath.Peek() != node)
-                    _navigationPath.Push(node);
-
-                CurrentNode = node;
-                SelectedCategory = node;
-
-                Items = visibleItems;
-                IsGameListActive = true;
-
-                // Theme context is also the leaf node.
-                ThemeContextNode = node;
-
-                SelectedItem = RestoreRememberedItemSelection(node, Items);
-
-                TriggerPreviewPlaybackWithDebounce();
-            }
-
-            return;
+            itemToPlay = SelectedHomeEntry?.Item;
+            if (itemToPlay == null || !BigModeVisibilityPolicy.IsItemVisible(itemToPlay, _parentalFilterActive)) return;
         }
-
-        // Game view: launch the selected item.
-        if (SelectedItem == null) return;
+        else
+        {
+            FlushNavigationChanges();
+            if (_navigation.ActivateSelected() is not BigModeNavigationResult.MediaActivationRequested media) return;
+            itemToPlay = media.Entry.Item;
+        }
 
         StopGamepadRepeatTimer();
         _isLaunching = true;
@@ -498,7 +414,7 @@ public partial class BigModeViewModel
             StopSecondaryBackgroundVideo();
 
             if (RequestPlay != null)
-                await RequestPlay(SelectedItem);
+                await RequestPlay(itemToPlay);
         }
         finally
         {
@@ -525,67 +441,8 @@ public partial class BigModeViewModel
             return;
         }
         
-        // If we are currently in the game list, go back to category view first.
-        if (IsGameListActive)
-        {
-            RememberCurrentItemSelection();
-            IsGameListActive = false;
-
-            // Clear item list in category view.
-            Items = new ObservableCollection<MediaItem>();
-            SelectedItem = null;
-
-            var previousList = _navigationStack.Count > 0 ? _navigationStack.Pop() : BuildVisibleCategories(_rootNodes);
-            var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : Strings.BigMode_MainMenu;
-
-            CurrentCategories = previousList;
-            CategoryTitle = previousTitle;
-
-            if (_navigationPath.Count > 0) _navigationPath.Pop();
-
-            // Restore selection to the leaf node if it exists in the current level.
-            var leafNode = CurrentNode ?? (_navigationPath.Count > 0 ? _navigationPath.Peek() : null);
-            SelectedCategory = leafNode != null && CurrentCategories.Contains(leafNode)
-                ? leafNode
-                : CurrentCategories.FirstOrDefault();
-
-            // Root presentation is configured separately from top-level nodes.
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-
-            TriggerPreviewPlaybackWithDebounce();
-
-            _settings.LastBigModeSelectedNodeId = null;
-            return;
-        }
-
-        // If we are already at root, exit BigMode completely.
-        if (_navigationStack.Count == 0 && _navigationPath.Count == 0)
-        {
+        FlushNavigationChanges();
+        if (_navigation.Back() is BigModeNavigationResult.ExitRequested)
             await RequestBigModeCloseAsync();
-            return;
-        }
-
-        // Pop one navigation level.
-        if (_navigationStack.Count > 0)
-        {
-            var previousList = _navigationStack.Pop();
-            var previousTitle = _titleStack.Count > 0 ? _titleStack.Pop() : Strings.BigMode_MainMenu;
-
-            var exitedNode = _navigationPath.Count > 0 ? _navigationPath.Pop() : null;
-
-            CategoryTitle = previousTitle;
-            CurrentCategories = previousList;
-
-            SelectedCategory = exitedNode != null && CurrentCategories.Contains(exitedNode)
-                ? exitedNode
-                : CurrentCategories.FirstOrDefault();
-
-            ThemeContextNode = _navigationPath.Count > 0 ? _navigationPath.Peek() : null;
-
-            TriggerPreviewPlaybackWithDebounce();
-            return;
-        }
-
-        await RequestBigModeCloseAsync();
     }
 }

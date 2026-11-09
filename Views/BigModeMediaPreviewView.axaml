@@ -1,0 +1,32 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:ext="using:Retromind.Extensions"
+             x:Class="Retromind.Views.BigModeMediaPreviewView"
+             x:DataType="vm:BigModeViewModel">
+    <!-- System presentations keep their fixed node context. Media use this
+         host-owned preview and the existing shared VLC channel. -->
+    <Border Padding="28" Background="#E0121722" CornerRadius="16">
+        <Grid RowDefinitions="Auto,*,Auto" ColumnDefinitions="2*,*">
+            <StackPanel Grid.ColumnSpan="2" Margin="0,0,0,20" Spacing="8">
+                <TextBlock Text="{Binding SelectedItem.Title}" FontSize="32"
+                           FontWeight="Bold" Foreground="White" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="18">
+                    <TextBlock Text="{Binding SelectedYear}" FontSize="18" Foreground="#BFC9DC" />
+                    <TextBlock Text="{Binding SelectedDeveloper}" FontSize="18" Foreground="#BFC9DC" />
+                    <TextBlock Text="{Binding SelectedItem.Genre}" FontSize="18" Foreground="#BFC9DC" />
+                </StackPanel>
+            </StackPanel>
+            <Grid Grid.Row="1" Margin="0,0,20,0" ClipToBounds="True">
+                <ext:CrossfadeImage Url="{Binding SystemMediaArtworkPath}" DecodeWidth="1280" Stretch="Uniform" />
+                <Border x:Name="VideoSlot" IsVisible="{Binding IsVideoVisible}" />
+            </Grid>
+            <ext:CrossfadeImage Grid.Row="1" Grid.Column="1"
+                                Url="{Binding SelectedEntry.CoverPath}" DecodeWidth="600" Stretch="Uniform" />
+            <ScrollViewer Grid.Row="2" Grid.ColumnSpan="2" MaxHeight="220" Margin="0,20,0,0">
+                <TextBlock Text="{Binding SelectedItem.Description}" FontSize="18"
+                           Foreground="#E4ECF8" TextWrapping="Wrap" />
+            </ScrollViewer>
+        </Grid>
+    </Border>
+</UserControl>

@@ -3,6 +3,8 @@
              xmlns:vm="using:Retromind.ViewModels"
              xmlns:helpers="using:Retromind.Helpers"
              xmlns:views="using:Retromind.Views"
+             xmlns:nav="using:Retromind.Services.BigMode"
+             xmlns:ext="using:Retromind.Extensions"
              x:Class="Retromind.Views.BigModeHostView"
              x:DataType="vm:BigModeViewModel"
              helpers:AsyncImageHelper.UseSerialDecode="True">
@@ -52,9 +54,54 @@
     </UserControl.Styles>
 
     <Grid>
-        <!-- The theme is being loaded/replaced here -->
-        <ContentPresenter x:Name="ThemePresenter"
-                          IsVisible="{Binding !IsHomeActive}" />
+        <Border x:Name="ThemeSwapBackdrop" Background="Black"
+                IsVisible="False" IsHitTestVisible="False" />
+        <Grid x:Name="LibraryPresentation" IsVisible="{Binding !IsHomeActive}">
+            <!-- The theme is being loaded/replaced here -->
+            <ContentPresenter x:Name="ThemePresenter" />
+
+            <!-- A structural browser belongs to the host when a theme only presents
+                 media (or uses the legacy contract). It shares the canonical cursor. -->
+            <Border x:Name="LibraryNavigation" IsVisible="{Binding ShowHostNavigation}"
+                    Width="330" HorizontalAlignment="Left" VerticalAlignment="Center"
+                    Margin="26,72,0,72" Padding="18" Background="#EE121722"
+                    BorderBrush="#607BA3FF" BorderThickness="1" CornerRadius="14">
+                <Grid RowDefinitions="Auto,*,Auto,Auto" MaxHeight="700">
+                    <TextBlock Text="{Binding CategoryTitle}" FontSize="22" Foreground="White"
+                               FontWeight="Bold" Margin="0,0,0,16" TextWrapping="Wrap" />
+                    <ListBox x:Name="HostLibraryList" Grid.Row="1" Classes="system-menu"
+                             ItemsSource="{Binding NavigationEntries}"
+                             SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                             Focusable="False" AutoScrollToSelectedItem="True"
+                             DoubleTapped="OnHostLibraryDoubleTapped">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="nav:BigModeNavigationEntry">
+                                <TextBlock Text="{Binding Title}" Foreground="White" TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+                    <StackPanel Grid.Row="2" Margin="0,12,0,0" Spacing="8"
+                                IsVisible="{Binding IsCategorySelectionActive}">
+                        <ext:CrossfadeImage Url="{Binding SelectedCategory.PrimaryCoverAbsolutePath}"
+                                            Height="120" Stretch="Uniform"
+                                            IsVisible="{Binding SelectedCategory.PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                        <TextBlock Text="{Binding SelectedCategory.Description}" MaxHeight="100"
+                                   Foreground="#CED8EA" TextWrapping="Wrap" TextTrimming="CharacterEllipsis" />
+                    </StackPanel>
+                    <Button Grid.Row="3" Content="{Binding HostNavigationActionText}"
+                            Command="{Binding PlayCurrentCommand}" Margin="0,16,0,0"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+                </Grid>
+            </Border>
+            <Border IsVisible="{Binding IsNavigationEmpty}" Background="#EE121722" Padding="26"
+                    CornerRadius="14" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="{Binding EmptyLibraryText}" Foreground="White" FontSize="24" />
+            </Border>
+
+        </Grid>
 
         <!-- Home is host-owned so every opted-in root theme uses one maintained layout. -->
         <views:BigModeHomeView x:Name="HomeView"

@@ -150,6 +150,7 @@ public class AppSettings
     public string? LastSelectedMediaId { get; set; }
 
     // --- Big Mode State ---
+    public BigModeNavigationBookmark? BigModeNavigation { get; set; }
     /// <summary>
     /// The navigation path of nodes that were ENTERED
     /// </summary>

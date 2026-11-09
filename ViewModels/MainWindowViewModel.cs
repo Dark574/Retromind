@@ -22,6 +22,7 @@ using Retromind.Models;
 using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.BigMode;
 using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
@@ -776,39 +777,17 @@ public partial class MainWindowViewModel : ViewModelBase
             }
         }
 
-        if (_currentSettings.LastBigModeNavigationPath is { Count: > 0 } path)
-        {
-            if (!IsBigModePathValid(path, out var pathEndNode, out var currentLevel))
-            {
-                _currentSettings.LastBigModeNavigationPath = null;
-                _currentSettings.LastBigModeSelectedNodeId = null;
-                _currentSettings.LastBigModeWasItemView = false;
-                changed = true;
-            }
-            else
-            {
-                var itemId = _currentSettings.LastBigModeSelectedNodeId;
-
-                if (_currentSettings.LastBigModeWasItemView)
-                {
-                    if (pathEndNode is null || string.IsNullOrWhiteSpace(itemId) ||
-                        !pathEndNode.Items.Any(i => i.Id == itemId))
-                    {
-                        _currentSettings.LastBigModeWasItemView = false;
-                        _currentSettings.LastBigModeSelectedNodeId = pathEndNode?.Id;
-                        changed = true;
-                    }
-                }
-                else if (itemId is { Length: > 0 })
-                {
-                    if (currentLevel.All(n => n.Id != itemId))
-                    {
-                        _currentSettings.LastBigModeSelectedNodeId = null;
-                        changed = true;
-                    }
-                }
-            }
-        }
+        // The canonical bookmark supports both entry kinds at every level.
+        // Normalize with the same rules used when opening BigMode, including old settings.
+        var oldBookmark = System.Text.Json.JsonSerializer.Serialize(_currentSettings.BigModeNavigation);
+        var desktopNode = _currentSettings.LastSelectedNodeId;
+        var desktopItem = _currentSettings.LastSelectedMediaId;
+        var session = new BigModeNavigationSession(RootItems, IsParentalFilterActive);
+        BigModeNavigationPersistence.Restore(session, _currentSettings);
+        BigModeNavigationPersistence.Save(session, _currentSettings);
+        _currentSettings.LastSelectedNodeId = desktopNode;
+        _currentSettings.LastSelectedMediaId = desktopItem;
+        changed |= oldBookmark != System.Text.Json.JsonSerializer.Serialize(_currentSettings.BigModeNavigation);
 
         return changed;
     }
@@ -890,25 +869,6 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         return false;
-    }
-
-    private bool IsBigModePathValid(IReadOnlyList<string> path, out MediaNode? pathEndNode,
-        out ObservableCollection<MediaNode> currentLevel)
-    {
-        pathEndNode = null;
-        currentLevel = RootItems;
-
-        foreach (var nodeId in path)
-        {
-            var next = currentLevel.FirstOrDefault(n => n.Id == nodeId);
-            if (next == null)
-                return false;
-
-            pathEndNode = next;
-            currentLevel = next.Children;
-        }
-
-        return true;
     }
 
     // Helper to make UpdateContent awaitable (wraps the background task in an awaitable Task).

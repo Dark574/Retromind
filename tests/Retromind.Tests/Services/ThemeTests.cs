@@ -177,7 +177,7 @@ public sealed class ThemeTests
     }
 
     [Fact]
-    public void PrismTheme_CarouselsBufferItemsBeyondTheirViewports()
+    public void PrismTheme_MixedCarouselBuffersItemsBeyondItsViewport()
     {
         var filePath = Path.Combine(AppContext.BaseDirectory, "Themes", "Prism", "theme.axaml");
         var root = XDocument.Load(filePath).Root;
@@ -187,7 +187,7 @@ public sealed class ThemeTests
             .ToList();
 
         Assert.NotNull(carouselPanels);
-        Assert.Equal(2, carouselPanels.Count);
+        Assert.Single(carouselPanels);
         Assert.All(
             carouselPanels,
             panel => Assert.Equal("0.5", panel.Attribute("CacheLength")?.Value));

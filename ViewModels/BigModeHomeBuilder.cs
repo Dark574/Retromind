@@ -102,16 +102,13 @@ public static class BigModeHomeBuilder
         IEnumerable<MediaNode> nodes,
         bool parentalFilterActive)
     {
-        foreach (var node in nodes)
+        var pending = new Stack<MediaNode>(nodes.Reverse());
+        while (pending.TryPop(out var node))
         {
             foreach (var item in node.Items)
-            {
                 if (BigModeVisibilityPolicy.IsItemVisible(item, parentalFilterActive))
                     yield return (item, node);
-            }
-
-            foreach (var entry in EnumerateItems(node.Children, parentalFilterActive))
-                yield return entry;
+            for (var i = node.Children.Count - 1; i >= 0; i--) pending.Push(node.Children[i]);
         }
     }
 

@@ -19,6 +19,7 @@ internal sealed class BigModeLibrarySnapshot
         public List<NodeInfo> Children { get; } = [];
         public List<MediaInfo> Items { get; } = [];
         public bool Visible { get; set; }
+        public int VisibleMediaCount { get; set; }
     }
 
     internal sealed record MediaInfo(string Id, MediaItem Item, NodeInfo Owner, bool Visible);
@@ -65,6 +66,7 @@ internal sealed class BigModeLibrarySnapshot
         for (var i = ordered.Count - 1; i >= 0; i--)
         {
             var info = ordered[i];
+            info.VisibleMediaCount = info.Items.Count(item => item.Visible) + info.Children.Sum(child => child.VisibleMediaCount);
             info.Visible = Visibility.IsDirectlyVisible(
                 info.Children.Count == 0 && info.Items.Count == 0,
                 info.Items.Any(item => item.Visible)) || info.Children.Any(child => child.Visible);

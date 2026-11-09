@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using LibVLCSharp.Shared;
 using Retromind.Helpers;
+using Retromind.Services.BigMode;
 using Retromind.Helpers.Video;
 using Retromind.Models;
 
@@ -289,6 +290,7 @@ public partial class BigModeViewModel
     // ReSharper disable once UnusedMember.Local
     partial void OnThemeContextNodeChanged(MediaNode? value)
     {
+        if (_synchronizingNavigation) return;
         _ = value;
         
         CancelPreviewDebounce();
@@ -308,9 +310,15 @@ public partial class BigModeViewModel
         TriggerPreviewPlaybackWithDebounce();
     }
 
-    partial void OnSelectedItemChanged(MediaItem? value)
+    private void OnSelectedItemChanged(MediaItem? value)
     {
-        SelectedItemIndex = SelectionIndexHelper.Resolve(Items, value, SelectedItemIndex);
+        if (_synchronizingNavigation) return;
+        if (!IsHomeActive && _navigation != null)
+        {
+            if (value != null) _navigation.TrySelect(new BigModeNavigationKey(BigModeNavigationEntryKind.MediaItem, value.Id));
+            return;
+        }
+        SelectedItemIndex = IsHomeActive ? -1 : SelectionIndexHelper.Resolve(Items, value, SelectedItemIndex);
 
         // Stop preview only when the target video actually changes.
         var targetVideoPath = ResolvePreviewVideoPath();
@@ -339,9 +347,15 @@ public partial class BigModeViewModel
         TriggerPreviewPlaybackWithDebounce();
     }
 
-    partial void OnSelectedCategoryChanged(MediaNode? value)
+    private void OnSelectedCategoryChanged(MediaNode? value)
     {
-        SelectedCategoryIndex = SelectionIndexHelper.Resolve(CurrentCategories, value, SelectedCategoryIndex);
+        if (_synchronizingNavigation) return;
+        if (!IsHomeActive && _navigation != null)
+        {
+            if (value != null) _navigation.TrySelect(new BigModeNavigationKey(BigModeNavigationEntryKind.Node, value.Id));
+            return;
+        }
+        SelectedCategoryIndex = IsHomeActive ? -1 : SelectionIndexHelper.Resolve(CurrentCategories, value, SelectedCategoryIndex);
 
         UpdateWheelCategories();
 
@@ -355,6 +369,7 @@ public partial class BigModeViewModel
     
     partial void OnIsGameListActiveChanged(bool value)
     {
+        if (_synchronizingNavigation) return;
         _ = value;
         CancelPreviewDebounce();
 

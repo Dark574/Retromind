@@ -160,6 +160,7 @@
     <data name="BigMode_MainMenu" xml:space="preserve"><value>Hauptmenü</value></data>
     <data name="BigMode.Home.Title" xml:space="preserve"><value>Start</value></data>
     <data name="BigMode.Home.Hint" xml:space="preserve"><value>{0} / {1} · Bibliothek    {2} / {3} · Öffnen</value></data>
+    <data name="BigMode.Empty" xml:space="preserve"><value>Keine sichtbaren Einträge</value></data>
     <data name="BigMode.Home.Library.Back" xml:space="preserve"><value>Zurück</value></data>
     <data name="BigMode.Home.Library.Open" xml:space="preserve"><value>Öffnen</value></data>
     <data name="BigMode.Home.Library.Overview" xml:space="preserve"><value>Bibliotheksübersicht</value></data>

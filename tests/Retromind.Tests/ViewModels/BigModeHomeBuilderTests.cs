@@ -33,7 +33,8 @@ public sealed class BigModeHomeBuilderTests
         Assert.Same(newer, sections[0].Entries[0].Item);
         Assert.Same(games, sections[0].Entries[0].SourceNode);
         Assert.Same(olderFavorite, Assert.Single(sections[1].Entries).Item);
-        Assert.Same(games, Assert.Single(sections[2].Entries).Node);
+        Assert.Same(games, sections[2].Entries[0].Node);
+        Assert.Equal([olderFavorite, newer], sections[2].Entries.Skip(1).Select(entry => entry.Item));
     }
 
     [Fact]
@@ -118,7 +119,8 @@ public sealed class BigModeHomeBuilderTests
         Assert.True(sections[1].MovePage(-1, selectLastEntry: true));
         Assert.Equal("3/3", sections[1].PageIndicator);
         Assert.Equal("Game 0", sections[1].SelectedEntry?.Title);
-        Assert.Single(sections[2].Entries);
+        Assert.Equal(6, sections[2].Entries.Count);
+        Assert.Equal(root.Items, sections[2].Entries.Skip(1).Select(entry => entry.Item));
     }
 
     [Fact]
@@ -198,7 +200,9 @@ public sealed class BigModeHomeBuilderTests
         Assert.Equal(
             [BigModeHomeEntryKind.LibraryCurrent, BigModeHomeEntryKind.LibraryChild, BigModeHomeEntryKind.LibraryBack],
             entries.Select(entry => entry.Kind));
-        Assert.False(navigator.DrillInto(playStation));
+        Assert.True(navigator.DrillInto(playStation));
+        Assert.Same(playStation, navigator.CurrentNode);
+        Assert.True(navigator.GoBack());
 
         Assert.True(navigator.GoBack());
         Assert.Same(library, navigator.CurrentNode);

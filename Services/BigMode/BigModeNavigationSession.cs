@@ -7,7 +7,7 @@ namespace Retromind.Services.BigMode;
 /// <summary>
 /// Theme-independent navigation over a validated library snapshot. Calls must be
 /// serialized by the consumer. Refresh after topology, identity or protection edits;
-/// ordinary selection/navigation never rescans the tree. Not wired into BigMode yet.
+/// ordinary selection/navigation never rescans the tree.
 /// </summary>
 public sealed class BigModeNavigationSession
 {
@@ -28,6 +28,10 @@ public sealed class BigModeNavigationSession
 
     public BigModeNavigationFrame Current => _frames[^1];
     public bool CanGoBack => _frames.Count > 1;
+    public int Depth => _frames.Count - 1;
+    public int GetVisibleMediaCount(MediaNode node) =>
+        _snapshot.TryGetNode(node.Id, out var info) ? info.VisibleMediaCount : 0;
+    public IReadOnlyList<MediaNode> EnteredNodes => _frames.GetRange(1, Depth).ConvertAll(frame => frame.OpenedNode!);
     public bool ParentalFilterActive => _snapshot.Visibility.ParentalFilterActive;
     public long LibraryVersion { get; private set; } = 1;
     public long Revision { get; private set; }

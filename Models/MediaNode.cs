@@ -39,7 +39,8 @@ public partial class MediaNode : ObservableObject
     /// <summary>
     /// Unique identifier for state persistence (e.g., remembering selection).
     /// </summary>
-    public string Id { get; set; } = Guid.NewGuid().ToString();
+    private string _id = Guid.NewGuid().ToString();
+    public string Id { get => _id; set => SetProperty(ref _id, value); }
 
     /// <summary>
     /// Display name of the node.
@@ -250,12 +251,22 @@ public partial class MediaNode : ObservableObject
     /// <summary>
     /// Sub-folders / Child nodes.
     /// </summary>
-    public ObservableCollection<MediaNode> Children { get; set; } = new();
+    private ObservableCollection<MediaNode> _children = new();
+    public ObservableCollection<MediaNode> Children
+    {
+        get => _children;
+        set => SetProperty(ref _children, value);
+    }
 
     /// <summary>
     /// Media items directly contained in this node.
     /// </summary>
-    public ObservableCollection<MediaItem> Items { get; set; } = new();
+    private ObservableCollection<MediaItem> _items = new();
+    public ObservableCollection<MediaItem> Items
+    {
+        get => _items;
+        set => SetProperty(ref _items, value);
+    }
 
     // --- Constructors ---
 

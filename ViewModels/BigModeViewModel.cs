@@ -43,11 +43,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     // --- Navigation state ---
     private readonly ObservableCollection<MediaNode> _rootNodes;
-    private readonly bool _parentalFilterActive;
-    private readonly Stack<ObservableCollection<MediaNode>> _navigationStack = new();
-    private readonly Stack<string> _titleStack = new();
-    private readonly Stack<MediaNode> _navigationPath = new();
-    private readonly Dictionary<string, string> _lastSelectedItemIdByNodeId = new();
+    private bool _parentalFilterActive;
 
     private bool _isLaunching;
     private bool _isCloseRequestInProgress;
@@ -68,9 +64,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private readonly Dictionary<string, string?> _itemVideoPathCache = new();
     private readonly Dictionary<string, string?> _nodeVideoPathCache = new();
 
-    // Tracks last items list so we can clear node fallback overrides when switching.
-    private ObservableCollection<MediaItem>? _lastItemsForNodeFallback;
-
     // --- Index helpers ---
     [ObservableProperty]
     private int _selectedItemIndex = -1;
@@ -85,12 +78,25 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private MediaNode? _themeContextNode;
 
     [ObservableProperty]
-    private ObservableCollection<MediaNode> _currentCategories;
+    private ObservableCollection<MediaNode> _currentCategories = new();
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ActiveCategoryLogoPath))]
-    [NotifyPropertyChangedFor(nameof(ActiveCategoryWallpaperPath))]
     private MediaNode? _selectedCategory;
+    public MediaNode? SelectedCategory
+    {
+        get => _selectedCategory;
+        set
+        {
+            if (!_synchronizingNavigation && !IsHomeActive && _navigation != null)
+            {
+                if (value != null) _navigation.TrySelect(new BigModeNavigationKey(BigModeNavigationEntryKind.Node, value.Id));
+                return;
+            }
+            if (!SetProperty(ref _selectedCategory, value)) return;
+            OnSelectedCategoryChanged(value);
+            OnPropertyChanged(nameof(ActiveCategoryLogoPath));
+            OnPropertyChanged(nameof(ActiveCategoryWallpaperPath));
+        }
+    }
 
     [ObservableProperty]
     private MediaNode? _currentNode;
@@ -177,6 +183,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _usesCircularItems = false;
         _usesWheelItems = false;
         _usesWheelCategories = false;
+        _usesWheelEntries = false;
     }
 
     public int CircularWindowSize
@@ -193,6 +200,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
                 UpdateCircularItems();
                 UpdateWheelItems();
                 UpdateWheelCategories();
+                UpdateNavigationWheel();
             }
         }
     }
@@ -208,10 +216,23 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
     }
 
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ActiveMarqueePath))]
-    [NotifyPropertyChangedFor(nameof(ActiveControlPanelPath))]
     private MediaItem? _selectedItem;
+    public MediaItem? SelectedItem
+    {
+        get => _selectedItem;
+        set
+        {
+            if (!_synchronizingNavigation && !IsHomeActive && _navigation != null)
+            {
+                if (value != null) _navigation.TrySelect(new BigModeNavigationKey(BigModeNavigationEntryKind.MediaItem, value.Id));
+                return;
+            }
+            if (!SetProperty(ref _selectedItem, value)) return;
+            OnSelectedItemChanged(value);
+            OnPropertyChanged(nameof(ActiveMarqueePath));
+            OnPropertyChanged(nameof(ActiveControlPanelPath));
+        }
+    }
 
     // --- Video UI flags (theme bindings) ---
     [ObservableProperty]
@@ -548,9 +569,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         InitializeRetroAchievementsOverlay();
         InitializeSystemMenu();
 
-        // Start at root categories.
-        CurrentCategories = BuildVisibleCategories(_rootNodes);
-
         // Root = no node context -> default/root theme selection logic
         ThemeContextNode = null;
 
@@ -649,10 +667,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _gamepadService.OnPreviousPage += OnGamepadPreviousPage;
         _gamepadService.OnNextPage += OnGamepadNextPage;
 
-        if (CurrentCategories.Count > 0)
-        {
-            RestoreLastState();
-        }
+        InitializeNavigation();
 
         InitializeHome(startOnHome);
         
@@ -665,32 +680,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         
         // Start attract-mode timer (if configured by the theme)
         InitializeAttractModeTimer();
-    }
-
-    private ObservableCollection<MediaNode> BuildVisibleCategories(IEnumerable<MediaNode> source)
-    {
-        if (!_parentalFilterActive)
-            return new ObservableCollection<MediaNode>(source);
-
-        var list = new List<MediaNode>();
-        foreach (var node in source)
-        {
-            if (ShouldShowNode(node))
-                list.Add(node);
-        }
-
-        return new ObservableCollection<MediaNode>(list);
-    }
-
-    private ObservableCollection<MediaItem> BuildVisibleItems(MediaNode node)
-    {
-        var visibleItems = !_parentalFilterActive
-            ? node.Items
-            : new ObservableCollection<MediaItem>(
-                node.Items.Where(item => BigModeVisibilityPolicy.IsItemVisible(item, _parentalFilterActive)));
-
-        ApplyRandomizedMedia(node, visibleItems);
-        return visibleItems;
     }
 
     private void ApplyRandomizedMedia(
@@ -709,18 +698,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private bool IsRandomizeMediaActive(MediaNode targetNode)
     {
-        // Die Einstellung wird vom nächstgelegenen übergeordneten
-        // Ordner geerbt, sofern sie dort nicht explizit gesetzt ist.
-        var chain = PathHelper.GetNodeChain(
-            targetNode,
-            _rootNodes,
-            matchById: true);
-
-        chain.Reverse();
-
-        return chain
-            .FirstOrDefault(node => node.RandomizeCovers.HasValue)?
-            .RandomizeCovers ?? false;
+        // The opened-node path is already indexed by the navigation session.
+        var nodes = _navigation.EnteredNodes;
+        for (var i = nodes.Count - 1; i >= 0; i--)
+            if (nodes[i].RandomizeCovers is { } enabled) return enabled;
+        return false;
     }
 
     private static void ApplyRandomizedAsset(
@@ -748,9 +730,6 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         if (selected != null)
             item.SetActiveAsset(type, selected.RelativePath);
     }
-
-    private bool ShouldShowNode(MediaNode node)
-        => BigModeVisibilityPolicy.IsNodeVisible(node, _parentalFilterActive);
 
     private MediaPlayer CreateMediaPlayerForSurface(LibVlcVideoSurface surface, int index)
     {
@@ -1047,7 +1026,8 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     {
         _theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
         ResetThemeWindowUsage();
-
+        OnPropertyChanged(nameof(NavigationPresentation));
+        OnPropertyChanged(nameof(ShowHostNavigation));
 
         // When a new theme view is loaded, the VideoView attachment state becomes invalid
         // Wait for the next NotifyViewReady() call before starting preview playback

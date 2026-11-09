@@ -30,32 +30,10 @@ public partial class BigModeViewModel
 
     private bool NavigateLibraryPage(int direction)
     {
-        if (IsGameListActive)
-        {
-            var targetIndex = BigModePageNavigationHelper.GetTargetIndex(
-                SelectedItemIndex,
-                Items.Count,
-                LibraryPageSize,
-                direction);
-            if (targetIndex < 0 || targetIndex == SelectedItemIndex)
-                return false;
-
-            SelectedItemIndex = targetIndex;
-            SelectedItem = Items[targetIndex];
-            return true;
-        }
-
-        var categoryTargetIndex = BigModePageNavigationHelper.GetTargetIndex(
-            SelectedCategoryIndex,
-            CurrentCategories.Count,
-            LibraryPageSize,
-            direction);
-        if (categoryTargetIndex < 0 || categoryTargetIndex == SelectedCategoryIndex)
-            return false;
-
-        SelectedCategoryIndex = categoryTargetIndex;
-        SelectedCategory = CurrentCategories[categoryTargetIndex];
-        return true;
+        FlushNavigationChanges();
+        var target = BigModePageNavigationHelper.GetTargetIndex(
+            _navigation.Current.SelectedIndex, _navigation.Current.Entries.Count, LibraryPageSize, direction);
+        return target >= 0 && target != _navigation.Current.SelectedIndex && _navigation.TrySelect(target);
     }
 
     private bool NavigateAchievementPage(int direction)

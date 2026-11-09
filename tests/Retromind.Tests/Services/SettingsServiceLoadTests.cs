@@ -166,6 +166,7 @@ public sealed class SettingsServiceLoadTests
     [Theory]
     [InlineData("{\"SavedSearchTerms\":null}", "$.SavedSearchTerms")]
     [InlineData("{\"LastBigModeNavigationPath\":[null]}", "$.LastBigModeNavigationPath[0]")]
+    [InlineData("{\"BigModeNavigation\":{\"EnteredNodeIds\":[null]}}", "$.BigModeNavigation.EnteredNodeIds[0]")]
     [InlineData("{\"ControllerBindings\":null}", "$.ControllerBindings")]
     [InlineData("{\"KeyboardBindings\":null}", "$.KeyboardBindings")]
     [InlineData("{\"ScraperImport\":null}", "$.ScraperImport")]

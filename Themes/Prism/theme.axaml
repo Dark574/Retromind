@@ -12,6 +12,7 @@
              ext:ThemeProperties.Author="Retromind"
              ext:ThemeProperties.Version="0.3.2"
              ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="MixedEntries"
              ext:ThemeProperties.AccentColor="#62E6FF"
              ext:ThemeProperties.DynamicAccentEnabled="True"
              ext:ThemeProperties.DynamicAccentTransitionMs="400"
@@ -589,10 +590,9 @@
             <Rectangle Fill="{StaticResource BottomFade}" />
 
             <ListBox Classes="prism-carousel"
-                     ItemsSource="{Binding Items}"
-                     SelectedItem="{Binding SelectedItem}"
-                     SelectedIndex="{Binding SelectedItemIndex, Mode=OneWayToSource}"
-                     IsVisible="{Binding IsGameListActive}"
+                     ItemsSource="{Binding NavigationEntries}"
+                     SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                     SelectedIndex="{Binding SelectedEntryIndex, Mode=OneWay}"
                      Background="Transparent"
                      BorderThickness="0"
                      Padding="0,8,0,14"
@@ -645,6 +645,10 @@
                                                                       Path=(ext:ThemeProperties.DynamicAccentColor),
                                                                       Converter={StaticResource AccentFaintBrushConverter}}"
                                                        IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                            <Image helpers:AsyncImageHelper.Url="{Binding LogoPath}"
+                                                   helpers:AsyncImageHelper.DecodeWidth="320"
+                                                   Stretch="Uniform" Margin="16"
+                                                   IsVisible="{Binding HasNodeLogoFallback}" />
                                             <TextBlock Text="{Binding Title}"
                                                        Foreground="White"
                                                        FontSize="14"
@@ -653,96 +657,12 @@
                                                        TextWrapping="Wrap"
                                                        Margin="12"
                                                        VerticalAlignment="Center"
-                                                       IsVisible="{Binding PrimaryCoverPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                                                       IsVisible="{Binding ShowCoverTitle}" />
                                         </Grid>
                                     </Border>
                                 </Border>
 
                                 <TextBlock Text="{Binding Title}"
-                                           Foreground="White"
-                                           FontSize="12"
-                                           FontWeight="SemiBold"
-                                           TextAlignment="Center"
-                                           TextTrimming="CharacterEllipsis"
-                                           Width="{StaticResource CoverWidth}"
-                                           IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ListBox.ItemTemplate>
-            </ListBox>
-
-            <ListBox Classes="prism-carousel"
-                     ItemsSource="{Binding CurrentCategories}"
-                     SelectedItem="{Binding SelectedCategory}"
-                     SelectedIndex="{Binding SelectedCategoryIndex, Mode=OneWayToSource}"
-                     IsVisible="{Binding IsCategorySelectionActive}"
-                     Background="Transparent"
-                     BorderThickness="0"
-                     Padding="0,8,0,14"
-                     ClipToBounds="False"
-                     ScrollViewer.HorizontalScrollBarVisibility="Hidden"
-                     ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                     helpers:ListBoxBehaviors.CenterSelectedItemHorizontally="True"
-                     helpers:ListBoxBehaviors.HorizontalCenterAnimationDurationMs="110"
-                     ext:ThemeProperties.UseHostSelectionEffects="False">
-                <ListBox.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <VirtualizingStackPanel Orientation="Horizontal"
-                                                CacheLength="0.5" />
-                    </ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-
-                <ListBox.ItemTemplate>
-                    <DataTemplate>
-                        <Border HorizontalAlignment="Center"
-                                VerticalAlignment="Center"
-                                RenderTransformOrigin="50%,50%">
-                            <Border.RenderTransform>
-                                <ScaleTransform ScaleX="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}"
-                                                ScaleY="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardScaleConverter}}" />
-                            </Border.RenderTransform>
-
-                            <StackPanel Spacing="8" HorizontalAlignment="Center">
-                                <Border Width="{StaticResource CoverWidth}"
-                                        Height="{StaticResource CoverHeight}"
-                                        CornerRadius="{StaticResource CoverRadius}"
-                                        BorderBrush="#55FFFFFF"
-                                        BorderThickness="1"
-                                        Background="#E90C101C">
-                                    <Border.BoxShadow>
-                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.SelectedCoverGlow}">
-                                            <Binding RelativeSource="{RelativeSource AncestorType=ListBoxItem}" Path="IsSelected" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowOpacity)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.SelectedGlowRadius)" />
-                                            <Binding RelativeSource="{RelativeSource AncestorType=UserControl}" Path="(ext:ThemeProperties.DynamicAccentColor)" />
-                                        </MultiBinding>
-                                    </Border.BoxShadow>
-                                    <Border CornerRadius="{StaticResource CoverRadius}" ClipToBounds="True">
-                                        <Grid>
-                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryCoverAbsolutePath}"
-                                                   helpers:AsyncImageHelper.DecodeWidth="360"
-                                                   Stretch="UniformToFill"
-                                                   IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
-                                            <Image helpers:AsyncImageHelper.Url="{Binding PrimaryLogoAbsolutePath}"
-                                                   helpers:AsyncImageHelper.DecodeWidth="320"
-                                                   Stretch="Uniform"
-                                                   Margin="16"
-                                                   IsVisible="{Binding PrimaryCoverAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
-                                            <TextBlock Text="{Binding Name}"
-                                                       Foreground="White"
-                                                       FontSize="14"
-                                                       FontWeight="SemiBold"
-                                                       TextAlignment="Center"
-                                                       TextWrapping="Wrap"
-                                                       Margin="12"
-                                                       VerticalAlignment="Center"
-                                                       IsVisible="{Binding PrimaryLogoAbsolutePath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
-                                        </Grid>
-                                    </Border>
-                                </Border>
-
-                                <TextBlock Text="{Binding Name}"
                                            Foreground="White"
                                            FontSize="12"
                                            FontWeight="SemiBold"

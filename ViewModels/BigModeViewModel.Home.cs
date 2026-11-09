@@ -11,18 +11,13 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.BigMode;
 
 namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
-    private sealed record LibraryViewState(
-        bool IsGameListActive,
-        MediaItem? SelectedItem,
-        int SelectedItemIndex,
-        MediaNode? ThemeContextNode);
-
-    private LibraryViewState? _libraryViewStateBeforeHome;
+    private BigModeNavigationState? _libraryViewStateBeforeHome;
     private bool _updatingHomeSelection;
     private int _homeTransitionGeneration;
 
@@ -173,32 +168,16 @@ public partial class BigModeViewModel
         if (_libraryViewStateBeforeHome != null)
             return;
 
-        _libraryViewStateBeforeHome = new LibraryViewState(
-            IsGameListActive,
-            SelectedItem,
-            SelectedItemIndex,
-            ThemeContextNode);
+        FlushNavigationChanges();
+        _libraryViewStateBeforeHome = _navigation.CaptureState();
     }
 
     private void RestoreLibraryViewState()
     {
-        var state = _libraryViewStateBeforeHome;
-        if (state == null)
-        {
-            IsHomeActive = false;
-            return;
-        }
-
-        // Restore the hidden library state while Home is still active. This
-        // prevents ThemeContextNode from needlessly recalculating fallbacks for
-        // every item in a large node; those overrides never changed on Home.
-        ThemeContextNode = state.ThemeContextNode;
-        IsGameListActive = state.IsGameListActive;
-        SelectedItem = state.SelectedItem;
-        SelectedItemIndex = state.SelectedItemIndex;
+        if (_libraryViewStateBeforeHome is { } state) _navigation.RestoreState(state);
         _libraryViewStateBeforeHome = null;
         IsHomeActive = false;
-        NotifyHomeSelectionPropertiesChanged();
+        SynchronizeNavigation();
     }
 
     private void OnHomeSectionSelectionChanged(
@@ -231,6 +210,8 @@ public partial class BigModeViewModel
     private void ApplyHomeEntry(BigModeHomeEntryViewModel? entry)
     {
         SelectedHomeEntry = entry;
+        SelectedCategory = entry?.Node;
+        SelectedCategoryIndex = -1;
 
         if (entry?.Item != null)
         {
@@ -250,6 +231,11 @@ public partial class BigModeViewModel
 
     private void NotifyHomeSelectionPropertiesChanged()
     {
+        OnPropertyChanged(nameof(ShowHostNavigation));
+        OnPropertyChanged(nameof(IsNavigationEmpty));
+        OnPropertyChanged(nameof(SystemMediaArtworkPath));
+        OnPropertyChanged(nameof(SelectedYear));
+        OnPropertyChanged(nameof(SelectedDeveloper));
         OnPropertyChanged(nameof(ActiveCategoryLogoPath));
         OnPropertyChanged(nameof(ActiveCategoryWallpaperPath));
         OnPropertyChanged(nameof(ActiveLogoPath));
@@ -364,7 +350,7 @@ public partial class BigModeViewModel
         var changed = entry.Kind switch
         {
             BigModeHomeEntryKind.LibraryBack => navigator.GoBack(),
-            BigModeHomeEntryKind.LibraryChild when entry.Node != null && entry.HasChildren =>
+            BigModeHomeEntryKind.LibraryChild when entry.Node != null =>
                 navigator.DrillInto(entry.Node),
             _ => false
         };
@@ -401,22 +387,10 @@ public partial class BigModeViewModel
     private MediaNode? GetActiveItemSourceNode() =>
         IsHomeActive ? SelectedHomeEntry?.SourceNode : ThemeContextNode ?? CurrentNode;
 
-    private async Task OpenHomeLibraryNodeAsync(MediaNode node)
+    private Task OpenHomeLibraryNodeAsync(MediaNode node)
     {
-        RememberCurrentItemSelection();
-        ResetToRootState();
-
-        if (!TryBuildNavigationPathFromNodeId(node.Id, out var path))
-            return;
-
-        foreach (var nodeId in path)
-        {
-            var next = CurrentCategories.FirstOrDefault(candidate => candidate.Id == nodeId);
-            if (next == null)
-                return;
-
-            SelectedCategory = next;
-            await PlayCurrent();
-        }
+        FlushNavigationChanges();
+        _navigation.TryOpenNode(new(BigModeNavigationEntryKind.Node, node.Id));
+        return Task.CompletedTask;
     }
 }
