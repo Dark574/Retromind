@@ -26,4 +26,11 @@
         <Using Include="Xunit" />
     </ItemGroup>
 
+    <ItemGroup>
+        <None Include="../../build/build-appimage.sh;../../build/cache-appimage-tool.sh;../../build/update-appimage-environment.sh;../../build/configure-bookworm-snapshot.sh;../../build/upgrade-bookworm-packages.sh;../../build/legendary-version.env;../../build/comet-version.env;../../build/appimage-environment.env;../../build/buildkitd.appimage.toml">
+            <Link>AppImageBuildFixtures/%(Filename)%(Extension)</Link>
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+        </None>
+    </ItemGroup>
+
 </Project>

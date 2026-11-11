@@ -45,9 +45,10 @@ jobs:
       - name: Run tests
         run: dotnet test tests/Retromind.Tests/Retromind.Tests.csproj --configuration Release --no-build --no-restore
 
-      - name: Check AppImage environment scripts
+      - name: Check AppImage shell syntax
         run: |
+          sh -n build/build-appimage.sh
+          sh -n build/cache-appimage-tool.sh
           sh -n build/configure-bookworm-snapshot.sh
           sh -n build/upgrade-bookworm-packages.sh
           sh -n build/update-appimage-environment.sh
-          python3 -B -m unittest discover -s build/tests -v

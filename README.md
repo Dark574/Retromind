@@ -262,7 +262,11 @@ CVE-2026-109518 in older base images. A shared upgrade gate requires both `apt` 
 The disposable update container bootstraps HTTPS using the host CA bundle. Regular Docker builds copy the CA
 bundle from the already pinned Rust base image into minimal Debian stages, preserving locked build inputs without
 an initial HTTP package install or disabled TLS verification. All three package-installing AppImage stages use
-the same upgrade gate. Offline regression tests run with `python3 -B -m unittest discover -s build/tests -v`.
+the same upgrade gate. Offline regression tests are part of the C#/xUnit suite in
+`tests/Retromind.Tests/Build`. After building the Release test project, run only these checks with
+`dotnet test tests/Retromind.Tests/Retromind.Tests.csproj --configuration Release --no-build --no-restore --filter 'FullyQualifiedName~Retromind.Tests.Build.AppImage'`.
+They require Linux, standard shell utilities (including `setsid`) and `jq`; downloads, package management and
+Docker commands are replaced by local test doubles, so no actual AppImage build or network access is involved.
 If any step fails, the old lock remains in place. Review and commit the lock change only after testing the resulting
 AppImage. A tested AppImage is then the release artifact; the release process must upload that exact file rather
 than rebuilding it.

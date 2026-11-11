@@ -1631,8 +1631,12 @@ immutable Rust image in regular builds and a read-only host CA-bundle input copi
 container. No HTTP bootstrap or disabled TLS/signature verification is used; only snapshot `Valid-Until` expiry
 is disabled. Older locks without the APT fix deliberately stop at the version gate instead of silently building.
 These controls protect build-time package acquisition; they do not update the host OS or already released images.
-Offline shell behavior and lock-publication failure paths are tested with Python's standard-library `unittest`
-and command doubles in `build/tests`, including in CI. Real container validation remains part of environment updates.
+Offline shell behavior, lock-publication failure paths and packaging-tool cache safety are tested with C#/xUnit
+and command doubles in `tests/Retromind.Tests/Build`, including in the normal CI test run. The test project copies
+the required production build scripts and pinned configuration into its output as `AppImageBuildFixtures`.
+Tests run these scripts under Linux in isolated temporary directories, with per-process environments, fake
+downloads and fake Docker/package commands. Standard shell utilities (including `setsid` for process-group
+interruption tests) and `jq` are required. Real container validation remains part of environment updates.
 
 ## Automated tests
 

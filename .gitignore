@@ -37,7 +37,7 @@ build-appimage.log
 build-appimage.debug.log
 docker-build.log
 
-# Python build-script regression tests
+# Python tooling caches
 __pycache__/
 
 # Local dependency and update-planning inventory
