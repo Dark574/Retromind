@@ -1,0 +1,254 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:nav="clr-namespace:Retromind.Services.BigMode;assembly=Retromind"
+             xmlns:helpers="clr-namespace:Retromind.Helpers;assembly=Retromind"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             x:DataType="vm:BigModeViewModel"
+             x:Name="ThemeRoot"
+             Background="#090B0E"
+             ext:ThemeProperties.Name="Cinematic"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.2"
+             ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.NavigationPresentation="MixedEntries"
+             ext:ThemeProperties.AccentColor="#EAC892"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.SecondaryVideoEnabled="False"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.VideoCornerRadius="0"
+             ext:ThemeProperties.VideoFadeDurationMs="600"
+             ext:ThemeProperties.VideoRetainPreviousFrameDuringFade="False"
+             ext:ThemeProperties.FadeDurationMs="240"
+             ext:ThemeProperties.MoveDurationMs="200"
+             ext:ThemeProperties.PrimaryVisualElementName="IdentityPanel"
+             ext:ThemeProperties.PrimaryVisualEnterMode="Fade"
+             ext:ThemeProperties.BackgroundVisualElementName="BackgroundVisual"
+             ext:ThemeProperties.BackgroundVisualEnterMode="None"
+             ext:ThemeProperties.AttractModeEnabled="True"
+             ext:ThemeProperties.AttractModeIdleSeconds="75"
+             ext:ThemeProperties.ProvidesSystemMenuHint="True">
+
+    <UserControl.Resources>
+        <helpers:BoolToOpacityConverter x:Key="CardOpacity" TrueOpacity="1" FalseOpacity="0.64" />
+        <SolidColorBrush x:Key="Accent" Color="#EAC892" />
+        <SolidColorBrush x:Key="MutedText" Color="#CCD0D5" />
+        <LinearGradientBrush x:Key="EmptyBackdrop" StartPoint="0%,0%" EndPoint="100%,100%">
+            <GradientStop Color="#25272B" Offset="0" />
+            <GradientStop Color="#151D26" Offset="0.6" />
+            <GradientStop Color="#090B0E" Offset="1" />
+        </LinearGradientBrush>
+        <LinearGradientBrush x:Key="IdentityShade" StartPoint="0%,0%" EndPoint="100%,0%">
+            <GradientStop Color="#A0090B0E" Offset="0" />
+            <GradientStop Color="#50090B0E" Offset="0.65" />
+            <GradientStop Color="#00090B0E" Offset="1" />
+        </LinearGradientBrush>
+        <!-- RelativePoint without '%' means absolute pixels in Avalonia. A one-pixel
+             gradient ending in opaque black previously hid both wallpaper and video. -->
+        <LinearGradientBrush x:Key="HeroBottomShade" StartPoint="0%,0%" EndPoint="0%,100%">
+            <GradientStop Color="#00090B0E" Offset="0" />
+            <GradientStop Color="#00090B0E" Offset="0.40" />
+            <GradientStop Color="#50090B0E" Offset="0.60" />
+            <GradientStop Color="#B8090B0E" Offset="0.79" />
+            <GradientStop Color="#ED090B0E" Offset="1" />
+        </LinearGradientBrush>
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.cinematic-shelf ListBoxItem">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="12,16" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+        </Style>
+        <Style Selector="ListBox.cinematic-shelf ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.cinematic-shelf ListBoxItem:selected">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.cinematic-shelf ListBoxItem Border.cover-frame">
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <BrushTransition Property="BorderBrush" Duration="0:0:0.18" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ListBox.cinematic-shelf ListBoxItem:selected Border.cover-frame">
+            <Setter Property="BorderBrush" Value="{StaticResource Accent}" />
+        </Style>
+        <Style Selector="Button.cinematic-action">
+            <Setter Property="Background" Value="#EAC892" />
+            <Setter Property="Foreground" Value="#141414" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="5" />
+            <Setter Property="Padding" Value="24,10" />
+            <Setter Property="FontSize" Value="22" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- Wallpaper fills the actual viewport. Reading gradients sit below the QHD
+         foreground stage so they cannot darken its floating video preview. -->
+    <Grid x:Name="CinematicScene" ClipToBounds="True" Background="{StaticResource EmptyBackdrop}">
+        <Grid x:Name="BackgroundVisual" ZIndex="0" IsHitTestVisible="False">
+            <!-- Cover remains a quiet last resort, including broken/missing hero assets. -->
+            <ext:CrossfadeImage Url="{Binding SelectedEntry.CoverPath}" DecodeWidth="640"
+                                LoadDelayMs="220" FadeDurationMs="600" Stretch="UniformToFill"
+                                RetainCurrentImageUntilLoaded="False" Opacity="0.24" />
+            <ext:CrossfadeImage x:Name="ScreenshotFallback" Url="{Binding ActiveScreenshotFallbackPath}" DecodeWidth="1920"
+                                LoadDelayMs="220" FadeDurationMs="600" Stretch="UniformToFill"
+                                RetainCurrentImageUntilLoaded="False" IsVisible="{Binding IsGameListActive}" />
+            <ext:CrossfadeImage x:Name="MediaWallpaper" Url="{Binding ActiveWallpaperPath}" DecodeWidth="1920"
+                                LoadDelayMs="220" FadeDurationMs="600" Stretch="UniformToFill"
+                                RetainCurrentImageUntilLoaded="False" IsVisible="{Binding IsGameListActive}" />
+            <ext:CrossfadeImage x:Name="NodeWallpaper" Url="{Binding SelectedCategory.PrimaryWallpaperAbsolutePath}" DecodeWidth="1920"
+                                LoadDelayMs="220" FadeDurationMs="600" Stretch="UniformToFill"
+                                RetainCurrentImageUntilLoaded="False" IsVisible="{Binding IsCategorySelectionActive}" />
+        </Grid>
+
+        <Rectangle x:Name="HeroShade" ZIndex="2" Fill="{StaticResource HeroBottomShade}" IsHitTestVisible="False" />
+
+        <!-- Video and UI scale together from QHD. Finite bounds retain the shelf's
+             virtualization viewport; the stage and video slot stay transparent. -->
+        <Viewbox x:Name="CinematicViewport" ZIndex="3" Stretch="Uniform">
+            <Grid x:Name="CinematicStage" Width="2560" Height="1440" RowDefinitions="*,338,72"
+                  ClipToBounds="True">
+
+                <!-- The shared child's IsVideoOverlayVisible binding remains the only
+                     visibility gate. No frame, background or shadow survives its hide.
+                     Uniform preserves 4:3 footage with transparent side margins. -->
+                <Border x:Name="VideoSlot" Width="950" Height="535" Margin="0,96,96,0"
+                        HorizontalAlignment="Right" VerticalAlignment="Top"
+                        ClipToBounds="True" IsHitTestVisible="False" />
+
+                <Grid Grid.Row="0" Margin="96,54,96,24" RowDefinitions="Auto,*,Auto">
+                    <TextBlock Text="{Binding CategoryTitle}" FontSize="28" Foreground="{StaticResource MutedText}"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Top" />
+
+                    <Grid x:Name="IdentityPanel" Grid.Row="2" ColumnDefinitions="1180,*"
+                          IsVisible="{Binding SelectedEntry, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
+                        <Rectangle Fill="{StaticResource IdentityShade}" Margin="-48,-24,-128,-24" IsHitTestVisible="False" />
+                        <StackPanel Spacing="12">
+                            <ext:CrossfadeImage Url="{Binding SelectedEntry.LogoPath}" DecodeWidth="800"
+                                                Height="100" MaxWidth="760" HorizontalAlignment="Left"
+                                                Stretch="Uniform" LoadDelayMs="160" FadeDurationMs="300"
+                                                RetainCurrentImageUntilLoaded="False"
+                                                IsVisible="{Binding SelectedEntry.LogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            <!-- Downscale unusually long titles within a bounded area instead
+                                 of truncating them or pushing descriptions into the shelf. -->
+                            <Viewbox x:Name="TitleFit" MaxHeight="124" Stretch="Uniform" StretchDirection="DownOnly"
+                                     HorizontalAlignment="Left">
+                                <TextBlock x:Name="HeroTitle" Text="{Binding SelectedEntry.Title}" Width="1180"
+                                           FontSize="54" FontWeight="SemiBold" Foreground="White"
+                                           TextWrapping="Wrap" />
+                            </Viewbox>
+                            <StackPanel Orientation="Horizontal" Spacing="24" IsVisible="{Binding IsGameListActive}">
+                                <TextBlock Text="{Binding SelectedYear}" FontSize="24" Foreground="{StaticResource Accent}"
+                                           IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
+                                <TextBlock Text="{Binding SelectedItem.Genre}" FontSize="24" Foreground="{StaticResource MutedText}"
+                                           MaxWidth="900" TextTrimming="CharacterEllipsis"
+                                           IsVisible="{Binding SelectedItem.Genre, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+                            <TextBlock x:Name="HeroDescription" Text="{Binding SelectedEntry.Description}"
+                                       FontSize="26" LineHeight="36" MaxLines="3" TextWrapping="Wrap"
+                                       TextTrimming="WordEllipsis" Foreground="#DDE0E4"
+                                       IsVisible="{Binding SelectedEntry.Description, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                                <Button x:Name="OpenCategoryAction" Classes="cinematic-action"
+                                        Content="{Binding HostNavigationActionText}" Command="{Binding PlayCurrentCommand}"
+                                        Focusable="False" IsVisible="{Binding IsCategorySelectionActive}" />
+                                <Button x:Name="StartMediaAction" Classes="cinematic-action"
+                                        Content="{x:Static resources:Strings.Button_Play}" Command="{Binding PlayCurrentCommand}"
+                                        Focusable="False" IsVisible="{Binding IsGameListActive}" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+
+                <!-- One direct-entry list and one canonical selection for both kinds.
+                     Card dimensions never change on selection; no list/window rebuilds. -->
+                <ListBox x:Name="CinematicShelf" Grid.Row="1" Classes="cinematic-shelf"
+                         ItemsSource="{Binding NavigationEntries}"
+                         SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                         SelectedIndex="{Binding SelectedEntryIndex, Mode=OneWay}"
+                         Background="Transparent" BorderThickness="0" Padding="82,0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Hidden"
+                         ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                         helpers:ListBoxBehaviors.CenterSelectedItemHorizontally="True"
+                         helpers:ListBoxBehaviors.CenterSelectedItemHorizontallyOnceOnFirstSelection="True"
+                         helpers:ListBoxBehaviors.HorizontalCenterAnimationDurationMs="140"
+                         ext:ThemeProperties.UseHostSelectionEffects="False">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel Orientation="Horizontal" CacheLength="0.5" />
+                        </ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="nav:BigModeNavigationEntry">
+                            <Grid Width="176" RowDefinitions="236,*,4" RowSpacing="10"
+                                  Opacity="{Binding $parent[ListBoxItem].IsSelected, Converter={StaticResource CardOpacity}}">
+                                <Grid.Transitions>
+                                    <Transitions>
+                                        <DoubleTransition Property="Opacity" Duration="0:0:0.18" />
+                                    </Transitions>
+                                </Grid.Transitions>
+                                <Border Classes="cover-frame" BorderThickness="2" CornerRadius="5"
+                                        Background="#B3171C24" ClipToBounds="True">
+                                    <Grid>
+                                        <!-- Uniform preserves wide game boxes and tall film covers. -->
+                                        <Image x:Name="CoverImage" helpers:AsyncImageHelper.Url="{Binding CoverPath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="360" Stretch="Uniform" Margin="4" />
+                                        <Image helpers:AsyncImageHelper.Url="{Binding LogoPath}"
+                                               helpers:AsyncImageHelper.DecodeWidth="320" Stretch="Uniform" Margin="18"
+                                               IsVisible="{Binding HasNodeLogoFallback}" />
+                                        <TextBlock Text="{Binding Title}" Foreground="White" FontSize="23"
+                                                   TextAlignment="Center" TextWrapping="Wrap" Margin="18"
+                                                   VerticalAlignment="Center"
+                                                   IsVisible="{Binding ShowCoverTitle}" />
+                                        <!-- Typed templates keep category badges correct on recycled
+                                             media containers without binding to missing properties. -->
+                                        <ContentControl Content="{Binding}" HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top" Margin="12">
+                                            <ContentControl.DataTemplates>
+                                                <DataTemplate DataType="nav:BigModeNodeNavigationEntry">
+                                                    <Border Background="#F0090B0E" CornerRadius="4" Padding="12,8">
+                                                        <StackPanel Orientation="Horizontal" Spacing="10">
+                                                            <Path Data="M 1,5 L 1,22 L 27,22 L 27,7 L 13,7 L 10,3 L 1,3 Z"
+                                                                  Width="22" Height="20" Stretch="Uniform"
+                                                                  Stroke="#EAC892" StrokeThickness="2" />
+                                                            <TextBlock Text="{ReflectionBinding $parent[UserControl].DataContext.HostNavigationActionText}"
+                                                                       Foreground="#EAC892" FontSize="18" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                                <DataTemplate DataType="nav:BigModeMediaNavigationEntry">
+                                                    <Border IsVisible="False" />
+                                                </DataTemplate>
+                                            </ContentControl.DataTemplates>
+                                        </ContentControl>
+                                    </Grid>
+                                </Border>
+                                <TextBlock Grid.Row="1" Text="{Binding Title}" FontSize="20" LineHeight="22" Foreground="White"
+                                           TextWrapping="Wrap" MaxLines="2" TextTrimming="WordEllipsis"
+                                           VerticalAlignment="Center" />
+                                <Border Grid.Row="2" Background="{StaticResource Accent}" CornerRadius="3"
+                                        IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+
+                <TextBlock Grid.Row="2" Margin="96,0,96,20" Text="{Binding SystemMenuHintText}" FontSize="24"
+                           Foreground="{StaticResource MutedText}" VerticalAlignment="Center" HorizontalAlignment="Right"
+                           IsVisible="{Binding !IsSystemMenuOpen}" />
+            </Grid>
+        </Viewbox>
+    </Grid>
+</UserControl>

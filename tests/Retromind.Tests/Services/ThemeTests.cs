@@ -53,6 +53,7 @@ public sealed class ThemeTests
     [Theory]
     [InlineData("Arcade/theme.axaml")]
     [InlineData("ArchiveAtlas/theme.axaml")]
+    [InlineData("Cinematic/theme.axaml")]
     [InlineData("Default/theme.axaml")]
     [InlineData("HorizontalRow/theme.axaml")]
     [InlineData("LivingRoom/theme.axaml")]

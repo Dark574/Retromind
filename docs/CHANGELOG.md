@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.4-alpha] - unreleased
 
 ### Added
+- new Cinematic BigMode theme with expansive artwork and video previews, a mixed category/media cover shelf, and a layout scaled for large screens
 - select and download available ScreenScraper PDF manuals individually, including regional variants, with optional bulk import and automatic skipping of identical documents
 
 ### Changed
