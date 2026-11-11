@@ -929,7 +929,7 @@ public partial class MainWindowViewModel
     /// Resolves the effective theme file path for a navigation context. A null
     /// context represents the virtual library root and uses its dedicated setting.
     /// Every real node uses only its own ThemePath; themes are never inherited.
-    /// Missing or invalid assignments fall back to the Default theme.
+    /// Missing or invalid assignments fall back to Navigator, then the legacy Default theme.
     /// </summary>
     private string GetEffectiveThemePath(MediaNode? startNode) =>
         ResolveEffectiveThemePath(
@@ -959,7 +959,11 @@ public partial class MainWindowViewModel
         if (!ThemePathResolver.TryResolveThemeFilePath(
                 themesRoot,
                 ThemeDiscovery.DefaultThemePath,
-                out var fallbackThemePath))
+                out var fallbackThemePath) &&
+            !ThemePathResolver.TryResolveThemeFilePath(
+                themesRoot,
+                ThemeDiscovery.LegacyDefaultThemePath,
+                out fallbackThemePath))
         {
             fallbackThemePath = Path.GetFullPath(
                 Path.Combine(themesRoot, ThemeDiscovery.DefaultThemePath));

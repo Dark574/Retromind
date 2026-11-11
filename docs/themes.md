@@ -1625,7 +1625,11 @@ If `SystemPreviewThemeId` is `null` or empty, the host falls back to `"Default"`
 - `Themes/System/Default/theme.axaml`
 
 Both theme selections are local to their node. Neither `ThemePath` nor `SystemPreviewThemeId` is inherited from
-a parent node; an unset normal theme likewise falls back to `Themes/Default/theme.axaml`.
+a parent node. New settings and nodes use `Navigator/theme.axaml` as their normal theme. Explicitly saved
+assignments, including `Default/theme.axaml`, remain unchanged. Missing or invalid normal theme paths fall
+back to `Themes/Navigator/theme.axaml`, then `Themes/Default/theme.axaml` if Navigator is unavailable.
+This fallback does not rewrite the saved assignment, including when unrelated application settings are saved.
+The System subtheme default remains `Default`.
 
 ### 13.4 Selecting host + subthemes in the UI
 

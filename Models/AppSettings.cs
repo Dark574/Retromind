@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Retromind.Helpers;
 
 namespace Retromind.Models;
 
@@ -87,7 +88,7 @@ public class AppSettings
     /// BigMode theme used for the virtual library root. Unlike node themes,
     /// this setting is not inherited by top-level nodes.
     /// </summary>
-    public string RootBigModeThemePath { get; set; } = "Default/theme.axaml";
+    public string RootBigModeThemePath { get; set; } = ThemeDiscovery.DefaultThemePath;
 
     /// <summary>
     /// Enables the optional BigMode Home screen when the configured root theme supports it.

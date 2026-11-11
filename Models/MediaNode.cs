@@ -118,7 +118,7 @@ public partial class MediaNode : ObservableObject
 
     /// <summary>
     /// Theme file (.axaml) used for this node. Themes are not inherited.
-    /// Null or empty legacy values resolve to the Default theme.
+    /// New nodes and null or empty legacy values use the current application default (Navigator).
     /// </summary>
     public string? ThemePath { get; set; } = ThemeDiscovery.DefaultThemePath;
     

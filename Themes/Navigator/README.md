@@ -5,6 +5,10 @@ artwork/video preview with quiet information rows on the right. The dark slate
 background and restrained teal selection keep attention on browsing. Artwork
 stays inside the preview instead of filling the screen.
 
+Navigator is the default for new root settings and library nodes. Saved theme
+assignments remain unchanged; the previous Default theme stays selectable and
+serves as a compatibility fallback if Navigator is unavailable.
+
 ## Layout and scaling
 
 The finite 2560 × 1440 design surface uses a 36:64 split with a gap between the

@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - select and download available ScreenScraper PDF manuals individually, including regional variants, with optional bulk import and automatic skipping of identical documents
 
 ### Changed
+- use Navigator as the default BigMode theme for new settings and categories while preserving saved theme choices
 - shorten the shared BigMode system-menu hint while continuing to show custom controller and keyboard assignments
 - reduce redundant artwork loading and bound cached artwork memory while browsing BigMode libraries
 - publish only the current `Retromind-<version>-x86_64.AppImage.zsync` update metadata; retire the legacy filename containing `linux`

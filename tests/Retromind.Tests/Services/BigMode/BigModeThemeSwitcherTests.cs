@@ -166,17 +166,20 @@ public sealed class BigModeThemeSwitcherTests
         });
     }
 
-    [Fact]
-    public async Task SameThemeAcrossLocations_KeepsPresentationVisibleAndSkipsNativePreparation() =>
+    [Theory]
+    [InlineData("Default/theme.axaml")]
+    [InlineData("Navigator/theme.axaml")]
+    public async Task SameThemeAcrossLocations_KeepsPresentationVisibleAndSkipsNativePreparation(string themePath) =>
         await AvaloniaTestDispatcher.InvokeAsync(_ =>
         {
             using var fixture = new BigModeNavigationFixture([
-                new MediaNode("A") { Items = [new("First")] }, new MediaNode("B") { Items = [new("Second")] }]);
+                new MediaNode("A") { ThemePath = themePath, Items = [new("First")] },
+                new MediaNode("B") { ThemePath = themePath, Items = [new("Second")] }]);
             var host = CreateHost(fixture.Vm);
-            var theme = Load("Default/theme.axaml");
+            var theme = Load(themePath);
             host.SetThemeContent(theme.View, theme);
-            using var switcher = new BigModeThemeSwitcher(fixture.Vm, host, "Default/theme.axaml",
-                node => node?.ThemePath ?? "Default/theme.axaml",
+            using var switcher = new BigModeThemeSwitcher(fixture.Vm, host, themePath,
+                node => node?.ThemePath ?? themePath,
                 path => throw new InvalidOperationException("No reload for the same theme"),
                 () => throw new InvalidOperationException("No playback interruption for the same theme"));
             fixture.Session.ActivateSelected();

@@ -903,7 +903,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
 
         MediaSortHelper.SetIgnoreLeadingArticlesInTitleSort(_appSettings.IgnoreLeadingArticlesInSort);
         LoadAvailableRootBigModeThemes();
-        SelectedRootBigModeTheme = ResolveRootBigModeThemeSelection(_appSettings.RootBigModeThemePath);
+        // A displayed fallback must not overwrite a saved, temporarily unavailable
+        // theme when unrelated settings are saved. Only user selection writes it.
+        _selectedRootBigModeTheme = ResolveRootBigModeThemeSelection(_appSettings.RootBigModeThemePath);
         InitializeControllerBindings();
         InitializeKeyboardBindings();
 
@@ -1263,7 +1265,9 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
             return selected;
 
         return AvailableRootBigModeThemes.FirstOrDefault(path =>
-            FileSystemPathIdentity.Equals(path, "Default/theme.axaml"));
+                   FileSystemPathIdentity.Equals(path, ThemeDiscovery.DefaultThemePath))
+               ?? AvailableRootBigModeThemes.FirstOrDefault(path =>
+                   FileSystemPathIdentity.Equals(path, ThemeDiscovery.LegacyDefaultThemePath));
     }
 
     partial void OnSelectedRootBigModeThemeChanged(string? value)
