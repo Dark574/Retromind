@@ -211,8 +211,9 @@ Version-specific Python and package license files are exported during the AppIma
 
 Retromind distributions may bundle a separately executed Comet binary for GOG Galaxy features. The AppImage
 build compiles it from checksum-pinned fork and protocol revisions, Comet's locked Rust dependency graph, and an
-exact Rust builder-image digest. Retromind's fork adds bounded credential delivery through standard input so GOG
-tokens do not need to appear in process arguments or temporary files.
+exact Rust builder-image digest. Retromind's fork adds validated credential delivery through standard input,
+bounded to 16 KiB, so GOG tokens do not need to appear in process arguments or temporary files. It also restores
+pending achievement, statistic, and leaderboard synchronization from the gameplay database after a restart.
 
 The exact Comet and protocol license files are exported during the AppImage build and shipped below
 `usr/share/doc/retromind/Licenses/Comet-Bundle`.

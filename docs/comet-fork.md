@@ -1,6 +1,6 @@
 # Comet fork and Retromind integration handoff
 
-Last updated: 2026-10-18
+Last updated: 2026-11-11
 
 This document records the complete state of the Retromind-specific Comet work, the Git/GitHub workflow,
 the reproducible Docker validation and build commands, and the remaining Retromind integration work. It is
@@ -24,7 +24,7 @@ their process memory, and a sufficiently privileged local process can inspect ei
 
 ## Repository state
 
-Snapshot recorded on 2026-10-18:
+Snapshot recorded on 2026-11-11:
 
 | Item | Value |
 | --- | --- |
@@ -34,11 +34,12 @@ Snapshot recorded on 2026-10-18:
 | Upstream remote | `upstream` |
 | Fork remote | `origin` |
 | Working branch | `retromind/credentials-stdin` |
-| Upstream base | `19b32597019ea1e64f1916010441960bcaac6e49` |
-| Fork commit | `c496bd8683088b1f5baf8f05d1900c6c0431a74c` (`Retry pending gameplay sync after restart`) |
-| Comet package version at the base | `0.3.2` |
-| Fork release | `retromind-v0.3.2-2` |
-| Linux x86_64 SHA-256 | `c66f28b84f50fde418be510a59e00ea5e7444dc8e46cb863def8c58753411548` |
+| Upstream base | `v0.4.1` / `8bab8263bfb69a14b3f024a4ef6a7b6a2f9c075a` |
+| Fork commit | `4fcf45d9c457058a6ed93346ea64569123ab81cd` (`Test Retromind credential and restart guarantees on Comet 0.4.1`) |
+| Comet package version at the base | `0.4.1` |
+| Fork release | `retromind-v0.4.1-1` |
+| Fork source archive SHA-256 | `c441ddbdf606f39229251fdbdc28b2f7eb2841ad946dc15f73078a0d872dac80` |
+| Linux x86_64 SHA-256 | `7332ea80009ccb06c25b165f4b4fb03d61f9c25db7caabf5115415f17cbe345e` |
 
 The branch and immutable release tag are pushed to the fork. The release contains
 `comet-x86_64-unknown-linux-gnu` and its SHA-256 file. The patch has not been merged into the fork's `main` or
@@ -59,7 +60,7 @@ git log -1 --oneline
 Expected head:
 
 ```text
-c496bd8 Retry pending gameplay sync after restart
+4fcf45d Test Retromind credential and restart guarantees on Comet 0.4.1
 ```
 
 ## Initial GitHub and checkout setup
@@ -100,11 +101,16 @@ If `upstream` already exists, do not add it again. Confirm that `origin` points 
 
 ## Fork patch
 
-The fork commit changes only:
+The retained functional patches cover:
 
 - `src/main.rs`
 - `src/import_parsers.rs`
+- `src/api/handlers/context.rs`
+- `src/db/gameplay.rs`
 - Comet's `README.md`
+
+The 0.4.1 update also adds regression tests and normalizes three upstream formatting differences in
+`src/api/notification_pusher.rs`. The upstream `Cargo.toml`, `Cargo.lock` and `proto` revision are unchanged.
 
 The new invocation is:
 
@@ -134,19 +140,30 @@ The implementation has the following invariants:
 - existing Heroic, Lutris, wyvern, and direct-argument modes remain available;
 - the parent must close the standard-input pipe after writing the JSON, otherwise Comet continues waiting for EOF.
 
-The tests in the commit cover valid input, missing and empty fields, the size limit, command-line conflicts,
-and the unchanged user-name requirement for the older import modes.
+The tests cover valid input, every missing or incorrectly typed field, empty tokens and blank identity fields,
+unknown properties and invalid UTF-8, exact 16 KiB input, bounded reads of oversized input, all command-line
+credential/import conflicts, `--credentials-stdin --quit`, and the unchanged user-name requirement for older modes.
+
+The second functional patch reads persisted `changed` flags when opening the gameplay database and restores the
+achievement, statistic and leaderboard synchronization flags. Tests cover all category combinations, closing and
+reopening a database with pending data, and clearing those flags after synchronization. The existing gameplay
+database schema and the upstream 0.4.1 synchronization routine remain in use.
 
 ## Reproducible Docker toolchain
 
-The patch was validated on Linux x86_64 with the official Rust 1.90 Bookworm image:
+The fork was validated on Linux x86_64 with the official Rust 1.94.0 Bookworm image:
 
 ```text
-rust:1.90-bookworm
-rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f
-rustc 1.90.0 (1159e78c4 2025-09-14)
-cargo 1.90.0 (840b83a10 2025-07-30)
+rust:1.94.0-bookworm
+rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f
+rustc 1.94.0 (4a4ef493e 2026-03-02)
+cargo 1.94.0 (85eff7c80 2026-01-15)
 ```
+
+The previous Rust 1.90 image cannot build 0.4.1: its locked SQLx 0.9 dependency requires Rust >= 1.94.
+Both `build/comet-version.env` and the Dockerfile's default Rust digest were updated together. The OS baseline
+remains Debian 12 Bookworm / glibc 2.36; the tested Rust image reports Debian 12.13. The protocol submodule
+remains at `923e8a0008603365d29002db611559190da5bf99` with its existing source checksum.
 
 The digest is the exact image used for this handoff and is preferred for repeatable builds. The readable tag
 is useful when deliberately updating the toolchain, but it is mutable. Comet's committed `Cargo.lock` is also
@@ -155,9 +172,9 @@ part of the reproducibility boundary, so validation and release builds use `--lo
 Pull and verify the exact image:
 
 ```bash
-docker pull rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f
+docker pull rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f
 docker run --rm \
-  rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f \
+  rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f \
   rustc --version
 ```
 
@@ -181,7 +198,7 @@ docker run --rm \
   --workdir /workspace \
   --env CARGO_HOME=/tmp/comet-cargo \
   --env CARGO_TARGET_DIR=/tmp/comet-target \
-  rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f \
+  rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f \
   sh -c 'set -eu
     rustup component add rustfmt clippy
     cargo fmt --all -- --check
@@ -189,9 +206,9 @@ docker run --rm \
     cargo clippy --locked --all-targets --all-features'
 ```
 
-At commit `c496bd8`, formatting passed, all ten tests passed, and Clippy exited successfully. Clippy reported
-four pre-existing warnings; they were not introduced or broadened by the Retromind patches. Do not add
-`-D warnings` until those upstream warnings have either been fixed or intentionally allowed.
+At commit `4fcf45d`, formatting passed, all 25 tests passed (9 library tests and 16 binary tests), and Clippy
+exited successfully. The release binary also passed 14 credential-rejection/non-echo CLI probes with networking
+disabled and `RUST_LOG=debug`. The checks use dummy sentinels, never real GOG credentials.
 
 For repeated local runs, named Docker volumes can cache `/tmp/comet-cargo` and `/tmp/comet-target`, but they are
 not required for correctness and must not be treated as release inputs.
@@ -209,7 +226,7 @@ docker run --rm \
   --workdir /workspace \
   --env CARGO_HOME=/tmp/comet-cargo \
   --env CARGO_TARGET_DIR=/workspace/target \
-  rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f \
+  rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f \
   cargo build --release --locked
 ```
 
@@ -237,7 +254,7 @@ Do not make Retromind download a mutable branch head. A consumable build needs a
 binary, and a recorded SHA-256 checksum. A suitable fork-specific tag format is:
 
 ```text
-retromind-v0.3.2-2
+retromind-v0.4.1-1
 ```
 
 The first version segment records the upstream Comet version; the final number is the Retromind fork revision.
@@ -246,14 +263,14 @@ After validation:
 ```bash
 cd /home/neville/Projects/comet
 git status --short
-git tag -a retromind-v0.3.2-2 -m "Retromind Comet 0.3.2 revision 2"
-git push origin retromind-v0.3.2-2
-gh release create retromind-v0.3.2-2 \
+git tag -a retromind-v0.4.1-1 -m "Retromind Comet 0.4.1 revision 1"
+git push origin retromind-v0.4.1-1
+gh release create retromind-v0.4.1-1 \
   dist/comet-x86_64-unknown-linux-gnu \
   dist/comet-x86_64-unknown-linux-gnu.sha256 \
   --repo Dark574/comet \
-  --title "Comet 0.3.2 for Retromind, revision 2" \
-  --notes "Retries persisted gameplay changes after restart and retains secure stdin credentials."
+  --title "Comet 0.4.1 for Retromind, revision 1" \
+  --notes "Updates to upstream 0.4.1 while retaining validated 16 KiB stdin credentials and restart synchronization."
 ```
 
 Check `git status` carefully before tagging. A tag is a public release boundary and should not be moved after
@@ -267,8 +284,8 @@ The first release was published from commit `b150497` on 2026-10-18:
 https://github.com/Dark574/comet/releases/tag/retromind-v0.3.2-1
 ```
 
-Its Linux x86_64 binary is a stripped PIE executable of 13,230,392 bytes. It was built against the documented
-Bookworm toolchain, requires no non-standard shared libraries, and has a maximum glibc symbol requirement of
+Its Linux x86_64 binary is a stripped PIE executable of 13,230,392 bytes. It was built against the original
+Rust 1.90 Bookworm toolchain, requires no non-standard shared libraries, and has a maximum glibc symbol requirement of
 2.34. The stdin rejection probe returned exit status `2` and did not echo its credential sentinel.
 
 Revision 2 was published from commit `c496bd8` on 2026-10-19. It restores pending achievement, statistic, and
@@ -281,22 +298,41 @@ https://github.com/Dark574/comet/releases/tag/retromind-v0.3.2-2
 Its Linux x86_64 binary is 13,244,216 bytes and has SHA-256
 `c66f28b84f50fde418be510a59e00ea5e7444dc8e46cb863def8c58753411548`.
 
+The 0.4.1 update was published from commit `4fcf45d` on 2026-11-11:
+
+```text
+https://github.com/Dark574/comet/releases/tag/retromind-v0.4.1-1
+```
+
+Its Linux x86_64 binary is 14,693,896 bytes and has SHA-256
+`7332ea80009ccb06c25b165f4b4fb03d61f9c25db7caabf5115415f17cbe345e`.
+Its maximum glibc symbol requirement remains 2.34. The native dependencies are the glibc loader, libc,
+libm and libgcc_s. The secure-input patch was rebased as `1405c46`, the restart-synchronization patch as
+`ca69c19`, and the additional regression tests are in `4fcf45d`. The previous release tags are unchanged.
+
+Upstream 0.4.1 removes its custom pinned CA certificate bundle and uses the normal TLS trust implementation
+of its updated dependencies. Live authentication, reconnects and synchronization still need AppImage/game
+validation; the offline unit and CLI tests do not prove successful GOG communication.
+
 ## Keeping the fork current
 
-Use a rebase so the Retromind-specific delta remains one reviewable patch on top of upstream. Never overwrite
+Use a rebase so the Retromind-specific delta remains a small reviewable patch series on top of upstream. Never overwrite
 uncommitted changes, and inspect upstream changes to credential parsing before resolving conflicts.
 
 ```bash
 cd /home/neville/Projects/comet
 git status --short
 git fetch upstream --prune
-git switch main
-git merge --ff-only upstream/main
-git push origin main
+git fetch upstream tag v0.4.1
 git switch retromind/credentials-stdin
-git rebase upstream/main
+git rebase v0.4.1
 git submodule update --init --recursive
 ```
+
+Choose the intended released upstream tag for each update; do not silently consume unreleased `main` changes.
+Perform conflict resolution and validation in a separate working copy when the normal checkout contains local
+release artifacts. On 2026-11-11, the original checkout was brought to the tested fork head while retaining
+its untracked `dist/` files; those older convenience binaries were not overwritten by the source update.
 
 Then repeat the pinned Docker validation. If successful, update the remote feature branch with lease protection:
 
@@ -331,7 +367,7 @@ the exact Rust builder-image digest. The build uses Comet's committed `Cargo.loc
 CC0-1.0 license texts. The published release artifact is recorded separately with SHA-256:
 
 ```text
-c66f28b84f50fde418be510a59e00ea5e7444dc8e46cb863def8c58753411548
+7332ea80009ccb06c25b165f4b4fb03d61f9c25db7caabf5115415f17cbe345e
 ```
 
 Rust binaries built from the same source can differ byte-for-byte when their build paths differ. The AppImage
@@ -373,10 +409,17 @@ file to the current user on Linux. Routine Comet output is not persisted.
 Completed GOG playtime is synchronized separately by Retromind after its tracked launch boundary ends. Comet does
 not publish presence or own playtime submission; no Presence request or periodic status update is made by Retromind.
 
-Real communication and achievement synchronization were verified with a GOG Windows title launched through UMU;
+With the earlier 0.3.2 fork, real communication and achievement synchronization were verified with a GOG Windows title launched through UMU;
 the updated achievement appeared in GOG's Activity Feed. Native Linux and additional Wine/Proton/UMU titles still
 need broader compatibility testing. A successful Comet readiness check by itself proves only that its local listener
 started.
+
+### Comet 0.4.1 custom events (available upstream; Retromind integration deferred)
+
+The updated fork includes upstream's optional `achievement_unlocked` HTTP-POST events. This update does not
+configure an event receiver, enable custom callbacks or add a BigMode/game overlay. Popup presentation during
+gameplay will be discussed separately before implementation. Comet startup, credential delivery, process ownership
+and post-game synchronization boundaries remain unchanged in Retromind.
 
 ### 4. Expose achievement data after the runtime path works (completed)
 

@@ -6,7 +6,7 @@ ARG DEBIAN_SNAPSHOT_MAIN
 ARG DEBIAN_SNAPSHOT_SECURITY
 # The canonical build script passes this value from build/comet-version.env.
 # Keep the same pinned default so direct Dockerfile builds remain valid.
-ARG COMET_RUST_IMAGE=rust@sha256:3914072ca0c3b8aad871db9169a651ccfce30cf58303e5d6f2db16d1d8a7e58f
+ARG COMET_RUST_IMAGE=rust@sha256:365468470075493dc4583f47387001854321c5a8583ea9604b297e67f01c5a4f
 # Reuse the CA bundle from the existing immutable Rust image before any APT
 # network access. The minimal Debian image does not contain ca-certificates.
 FROM ${COMET_RUST_IMAGE} AS bookworm-certificates
