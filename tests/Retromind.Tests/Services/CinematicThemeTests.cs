@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Avalonia;
@@ -36,7 +37,7 @@ public sealed class CinematicThemeTests
             Assert.Contains("Cinematic/theme.axaml", ThemeDiscovery.GetAvailableThemePaths());
             var theme = ThemeLoader.LoadTheme("Cinematic/theme.axaml");
             Assert.Equal("Cinematic", theme.Name);
-            Assert.Equal("0.1.2", theme.Version);
+            Assert.Equal("0.1.4", theme.Version);
             Assert.Equal(NavigationPresentation.MixedEntries, theme.NavigationPresentation);
             Assert.True(theme.SupportsHome);
             Assert.True(theme.PrimaryVideoEnabled);
@@ -297,7 +298,7 @@ public sealed class CinematicThemeTests
                 Assert.Equal(535, slot.Height);
                 Assert.Equal(Avalonia.Layout.HorizontalAlignment.Right, slot.HorizontalAlignment);
                 Assert.Equal(Avalonia.Layout.VerticalAlignment.Top, slot.VerticalAlignment);
-                Assert.Equal(new Thickness(0, 96, 96, 0), slot.Margin);
+                Assert.Equal(new Thickness(0, 48, 48, 0), slot.Margin);
                 Assert.Null(slot.Background);
                 Assert.Equal(default(BoxShadows), slot.BoxShadow);
                 Assert.True(slot.IsVisible);
@@ -308,7 +309,7 @@ public sealed class CinematicThemeTests
                 Assert.Equal(0, preview.ActiveIndex);
                 slot.Measure(new Size(2560, 1030));
                 slot.Arrange(new Rect(0, 0, 2560, 1030));
-                Assert.Equal(new Rect(1514, 96, 950, 535), slot.Bounds);
+                Assert.Equal(new Rect(1562, 48, 950, 535), slot.Bounds);
                 Assert.Equal(new Size(950, 535), preview.Bounds.Size);
                 Assert.All(preview.Children.OfType<VideoSurfaceControl>(), surface =>
                 {
@@ -316,7 +317,23 @@ public sealed class CinematicThemeTests
                     Assert.Equal(Stretch.Uniform, surface.Stretch);
                 });
 
+                // The active index may already be selected when its first frame arrives.
+                // The revision binding must then shrink the slot to the 4:3 frame width.
+                SetVideoFormat(fixture.Get<LibVlcVideoSurface>("_videoSurfaceA"), 4, 3);
+                fixture.Vm.MainVideoFrameRevision++;
+                Assert.Equal(535d * 4 / 3, slot.Width, 6);
+                slot.Measure(new Size(2560, 1030));
+                slot.Arrange(new Rect(0, 0, 2560, 1030));
+                Assert.Equal(2560 - 48, slot.Bounds.Right, 6);
+                Assert.Equal(535, preview.Bounds.Height);
+
+                SetVideoFormat(fixture.Get<LibVlcVideoSurface>("_videoSurfaceB"), 16, 9);
                 fixture.Vm.MainVideoActiveSurfaceIndex = 1;
+                fixture.Vm.MainVideoFrameRevision++;
+                Assert.Equal(950, slot.Width);
+                slot.Measure(new Size(2560, 1030));
+                slot.Arrange(new Rect(0, 0, 2560, 1030));
+                Assert.Equal(2560 - 48, slot.Bounds.Right, 6);
                 Assert.Equal(1, preview.ActiveIndex);
                 Assert.Same(preview, slot.Child);
                 fixture.Vm.IsVideoOverlayVisible = false;
@@ -358,8 +375,10 @@ public sealed class CinematicThemeTests
             foreach (var attribute in element.Attributes())
             {
                 var match = Regex.Match(attribute.Value, @"^\{(?:Reflection)?Binding ([^,}]+)");
-                if (!match.Success) continue;
-                var path = match.Groups[1].Value.TrimStart('!');
+                var path = element.Name.LocalName == "Binding" && attribute.Name.LocalName == "Path"
+                    ? attribute.Value
+                    : match.Success ? match.Groups[1].Value.TrimStart('!') : null;
+                if (path == null) continue;
                 var type = context;
                 const string parentVm = "$parent[UserControl].DataContext.";
                 if (path.StartsWith(parentVm, StringComparison.Ordinal))
@@ -381,5 +400,83 @@ public sealed class CinematicThemeTests
             }
             foreach (var child in element.Elements()) Visit(child, context);
         }
+    }
+
+    [Fact]
+    public async Task AchievementVisibility_DoesNotChangeIdentityLayout() =>
+        await AvaloniaTestDispatcher.InvokeAsync(_ =>
+        {
+            var view = Parse();
+            var actionRow = view.FindControl<Grid>("ActionRow")!;
+            var identity = Assert.IsType<StackPanel>(actionRow.Parent);
+            var layer = view.FindControl<Canvas>("AchievementLayer")!;
+            var summary = view.FindControl<Grid>("AchievementSummary")!;
+            var marginBelowIdentity = Assert.IsType<Grid>(view.FindControl<Grid>("IdentityPanel")!.Parent).Margin.Bottom;
+
+            // Exercise the actual theme containers with fixed text/button probes so
+            // this layout regression needs neither fonts nor a windowing backend.
+            var actions = Assert.Single(actionRow.Children.OfType<StackPanel>());
+            actions.Children.Clear();
+            actions.Children.Add(new Border { Width = 160, Height = 48 });
+            summary.Children.Clear();
+            var logo = new Border { Width = 760, Height = 100 };
+            var title = new Border { Width = 1180, Height = 124 };
+            var metadata = new Border { Width = 1180, Height = 30 };
+            var descriptionText = view.FindControl<TextBlock>("HeroDescription")!;
+            var description = new Border { Width = 1180, Height = descriptionText.LineHeight * descriptionText.MaxLines };
+            identity.Children.Clear();
+            foreach (var child in new Control[] { logo, title, metadata, description, actionRow })
+                identity.Children.Add(child);
+            layer.IsVisible = true;
+
+            var withoutAchievements = Layout(false);
+            Assert.Equal(withoutAchievements, Layout(true));
+            Assert.Equal(default(Size), layer.DesiredSize);
+            Assert.Equal(64, summary.Bounds.Height);
+            Assert.True(actionRow.Bounds.Top >= description.Bounds.Bottom + identity.Spacing);
+            Assert.True(actionRow.Bounds.Top + summary.Bounds.Bottom <= identity.Bounds.Height + marginBelowIdentity);
+            Assert.True(Canvas.GetLeft(summary) + summary.Width <= identity.Bounds.Width);
+            Assert.Equal(withoutAchievements, Layout(false));
+
+            (Size Size, Rect Title, Rect Metadata, Rect Description, Rect Actions) Layout(bool visible)
+            {
+                summary.IsVisible = visible;
+                identity.Measure(new Size(1180, double.PositiveInfinity));
+                identity.Arrange(new Rect(0, 0, 1180, identity.DesiredSize.Height));
+                return (identity.DesiredSize, title.Bounds, metadata.Bounds, description.Bounds, actionRow.Bounds);
+            }
+        });
+
+    [Fact]
+    public void AchievementMarkup_UsesSharedStateAndAnIsolatedNonInteractiveOverlay()
+    {
+        var root = XDocument.Load(ThemeFile).Root!;
+        XNamespace x = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var summary = Assert.Single(root.Descendants(), element => (string?)element.Attribute(x + "Name") == "AchievementSummary");
+        Assert.Equal("{Binding RetroAchievementsProgress.IsVisible, FallbackValue=False}", (string?)summary.Attribute("IsVisible"));
+        Assert.Equal("64", (string?)summary.Attribute("Height"));
+        var layer = summary.Parent!;
+        Assert.Equal("Canvas", layer.Name.LocalName);
+        Assert.Equal("{Binding IsGameListActive, FallbackValue=False}", (string?)layer.Attribute("IsVisible"));
+        Assert.Equal("ActionRow", (string?)layer.Parent!.Attribute(x + "Name"));
+        Assert.DoesNotContain(summary.Descendants(), element => element.Name.LocalName == "Button" || element.Attribute("Command") != null);
+        var progress = Assert.Single(summary.Descendants(), element => (string?)element.Attribute(x + "Name") == "AchievementProgressBar");
+        Assert.Equal("{Binding RetroAchievementsProgress.ProgressValue}", (string?)progress.Attribute("Value"));
+        Assert.Equal("{Binding RetroAchievementsProgress.ProgressMaximum}", (string?)progress.Attribute("Maximum"));
+        Assert.Contains(summary.Descendants().Attributes(), attribute => attribute.Value == "{Binding RetroAchievementsProgress.IsLoading}");
+        Assert.Contains(summary.Descendants().Attributes(), attribute => attribute.Value == "{Binding RetroAchievementsProgress.HardcoreSummaryText}");
+        Assert.Contains(summary.Descendants().Attributes(), attribute => attribute.Value == "{Binding RetroAchievementsProgress.ShowStatus}");
+    }
+
+    private static void SetVideoFormat(LibVlcVideoSurface surface, uint width, uint height)
+    {
+        var chroma = Marshal.AllocHGlobal(4);
+        try
+        {
+            var opaque = IntPtr.Zero;
+            uint pitch = 0, lines = 0;
+            Assert.Equal(1U, surface.VideoFormat(ref opaque, chroma, ref width, ref height, ref pitch, ref lines));
+        }
+        finally { Marshal.FreeHGlobal(chroma); }
     }
 }

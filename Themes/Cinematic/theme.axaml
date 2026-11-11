@@ -10,7 +10,7 @@
              Background="#090B0E"
              ext:ThemeProperties.Name="Cinematic"
              ext:ThemeProperties.Author="Retromind"
-             ext:ThemeProperties.Version="0.1.2"
+             ext:ThemeProperties.Version="0.1.4"
              ext:ThemeProperties.SupportsHome="True"
              ext:ThemeProperties.NavigationPresentation="MixedEntries"
              ext:ThemeProperties.AccentColor="#EAC892"
@@ -32,6 +32,11 @@
              ext:ThemeProperties.ProvidesSystemMenuHint="True">
 
     <UserControl.Resources>
+        <x:Double x:Key="PreviewHeight">535</x:Double>
+        <x:Double x:Key="PreviewMaxWidth">950</x:Double>
+        <helpers:VideoPreviewWidthConverter x:Key="VideoPreviewWidth"
+                                           PreviewHeight="{StaticResource PreviewHeight}"
+                                           MaxWidth="{StaticResource PreviewMaxWidth}" />
         <helpers:BoolToOpacityConverter x:Key="CardOpacity" TrueOpacity="1" FalseOpacity="0.64" />
         <SolidColorBrush x:Key="Accent" Color="#EAC892" />
         <SolidColorBrush x:Key="MutedText" Color="#CCD0D5" />
@@ -123,10 +128,21 @@
 
                 <!-- The shared child's IsVideoOverlayVisible binding remains the only
                      visibility gate. No frame, background or shadow survives its hide.
-                     Uniform preserves 4:3 footage with transparent side margins. -->
-                <Border x:Name="VideoSlot" Width="950" Height="535" Margin="0,96,96,0"
+                     Size the slot to the active frame so 4:3 footage also reaches its
+                     right edge; Uniform still preserves the entire video image. -->
+                <Border x:Name="VideoSlot" Height="{StaticResource PreviewHeight}" Margin="0,48,48,0"
                         HorizontalAlignment="Right" VerticalAlignment="Top"
-                        ClipToBounds="True" IsHitTestVisible="False" />
+                        ClipToBounds="True" IsHitTestVisible="False">
+                    <Border.Width>
+                        <MultiBinding Converter="{StaticResource VideoPreviewWidth}">
+                            <Binding Path="MainVideoActiveSurfaceIndex" />
+                            <Binding Path="MainVideoSurfaceA" />
+                            <Binding Path="MainVideoSurfaceB" />
+                            <!-- Frame dimensions can arrive after selection/index changes. -->
+                            <Binding Path="MainVideoFrameRevision" />
+                        </MultiBinding>
+                    </Border.Width>
+                </Border>
 
                 <Grid Grid.Row="0" Margin="96,54,96,24" RowDefinitions="Auto,*,Auto">
                     <TextBlock Text="{Binding CategoryTitle}" FontSize="28" Foreground="{StaticResource MutedText}"
@@ -136,11 +152,15 @@
                           IsVisible="{Binding SelectedEntry, Converter={x:Static helpers:ObjectConverters.IsNotNull}}">
                         <Rectangle Fill="{StaticResource IdentityShade}" Margin="-48,-24,-128,-24" IsHitTestVisible="False" />
                         <StackPanel Spacing="12">
-                            <ext:CrossfadeImage Url="{Binding SelectedEntry.LogoPath}" DecodeWidth="800"
-                                                Height="100" MaxWidth="760" HorizontalAlignment="Left"
-                                                Stretch="Uniform" LoadDelayMs="160" FadeDurationMs="300"
-                                                RetainCurrentImageUntilLoaded="False"
-                                                IsVisible="{Binding SelectedEntry.LogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                            <!-- Fit the logo's natural aspect ratio before scaling. A fixed
+                                 image height otherwise creates a wide, centered image area. -->
+                            <Viewbox Height="100" MaxWidth="760" HorizontalAlignment="Left"
+                                     Stretch="Uniform" StretchDirection="DownOnly"
+                                     IsVisible="{Binding SelectedEntry.LogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                <ext:CrossfadeImage Url="{Binding SelectedEntry.LogoPath}" DecodeWidth="800"
+                                                    Stretch="Uniform" LoadDelayMs="160" FadeDurationMs="300"
+                                                    RetainCurrentImageUntilLoaded="False" />
+                            </Viewbox>
                             <!-- Downscale unusually long titles within a bounded area instead
                                  of truncating them or pushing descriptions into the shelf. -->
                             <Viewbox x:Name="TitleFit" MaxHeight="124" Stretch="Uniform" StretchDirection="DownOnly"
@@ -150,6 +170,12 @@
                                            TextWrapping="Wrap" />
                             </Viewbox>
                             <StackPanel Orientation="Horizontal" Spacing="24" IsVisible="{Binding IsGameListActive}">
+                                <StackPanel x:Name="FavoriteIndicator" Orientation="Horizontal" Spacing="8"
+                                            IsVisible="{Binding SelectedItem.IsFavorite, FallbackValue=False, TargetNullValue=False}">
+                                    <TextBlock Text="★" FontSize="24" Foreground="{StaticResource Accent}" />
+                                    <TextBlock Text="{x:Static resources:Strings.Search_FilterField_Favorite}"
+                                               FontSize="24" Foreground="{StaticResource MutedText}" />
+                                </StackPanel>
                                 <TextBlock Text="{Binding SelectedYear}" FontSize="24" Foreground="{StaticResource Accent}"
                                            IsVisible="{Binding SelectedYear, Converter={x:Static helpers:ObjectConverters.IsNotNull}}" />
                                 <TextBlock Text="{Binding SelectedItem.Genre}" FontSize="24" Foreground="{StaticResource MutedText}"
@@ -160,14 +186,55 @@
                                        FontSize="26" LineHeight="36" MaxLines="3" TextWrapping="Wrap"
                                        TextTrimming="WordEllipsis" Foreground="#DDE0E4"
                                        IsVisible="{Binding SelectedEntry.Description, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
-                            <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                                <Button x:Name="OpenCategoryAction" Classes="cinematic-action"
-                                        Content="{Binding HostNavigationActionText}" Command="{Binding PlayCurrentCommand}"
-                                        Focusable="False" IsVisible="{Binding IsCategorySelectionActive}" />
-                                <Button x:Name="StartMediaAction" Classes="cinematic-action"
-                                        Content="{x:Static resources:Strings.Button_Play}" Command="{Binding PlayCurrentCommand}"
-                                        Focusable="False" IsVisible="{Binding IsGameListActive}" />
-                            </StackPanel>
+                            <Grid x:Name="ActionRow" Margin="0,4,0,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="OpenCategoryAction" Classes="cinematic-action"
+                                            Content="{Binding HostNavigationActionText}" Command="{Binding PlayCurrentCommand}"
+                                            Focusable="False" IsVisible="{Binding IsCategorySelectionActive}" />
+                                    <Button x:Name="StartMediaAction" Classes="cinematic-action"
+                                            Content="{x:Static resources:Strings.Button_Play}" Command="{Binding PlayCurrentCommand}"
+                                            Focusable="False" IsVisible="{Binding IsGameListActive}" />
+                                </StackPanel>
+                                <!-- Canvas contributes no desired size: progress/state changes
+                                     cannot move the title, metadata, description or actions.
+                                     The summary shares the action's top edge, below the existing
+                                     description gap, and fits inside the margin above the shelf. -->
+                                <Canvas x:Name="AchievementLayer" IsHitTestVisible="False"
+                                        IsVisible="{Binding IsGameListActive, FallbackValue=False}">
+                                    <Grid x:Name="AchievementSummary" Canvas.Left="224" Canvas.Top="0"
+                                          Width="956" Height="64" RowDefinitions="26,6,24" RowSpacing="4"
+                                          IsVisible="{Binding RetroAchievementsProgress.IsVisible, FallbackValue=False}">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                            <TextBlock x:Name="AchievementTitle" Text="{Binding RetroAchievementsProgress.Title}"
+                                                       FontSize="22" LineHeight="26" Foreground="{StaticResource Accent}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="1" Text="{Binding RetroAchievementsProgress.SummaryText}"
+                                                       FontSize="22" LineHeight="26" Foreground="{StaticResource MutedText}"
+                                                       IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                        </Grid>
+                                        <ProgressBar x:Name="AchievementProgressBar" Grid.Row="1" Minimum="0"
+                                                     Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
+                                                     Value="{Binding RetroAchievementsProgress.ProgressValue}"
+                                                     Height="5" MinHeight="0" Foreground="{StaticResource Accent}"
+                                                     Background="#33FFFFFF"
+                                                     IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                        <ProgressBar Grid.Row="1" Height="5" MinHeight="0"
+                                                     Foreground="{StaticResource Accent}" Background="#33FFFFFF"
+                                                     IsIndeterminate="{Binding RetroAchievementsProgress.IsLoading}"
+                                                     IsVisible="{Binding RetroAchievementsProgress.IsLoading}" />
+                                        <Grid Grid.Row="2" ColumnDefinitions="Auto,*">
+                                            <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}"
+                                                       FontSize="18" LineHeight="22" Foreground="{StaticResource MutedText}"
+                                                       MaxWidth="480" TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding RetroAchievementsProgress.HardcoreSummaryText, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                            <TextBlock Grid.Column="1" Text="{Binding RetroAchievementsProgress.StatusText}"
+                                                       FontSize="18" LineHeight="22" Foreground="{StaticResource MutedText}"
+                                                       Margin="16,0,0,0" TextTrimming="CharacterEllipsis"
+                                                       IsVisible="{Binding RetroAchievementsProgress.ShowStatus}" />
+                                        </Grid>
+                                    </Grid>
+                                </Canvas>
+                            </Grid>
                         </StackPanel>
                     </Grid>
                 </Grid>
