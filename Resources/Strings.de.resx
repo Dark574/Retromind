@@ -862,7 +862,7 @@ Diese Aktion kann nicht rückgängig gemacht werden.</value></data>
     <data name="KeyboardKey_PageUp" xml:space="preserve"><value>Bild ↑</value></data>
     <data name="KeyboardKey_PageDown" xml:space="preserve"><value>Bild ↓</value></data>
     <data name="BigMode_SystemMenuTitle" xml:space="preserve"><value>Systemmenü</value></data>
-    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} / {1} · Systemmenü</value></data>
+    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} / {1} → Systemmenü</value></data>
     <data name="BigMode_ControllerBindingsTitle" xml:space="preserve"><value>Controllerbelegung</value></data>
     <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>Diese Belegung kann unter Einstellungen → Steuerung geändert werden.</value></data>
     <data name="BigMode_ExitConfirmationTitle" xml:space="preserve"><value>Retromind beenden?</value></data>

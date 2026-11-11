@@ -1,3 +1,4 @@
+using System;
 using Retromind.Models;
 using Retromind.Resources;
 
@@ -5,6 +6,14 @@ namespace Retromind.Helpers;
 
 public static class ControllerButtonDisplayHelper
 {
+    /// <summary>Primary localized button name for compact hints, without platform aliases.</summary>
+    public static string FormatCompact(ControllerButton button)
+    {
+        var label = Format(button);
+        var separator = label.IndexOf(" / ", StringComparison.Ordinal);
+        return separator < 0 ? label : label[..separator];
+    }
+
     public static string Format(ControllerButton button) => button switch
     {
         ControllerButton.South => T("ControllerButton_South", "A / Cross (bottom)"),

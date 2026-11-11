@@ -22,6 +22,7 @@ public partial class BigModeViewModel
     private bool _usesWheelEntries;
     private int _wheelSelectedEntryIndex = -1;
     private readonly List<int> _mediaEntryPositions = [];
+    private string? _navigationBreadcrumb;
 
     public IReadOnlyList<BigModeNavigationEntry> NavigationEntries => _navigation.Current.Entries;
     public BigModeNavigationEntry? SelectedEntry
@@ -37,6 +38,8 @@ public partial class BigModeViewModel
     public bool HasChildNodes => CurrentCategories.Count > 0;
     public string? SystemMediaArtworkPath => SelectedItem?.PrimaryScreenshotPath ?? ActiveWallpaperPath ?? SelectedEntry?.CoverPath;
     public string NavigationTitle => Strings.Media_Library;
+    /// <summary>Display-only path from the shared session, independent of the highlighted entry.</summary>
+    public string NavigationBreadcrumb => _navigationBreadcrumb ?? NavigationTitle;
     public bool IsNavigationEmpty => !IsHomeActive && NavigationEntries.Count == 0;
     public string HostNavigationActionText => T("BigMode.Home.Library.Open", "Open");
     public string EmptyLibraryText => T("BigMode.Empty", "No visible entries");
@@ -85,6 +88,9 @@ public partial class BigModeViewModel
     private void OnLibraryPresentationChanged(INotifyPropertyChanged model, string? property)
     {
         if (_refreshingPresentation || _synchronizingNavigation || _disposed != 0) return;
+        if (model is MediaNode && property == nameof(MediaNode.Name) &&
+            _navigation.EnteredNodes.Any(node => ReferenceEquals(node, model)))
+            UpdateNavigationBreadcrumb();
         var source = GetActiveItemSourceNode();
         if (!ReferenceEquals(model, SelectedItem) && !ReferenceEquals(model, SelectedCategory) &&
             !ReferenceEquals(model, source)) return;
@@ -125,6 +131,7 @@ public partial class BigModeViewModel
         _itemVideoPathCache.Clear();
         _nodeVideoPathCache.Clear();
         _navigation.Refresh();
+        UpdateNavigationBreadcrumb();
         _libraryObserver.Rebind();
         if (SupportsHome)
         {
@@ -145,6 +152,7 @@ public partial class BigModeViewModel
             // bindings in the outgoing theme can see the incoming selection.
             CurrentNode = frame.OpenedNode;
             if (!IsHomeActive) ThemeContextNode = frame.OpenedNode;
+            if (newLevel || ownerChanged) UpdateNavigationBreadcrumb();
             if (newLevel)
             {
                 ClearNodeFallbackOverrides(Items);
@@ -184,6 +192,16 @@ public partial class BigModeViewModel
             OnPropertyChanged(nameof(IsNavigationEmpty));
         }
         finally { _synchronizingNavigation = false; }
+    }
+
+    private void UpdateNavigationBreadcrumb()
+    {
+        // Walk only the already opened frames, at location/edit boundaries. Moving
+        // the cursor through a large level does not allocate or traverse a path.
+        var breadcrumb = string.Join("  ›  ", _navigation.EnteredNodes.Select(node => node.Name).Prepend(NavigationTitle));
+        if (breadcrumb == _navigationBreadcrumb) return;
+        _navigationBreadcrumb = breadcrumb;
+        OnPropertyChanged(nameof(NavigationBreadcrumb));
     }
 
     private void EnsureNavigationWheel()

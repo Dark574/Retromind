@@ -865,7 +865,7 @@ This action cannot be undone.</value></data>
     <data name="KeyboardKey_PageUp" xml:space="preserve"><value>Page Up</value></data>
     <data name="KeyboardKey_PageDown" xml:space="preserve"><value>Page Down</value></data>
     <data name="BigMode_SystemMenuTitle" xml:space="preserve"><value>System menu</value></data>
-    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} / {1} · System menu</value></data>
+    <data name="BigMode_SystemMenuHintFormat" xml:space="preserve"><value>{0} / {1} → System menu</value></data>
     <data name="BigMode_ControllerBindingsTitle" xml:space="preserve"><value>Controller layout</value></data>
     <data name="BigMode_ControllerBindingsHint" xml:space="preserve"><value>These assignments can be changed under Settings → Controls.</value></data>
     <data name="BigMode_ExitConfirmationTitle" xml:space="preserve"><value>Exit Retromind?</value></data>

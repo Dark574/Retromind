@@ -57,6 +57,7 @@ public sealed class ThemeTests
     [InlineData("Default/theme.axaml")]
     [InlineData("HorizontalRow/theme.axaml")]
     [InlineData("LivingRoom/theme.axaml")]
+    [InlineData("Navigator/theme.axaml")]
     [InlineData("Prism/theme.axaml")]
     [InlineData("System/theme.axaml")]
     [InlineData("Wheel/theme.axaml")]

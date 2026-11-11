@@ -1,0 +1,293 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels"
+             xmlns:nav="clr-namespace:Retromind.Services.BigMode;assembly=Retromind"
+             xmlns:helpers="clr-namespace:Retromind.Helpers;assembly=Retromind"
+             xmlns:ext="clr-namespace:Retromind.Extensions;assembly=Retromind"
+             xmlns:resources="clr-namespace:Retromind.Resources;assembly=Retromind"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             x:DataType="vm:BigModeViewModel"
+             Background="#0D1218"
+             ext:ThemeProperties.Name="Navigator"
+             ext:ThemeProperties.Author="Retromind"
+             ext:ThemeProperties.Version="0.1.0"
+             ext:ThemeProperties.NavigationPresentation="MixedEntries"
+             ext:ThemeProperties.SupportsHome="True"
+             ext:ThemeProperties.AccentColor="#8DCBC5"
+             ext:ThemeProperties.PrimaryVideoEnabled="True"
+             ext:ThemeProperties.SecondaryVideoEnabled="False"
+             ext:ThemeProperties.VideoSlotName="VideoSlot"
+             ext:ThemeProperties.VideoStretchMode="Uniform"
+             ext:ThemeProperties.VideoCornerRadius="0"
+             ext:ThemeProperties.VideoFadeDurationMs="400"
+             ext:ThemeProperties.VideoRetainPreviousFrameDuringFade="False"
+             ext:ThemeProperties.PrimaryVisualEnterMode="None"
+             ext:ThemeProperties.BackgroundVisualEnterMode="None"
+             ext:ThemeProperties.AttractModeEnabled="True"
+             ext:ThemeProperties.AttractModeIdleSeconds="75"
+             ext:ThemeProperties.ProvidesSystemMenuHint="True">
+    <UserControl.Resources>
+        <SolidColorBrush x:Key="Accent" Color="#8DCBC5" />
+        <SolidColorBrush x:Key="Text" Color="#E5EBEF" />
+        <SolidColorBrush x:Key="MutedText" Color="#A1AFBB" />
+    </UserControl.Resources>
+
+    <UserControl.Styles>
+        <Style Selector="ListBox.navigator-list ListBoxItem">
+            <Setter Property="Height" Value="100" />
+            <Setter Property="Margin" Value="0,2" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ListBox.navigator-list ListBoxItem /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.navigator-list ListBoxItem:selected /template/ ContentPresenter">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+        <Style Selector="ListBox.navigator-list ListBoxItem:selected Border.row-surface">
+            <Setter Property="Background" Value="#21343B" />
+        </Style>
+    </UserControl.Styles>
+
+    <!-- One finite QHD design surface scales typography, rows and preview together.
+         Star columns retain the 36:64 split. Other aspect ratios have quiet margins. -->
+    <Viewbox x:Name="NavigatorViewport" Stretch="Uniform">
+        <Grid x:Name="NavigatorStage" Width="2560" Height="1440" Background="#0D1218">
+            <Grid Margin="64" RowDefinitions="*,36" RowSpacing="24">
+                <Grid ColumnDefinitions="36*,64*" ColumnSpacing="48">
+                    <Grid x:Name="LibraryColumn" RowDefinitions="64,*" RowSpacing="16">
+                        <Grid RowDefinitions="*,1" RowSpacing="18">
+                            <TextBlock x:Name="Breadcrumb" Text="{Binding NavigationBreadcrumb}"
+                                       FontSize="26" Foreground="{StaticResource MutedText}"
+                                       VerticalAlignment="Center" TextTrimming="LeadingCharacterEllipsis"
+                                       MaxLines="1" />
+                            <Border Grid.Row="1" Background="#27313B" />
+                        </Grid>
+                        <ListBox x:Name="NavigatorList" Grid.Row="1" Classes="navigator-list"
+                                 ItemsSource="{Binding NavigationEntries}"
+                                 SelectedItem="{Binding SelectedEntry, Mode=TwoWay}"
+                                 SelectedIndex="{Binding SelectedEntryIndex, Mode=OneWay}"
+                                 Background="Transparent" BorderThickness="0" Padding="0"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                 ScrollViewer.VerticalScrollBarVisibility="Hidden"
+                                 helpers:ListBoxBehaviors.CenterSelectedItem="True"
+                                 ext:ThemeProperties.UseHostSelectionEffects="False">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel CacheLength="0.5" />
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="nav:BigModeNavigationEntry">
+                                    <Border Classes="row-surface" CornerRadius="6" Background="Transparent">
+                                        <Grid ColumnDefinitions="4,92,*" ColumnSpacing="18" Margin="0,8,16,8">
+                                            <Border Background="{StaticResource Accent}" CornerRadius="2"
+                                                    IsVisible="{Binding $parent[ListBoxItem].IsSelected}" />
+                                            <Grid Grid.Column="1" Width="92" Height="84">
+                                                <!-- Typed fallback survives container recycling between kinds. -->
+                                                <ContentControl Content="{Binding}" HorizontalContentAlignment="Center"
+                                                                VerticalContentAlignment="Center"
+                                                                IsVisible="{Binding ShowCoverTitle}">
+                                                    <ContentControl.DataTemplates>
+                                                        <DataTemplate DataType="nav:BigModeNodeNavigationEntry">
+                                                            <Path Data="M 1,5 L 1,22 L 27,22 L 27,7 L 13,7 L 10,3 L 1,3 Z"
+                                                                  Width="38" Height="32" Stretch="Uniform"
+                                                                  Stroke="#8DCBC5" StrokeThickness="1.5" />
+                                                        </DataTemplate>
+                                                        <DataTemplate DataType="nav:BigModeMediaNavigationEntry">
+                                                            <Path Data="M 3,1 L 21,1 L 21,29 L 3,29 Z M 9,10 L 16,15 L 9,20 Z"
+                                                                  Width="26" Height="36" Stretch="Uniform"
+                                                                  Stroke="#607481" StrokeThickness="1.5" />
+                                                        </DataTemplate>
+                                                    </ContentControl.DataTemplates>
+                                                </ContentControl>
+                                                <Image x:Name="RowCover" helpers:AsyncImageHelper.Url="{Binding CoverPath}"
+                                                       helpers:AsyncImageHelper.DecodeWidth="160" Stretch="Uniform" />
+                                                <Image helpers:AsyncImageHelper.Url="{Binding LogoPath}"
+                                                       helpers:AsyncImageHelper.DecodeWidth="160" Stretch="Uniform"
+                                                       IsVisible="{Binding HasNodeLogoFallback}" />
+                                            </Grid>
+                                            <Grid Grid.Column="2" RowDefinitions="*,24" RowSpacing="2">
+                                                <!-- Left alignment keeps short titles and their marker together;
+                                                     the star column remains reserved when long titles wrap. -->
+                                                <Grid x:Name="RowTitleArea" ColumnDefinitions="*,Auto"
+                                                      HorizontalAlignment="Left" VerticalAlignment="Center">
+                                                    <TextBlock x:Name="RowTitle" Text="{Binding Title}" FontSize="28" LineHeight="29"
+                                                               MaxLines="2" TextWrapping="Wrap" TextTrimming="WordEllipsis"
+                                                               Foreground="{StaticResource Text}" VerticalAlignment="Center" />
+                                                    <ContentControl Grid.Column="1" Content="{Binding}"
+                                                                    VerticalContentAlignment="Center">
+                                                        <ContentControl.DataTemplates>
+                                                            <DataTemplate DataType="nav:BigModeNodeNavigationEntry">
+                                                                <Border IsVisible="False" />
+                                                            </DataTemplate>
+                                                            <DataTemplate DataType="nav:BigModeMediaNavigationEntry">
+                                                                <TextBlock x:Name="FavoriteStar" Text="★" Margin="8,0,0,0"
+                                                                           FontSize="24" Foreground="#E8C56A"
+                                                                           IsVisible="{Binding Item.IsFavorite}" />
+                                                            </DataTemplate>
+                                                        </ContentControl.DataTemplates>
+                                                    </ContentControl>
+                                                </Grid>
+                                                <ContentControl Grid.Row="1" Content="{Binding}">
+                                                    <ContentControl.DataTemplates>
+                                                        <DataTemplate DataType="nav:BigModeNodeNavigationEntry">
+                                                            <TextBlock Text="{ReflectionBinding $parent[UserControl].DataContext.HostNavigationActionText}"
+                                                                       FontSize="19" Foreground="{StaticResource MutedText}" />
+                                                        </DataTemplate>
+                                                        <DataTemplate DataType="nav:BigModeMediaNavigationEntry">
+                                                            <TextBlock Text="{Binding Item.Genre}" FontSize="19"
+                                                                       Foreground="{StaticResource MutedText}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </DataTemplate>
+                                                    </ContentControl.DataTemplates>
+                                                </ContentControl>
+                                            </Grid>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock x:Name="EmptyLibrary" Grid.Row="1" Text="{Binding EmptyLibraryText}"
+                                   FontSize="28" Foreground="{StaticResource MutedText}" Margin="24"
+                                   TextWrapping="Wrap" IsVisible="{Binding IsNavigationEmpty}" />
+                    </Grid>
+
+                    <!-- Fixed information rows: hidden or long content never reflows another row. -->
+                    <Grid x:Name="DetailsColumn" Grid.Column="1" RowDefinitions="*,112,36,170,90" RowSpacing="16">
+                        <Grid x:Name="PreviewArea" ClipToBounds="True" Background="#0D1218">
+                            <!-- Reserve the neutral video area as soon as the selected entry has a
+                                 preview, including debounce/startup. Also cover outgoing video fades. -->
+                            <Grid x:Name="PreviewArtwork">
+                                <Grid.IsVisible>
+                                    <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                                        <Binding Path="!MainVideoHasContent" />
+                                        <Binding Path="!IsVideoOverlayVisible" />
+                                    </MultiBinding>
+                                </Grid.IsVisible>
+                                <!-- A hidden image must also release its URL/buffers. Otherwise
+                                     retaining images can reveal the previous video's wallpaper. -->
+                                <ext:CrossfadeImage x:Name="CoverFallback"
+                                                    DecodeWidth="640" LoadDelayMs="220" FadeDurationMs="300"
+                                                    RetainCurrentImageUntilLoaded="True" Stretch="Uniform">
+                                    <ext:CrossfadeImage.Url>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.WhenTrue}">
+                                            <Binding ElementName="PreviewArtwork" Path="IsVisible" />
+                                            <Binding Path="SelectedEntry.CoverPath" />
+                                        </MultiBinding>
+                                    </ext:CrossfadeImage.Url>
+                                </ext:CrossfadeImage>
+                                <ext:CrossfadeImage x:Name="ScreenshotFallback"
+                                                    DecodeWidth="1600" LoadDelayMs="220" FadeDurationMs="300"
+                                                    RetainCurrentImageUntilLoaded="True" Stretch="UniformToFill"
+                                                    IsVisible="{Binding IsGameListActive}">
+                                    <ext:CrossfadeImage.Url>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.WhenTrue}">
+                                            <Binding ElementName="PreviewArtwork" Path="IsVisible" />
+                                            <Binding Path="ActiveScreenshotFallbackPath" />
+                                        </MultiBinding>
+                                    </ext:CrossfadeImage.Url>
+                                </ext:CrossfadeImage>
+                                <ext:CrossfadeImage x:Name="MediaWallpaper"
+                                                    DecodeWidth="1600" LoadDelayMs="220" FadeDurationMs="300"
+                                                    RetainCurrentImageUntilLoaded="True" Stretch="UniformToFill"
+                                                    IsVisible="{Binding IsGameListActive}">
+                                    <ext:CrossfadeImage.Url>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.WhenTrue}">
+                                            <Binding ElementName="PreviewArtwork" Path="IsVisible" />
+                                            <Binding Path="ActiveWallpaperPath" />
+                                        </MultiBinding>
+                                    </ext:CrossfadeImage.Url>
+                                </ext:CrossfadeImage>
+                                <ext:CrossfadeImage x:Name="NodeWallpaper"
+                                                    DecodeWidth="1600" LoadDelayMs="220" FadeDurationMs="300"
+                                                    RetainCurrentImageUntilLoaded="True" Stretch="UniformToFill"
+                                                    IsVisible="{Binding IsCategorySelectionActive}">
+                                    <ext:CrossfadeImage.Url>
+                                        <MultiBinding Converter="{x:Static helpers:ObjectConverters.WhenTrue}">
+                                            <Binding ElementName="PreviewArtwork" Path="IsVisible" />
+                                            <Binding Path="SelectedCategory.PrimaryWallpaperAbsolutePath" />
+                                        </MultiBinding>
+                                    </ext:CrossfadeImage.Url>
+                                </ext:CrossfadeImage>
+                            </Grid>
+                            <Border x:Name="VideoSlot" ZIndex="1" Background="Transparent" IsHitTestVisible="False" />
+                        </Grid>
+                        <Grid x:Name="TitleArea" Grid.Row="1">
+                            <Viewbox Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Left"
+                                     IsVisible="{Binding SelectedEntry.LogoPath, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}">
+                                <ext:CrossfadeImage x:Name="SelectionLogo" Url="{Binding SelectedEntry.LogoPath}"
+                                                    DecodeWidth="1100" MaxWidth="1100" MaxHeight="112"
+                                                    LoadDelayMs="160" FadeDurationMs="200"
+                                                    RetainCurrentImageUntilLoaded="False" Stretch="Uniform" />
+                            </Viewbox>
+                            <TextBlock x:Name="SelectionTitle" Text="{Binding SelectedEntry.Title}"
+                                       FontSize="46" LineHeight="52" FontWeight="SemiBold"
+                                       TextWrapping="Wrap" MaxLines="2" TextTrimming="WordEllipsis"
+                                       Foreground="{StaticResource Text}" VerticalAlignment="Center"
+                                       IsVisible="{Binding SelectedEntry.LogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}" />
+                        </Grid>
+                        <Grid x:Name="MetadataArea" Grid.Row="2" ColumnDefinitions="Auto,*,*" ColumnSpacing="24"
+                              IsVisible="{Binding IsGameListActive}">
+                            <TextBlock Text="{Binding SelectedYear}" FontSize="24" Foreground="{StaticResource Accent}" />
+                            <TextBlock Grid.Column="1" Text="{Binding SelectedItem.Genre}" FontSize="24"
+                                       Foreground="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" />
+                            <TextBlock Grid.Column="2" Text="{Binding SelectedDeveloper}" FontSize="24"
+                                       Foreground="{StaticResource MutedText}" TextTrimming="CharacterEllipsis" />
+                        </Grid>
+                        <ScrollViewer x:Name="DescriptionViewport" Grid.Row="3" ClipToBounds="True"
+                                      VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
+                                      IsHitTestVisible="False" Focusable="False"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScroll="True"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollSpeed="8"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollStartDelayMs="10000"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollEndPauseMs="2000"
+                                      helpers:ScrollViewerBehaviors.AutoVerticalScrollRestartToken="{Binding SelectedEntry}">
+                            <TextBlock x:Name="SelectionDescription" Text="{Binding SelectedEntry.Description}"
+                                       FontSize="26" LineHeight="34" TextWrapping="Wrap" Foreground="#BBC7D0" />
+                        </ScrollViewer>
+                        <!-- The guard also prevents stale progress from appearing during a node selection. -->
+                        <Grid x:Name="AchievementArea" Grid.Row="4" IsVisible="{Binding IsGameListActive, FallbackValue=False}">
+                            <Grid x:Name="AchievementSummary" RowDefinitions="28,5,25" RowSpacing="8"
+                                  IsHitTestVisible="False"
+                                  IsVisible="{Binding RetroAchievementsProgress.IsVisible, FallbackValue=False}">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                                    <TextBlock Text="{Binding RetroAchievementsProgress.Title}" FontSize="23"
+                                               Foreground="{StaticResource Accent}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding RetroAchievementsProgress.SummaryText}"
+                                               FontSize="23" Foreground="{StaticResource MutedText}"
+                                               IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                </Grid>
+                                <ProgressBar x:Name="AchievementProgressBar" Grid.Row="1" Minimum="0" Height="5" MinHeight="0"
+                                             Maximum="{Binding RetroAchievementsProgress.ProgressMaximum}"
+                                             Value="{Binding RetroAchievementsProgress.ProgressValue}"
+                                             Background="#293943" Foreground="{StaticResource Accent}"
+                                             IsVisible="{Binding RetroAchievementsProgress.HasProgress}" />
+                                <ProgressBar Grid.Row="1" Height="5" MinHeight="0"
+                                             IsIndeterminate="{Binding RetroAchievementsProgress.IsLoading}"
+                                             IsVisible="{Binding RetroAchievementsProgress.IsLoading}"
+                                             Background="#293943" Foreground="{StaticResource Accent}" />
+                                <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="20">
+                                    <TextBlock Text="{Binding RetroAchievementsProgress.HardcoreSummaryText}" FontSize="19"
+                                               MaxWidth="600" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedText}"
+                                               IsVisible="{Binding RetroAchievementsProgress.HardcoreSummaryText, Converter={x:Static helpers:StringConverters.IsNotNullOrEmpty}}" />
+                                    <TextBlock Grid.Column="1" Text="{Binding RetroAchievementsProgress.StatusText}"
+                                               FontSize="19" TextTrimming="CharacterEllipsis" Foreground="{StaticResource MutedText}"
+                                               IsVisible="{Binding RetroAchievementsProgress.ShowStatus}" />
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </Grid>
+                </Grid>
+                <TextBlock Grid.Row="1" Text="{Binding SystemMenuHintText}" FontSize="23"
+                           Foreground="{StaticResource MutedText}" HorizontalAlignment="Right"
+                           VerticalAlignment="Center" IsVisible="{Binding !IsSystemMenuOpen}" />
+            </Grid>
+        </Grid>
+    </Viewbox>
+</UserControl>

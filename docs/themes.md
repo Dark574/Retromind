@@ -398,6 +398,12 @@ Tip:
 - For a visible crossfade, keep the control present in the visual tree.
   Toggling `IsVisible` to `false` will hide it immediately.
 
+`helpers:ObjectConverters.WhenTrue` is a general `MultiBinding` converter: the first binding is a boolean
+condition, the second is the value to return when true; false or unset conditions return `null`.
+For example, gate `CrossfadeImage.Url` with an artwork layer's visibility. Setting the URL to null cancels
+pending loading and clears retained control buffers (with the default `FadeOutOnClear="False"`), whereas
+hiding the control alone keeps its images. Shared cached bitmaps remain available for later reuse.
+
 ---
 
 ## 5) ThemeProperties: “manifest” + tuning API
@@ -973,6 +979,10 @@ showing shortcuts, so remapped buttons/keys are reflected automatically. Theme
 commands such as `PlayCurrentCommand` remain semantic actions; do not hardcode a
 controller assignment or create a parallel input handler.
 
+`SystemMenuHintText` uses one compact controller name and the configured keyboard key, followed by the
+localized action, e.g. `Start / F10 → System menu`. It reads both assignments from the current settings;
+the controller-layout overview retains its full platform aliases.
+
 `ThemeProperties.ProvidesSystemMenuHint` (bool, default `false`) tells the host that
 the root theme renders its own menu hint. When true, supply a hint bound to
 `SystemMenuHintText` and hide it while `IsSystemMenuOpen`. The host retains its own
@@ -1454,8 +1464,14 @@ marked; theme ownership changes only when opening a node. Do not modify `Items` 
 to navigate.
 
 `CurrentNode` / `ThemeContextNode` describe the opened location/theme owner. `SelectedCategory` and
-`SelectedItem` describe the mutually exclusive selected entry. `IsGameListActive` selects media preview
-panels, not a separate navigation mode. The old `Items` / `CurrentCategories` remain direct-media/node
+`SelectedItem` describe the mutually exclusive selected node/media. `NavigationBreadcrumb` is a localized,
+display-only string (`Library › … › Opened node`) built from the session's existing opened frames. It changes
+on location changes and path edits, not ordinary selection changes. Bind it to a single-line TextBlock with
+`TextTrimming="LeadingCharacterEllipsis"` to preserve the current location in long paths. It does not expose
+an alternative navigation stack or interactive breadcrumb commands.
+
+`IsGameListActive` selects media preview panels, not a separate navigation mode. The old `Items` /
+`CurrentCategories` remain direct-media/node
 projections. Do not use either alone as a universal library list. Keep virtualized panels for large lists.
 
 Wheel uses `WheelEntries` / `WheelSelectedEntryIndex` and its existing WheelPanel; Arcade retains its

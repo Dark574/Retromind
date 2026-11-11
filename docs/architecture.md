@@ -813,7 +813,7 @@ Context boundaries:
 
 | Presentation | Shipped themes | Navigation surface |
 | --- | --- | --- |
-| `MixedEntries` | Default, Prism, Cinematic, HorizontalRow, ArchiveAtlas | One mixed virtualized list using existing row/card layouts |
+| `MixedEntries` | Default, Prism, Cinematic, HorizontalRow, ArchiveAtlas, Navigator | One mixed virtualized list using existing row/card layouts |
 | `MixedEntries` | Wheel | Mixed bounded/repeating wheel using the existing WheelPanel |
 | `MediaItemsOnly` | Arcade, LivingRoom | Existing media scenes plus a host-owned structural browser on node/mixed levels |
 | `NodeBrowser` | System | Mixed browser; fixed system presentation for nodes and host media preview for media |

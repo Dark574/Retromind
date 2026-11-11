@@ -10,10 +10,12 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.4-alpha] - unreleased
 
 ### Added
+- new Navigator BigMode theme with compact vertical library navigation, breadcrumbs, a fixed artwork/video preview and achievement progress
 - new Cinematic BigMode theme with expansive artwork and video previews, a mixed category/media cover shelf, and a layout scaled for large screens
 - select and download available ScreenScraper PDF manuals individually, including regional variants, with optional bulk import and automatic skipping of identical documents
 
 ### Changed
+- shorten the shared BigMode system-menu hint while continuing to show custom controller and keyboard assignments
 - reduce redundant artwork loading and bound cached artwork memory while browsing BigMode libraries
 - publish only the current `Retromind-<version>-x86_64.AppImage.zsync` update metadata; retire the legacy filename containing `linux`
 

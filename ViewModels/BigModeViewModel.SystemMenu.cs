@@ -61,8 +61,8 @@ public partial class BigModeViewModel
 
     public string SystemMenuTitle => T("BigMode_SystemMenuTitle", "System menu");
     public string SystemMenuHintText => string.Format(
-        T("BigMode_SystemMenuHintFormat", "{0} / {1} · System menu"),
-        ControllerButtonDisplayHelper.Format(_settings.ControllerBindings.SystemMenu),
+        T("BigMode_SystemMenuHintFormat", "{0} / {1} → System menu"),
+        ControllerButtonDisplayHelper.FormatCompact(_settings.ControllerBindings.SystemMenu),
         KeyboardBindingHelper.Format(_settings.KeyboardBindings.SystemMenu, Key.F10));
     public string ControllerBindingsTitle => T("BigMode_ControllerBindingsTitle", "Controller layout");
     public string ControllerBindingsHint => T(

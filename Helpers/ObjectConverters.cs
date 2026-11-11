@@ -30,6 +30,17 @@ public static class ObjectConverters
         new FuncValueConverter<object?, bool>(value => value is null);
 
     /// <summary>
+    /// Returns the second binding's value only when the first binding is true.
+    /// Otherwise returns null, e.g. to clear image buffers while artwork is hidden.
+    /// </summary>
+    public static readonly IMultiValueConverter WhenTrue =
+        new FuncMultiValueConverter<object?, object?>(values =>
+        {
+            var entries = values?.Select(UnwrapValue).ToArray() ?? Array.Empty<object?>();
+            return entries.Length >= 2 && entries[0] is true ? entries[1] : null;
+        });
+
+    /// <summary>
     /// Returns a background brush for a media tile based on selection + hover state.
     /// Bindings order: current item, selected item, IsPointerOver.
     /// </summary>

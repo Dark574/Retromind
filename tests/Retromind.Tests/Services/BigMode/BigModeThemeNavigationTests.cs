@@ -17,6 +17,7 @@ public sealed class BigModeThemeNavigationTests
     [InlineData("Default", NavigationPresentation.MixedEntries)]
     [InlineData("Prism", NavigationPresentation.MixedEntries)]
     [InlineData("Cinematic", NavigationPresentation.MixedEntries)]
+    [InlineData("Navigator", NavigationPresentation.MixedEntries)]
     [InlineData("HorizontalRow", NavigationPresentation.MixedEntries)]
     [InlineData("ArchiveAtlas", NavigationPresentation.MixedEntries)]
     [InlineData("Wheel", NavigationPresentation.MixedEntries)]
