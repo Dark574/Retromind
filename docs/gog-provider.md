@@ -58,7 +58,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
   - `Avalonia.Controls.WebView` is used for embedded OAuth authentication dialogs
   - Linux runtime prerequisite for embedded OAuth: WPE WebKit with offscreen-renderer support
   - the WPE renderer works independently of Retromind's Avalonia X11/Wayland backend
-  - local Linux development/debug runs require system WPE WebKit (e.g. on Arch/CachyOS: `sudo pacman -S wpewebkit`)
+  - WebView 12.1.1 requires a host WPE build with the legacy libwpe/FDO API; modern Arch/CachyOS WPE packages alone may not satisfy this
+  - see [WPE runtime compatibility analysis](gog-wpe-runtime.md) for the verified API mismatch, upstream fix and Bookworm constraints
   - WebKitGTK is not used by the GOG authentication flow
   - missing or unusable WPE WebKit falls back to system-browser callback capture instead of crashing the application
 - Performance/UX:

@@ -1000,7 +1000,9 @@ Please test it carefully and expect rough edges or breaking behavior between alp
 - Secret store support:
   - preferred: Secret Service (`secret-tool`, GNOME Keyring/KWallet/libsecret backend)
   - fallback: in-memory session storage (non-persistent)
-- For embedded OAuth login dialogs: host WPE WebKit runtime available (Arch/CachyOS: `sudo pacman -S wpewebkit`).
+- For embedded OAuth login dialogs: a compatible host WPE WebKit runtime with the legacy libwpe/FDO API
+  required by WebView 12.1.1. Modern WPE packages alone may not satisfy this; see the
+  [WPE runtime compatibility analysis](docs/gog-wpe-runtime.md).
   - WebKitGTK is not required for GOG authentication.
   - If WPE WebKit is unavailable, Retromind falls back to system browser login with manual callback URL input.
   - Only in this fallback flow: after GOG finishes loading its final callback page, copy the URL from the

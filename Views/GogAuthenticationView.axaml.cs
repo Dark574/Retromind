@@ -73,7 +73,6 @@ public partial class GogAuthenticationView : Window
         wpe.DataDirectory = _dataDirectory;
         wpe.CacheDirectory = _cacheDirectory;
         wpe.RenderingMode = WpeRenderingMode.Shm;
-        wpe.PreferWebKitGtkInstead = false;
     }
 
     private void OnAdapterCreated(object? sender, WebViewAdapterEventArgs e)
@@ -221,6 +220,7 @@ public partial class GogAuthenticationView : Window
     {
         AvaloniaXamlLoader.Load(this);
         _loginWebView = FindRequiredControl<NativeWebView>("LoginWebView");
+        _loginWebView.AdapterPreference = [WebViewAdapterType.WpeWebKit];
         _statusTextBlock = FindRequiredControl<TextBlock>("StatusTextBlock");
     }
 
