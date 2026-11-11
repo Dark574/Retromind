@@ -427,9 +427,15 @@ public sealed class CinematicThemeTests
             identity.Children.Clear();
             foreach (var child in new Control[] { logo, title, metadata, description, actionRow })
                 identity.Children.Add(child);
+
+            // Parse() has no selected entry, so its IdentityPanel is hidden. Detach
+            // the measured subtree from that ancestor before exercising visibility.
+            Assert.IsType<Grid>(identity.Parent).Children.Remove(identity);
             layer.IsVisible = true;
 
             var withoutAchievements = Layout(false);
+            Assert.Equal(124, title.Bounds.Height);
+            Assert.Equal(108, description.Bounds.Height);
             Assert.Equal(withoutAchievements, Layout(true));
             Assert.Equal(default(Size), layer.DesiredSize);
             Assert.Equal(64, summary.Bounds.Height);
@@ -441,6 +447,13 @@ public sealed class CinematicThemeTests
             (Size Size, Rect Title, Rect Metadata, Rect Description, Rect Actions) Layout(bool visible)
             {
                 summary.IsVisible = visible;
+                // This isolated tree has no layout manager to visit invalid children
+                // when Canvas keeps the parent's desired size unchanged.
+                foreach (var control in identity.GetLogicalDescendants().OfType<Control>().Prepend(identity))
+                {
+                    control.InvalidateMeasure();
+                    control.InvalidateArrange();
+                }
                 identity.Measure(new Size(1180, double.PositiveInfinity));
                 identity.Arrange(new Rect(0, 0, 1180, identity.DesiredSize.Height));
                 return (identity.DesiredSize, title.Bounds, metadata.Bounds, description.Bounds, actionRow.Bounds);

@@ -4,7 +4,7 @@ using System.Globalization;
 using Avalonia.Data.Converters;
 using Retromind.Helpers.Video;
 
-namespace Retromind.Helpers;
+namespace Retromind.Extensions;
 
 /// <summary>
 /// Fits a floating preview slot to the active frame's aspect ratio at a bounded

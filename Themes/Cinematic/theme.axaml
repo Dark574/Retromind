@@ -34,9 +34,9 @@
     <UserControl.Resources>
         <x:Double x:Key="PreviewHeight">535</x:Double>
         <x:Double x:Key="PreviewMaxWidth">950</x:Double>
-        <helpers:VideoPreviewWidthConverter x:Key="VideoPreviewWidth"
-                                           PreviewHeight="{StaticResource PreviewHeight}"
-                                           MaxWidth="{StaticResource PreviewMaxWidth}" />
+        <ext:VideoPreviewWidthConverter x:Key="VideoPreviewWidth"
+                                       PreviewHeight="{StaticResource PreviewHeight}"
+                                       MaxWidth="{StaticResource PreviewMaxWidth}" />
         <helpers:BoolToOpacityConverter x:Key="CardOpacity" TrueOpacity="1" FalseOpacity="0.64" />
         <SolidColorBrush x:Key="Accent" Color="#EAC892" />
         <SolidColorBrush x:Key="MutedText" Color="#CCD0D5" />

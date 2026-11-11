@@ -53,8 +53,10 @@ or node-logo fallbacks; captions and the hero title also identify unreadable ima
 active frame's aspect ratio: approximately **713.3 × 535** for 4:3, and the full
 950-unit width for 16:9. Thus the visible video's right edge keeps the same margin,
 instead of centering narrower footage inside a fixed 950-unit slot. The small
-`VideoPreviewWidthConverter` only reads existing main-surface dimensions; it does
-not change playback or create a player. `MainVideoFrameRevision` updates the width
+shared `ext:VideoPreviewWidthConverter` theme extension only reads existing
+main-surface dimensions; it does not change playback or create a player.
+See the [general extension reference](../../docs/themes.md#aspect-fitted-preview-slots-optional).
+`MainVideoFrameRevision` updates the width
 when the first frame becomes ready, including when the active index is unchanged.
 Until dimensions are known, the slot uses its maximum width.
 
