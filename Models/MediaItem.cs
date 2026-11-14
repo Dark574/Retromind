@@ -254,6 +254,12 @@ public partial class MediaItem : ObservableObject
     public MediaItem StorePresentationState => this;
 
     /// <summary>
+    /// Refreshes store actions after installed files change without changing the stored launch configuration.
+    /// </summary>
+    public void NotifyStorePresentationChanged() =>
+        OnPropertyChanged(nameof(StorePresentationState));
+
+    /// <summary>
     /// Sets an asset explicitly as "active" for display (used by randomization)
     /// </summary>
     public void SetActiveAsset(AssetType type, string relativePath)

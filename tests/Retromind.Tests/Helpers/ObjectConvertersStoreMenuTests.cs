@@ -83,6 +83,36 @@ public sealed class ObjectConvertersStoreMenuTests
         Assert.True(Convert(RetromindObjectConverters.StoreInstallMenuVisible, item));
     }
 
+    [Fact]
+    public void InterruptedGogReinstall_OffersInstallWhilePreservingManagedDirectory()
+    {
+        using var temp = new TemporaryDirectory();
+        var item = CreateStoreItem(StoreProviderIds.Gog, "gog-id");
+        var executable = temp.CreateFile("managed-game/Game.exe");
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = temp.GetPath("managed-game");
+        item.Files =
+        [
+            new MediaFileRef { Kind = MediaFileKind.Absolute, Path = executable, Index = 1 }
+        ];
+        temp.CreateFile("managed-game/.retromind-gog-installers/setup.exe");
+
+        Assert.False(GogMediaItemStateHelper.ShouldOfferInstall(item));
+        Assert.False(Convert(RetromindObjectConverters.StoreInstallMenuVisible, item));
+        Assert.True(Convert(RetromindObjectConverters.GogInstalledMenuVisible, item));
+
+        // A clean reinstall removes the old executable, but keeps downloaded installers
+        // and the stored install/launch paths when the replacement installer is cancelled.
+        File.Delete(executable);
+
+        Assert.True(GogMediaItemStateHelper.ShouldOfferInstall(item));
+        Assert.True(GogMediaItemStateHelper.CanInstallWithRetromind(item));
+        Assert.True(Convert(RetromindObjectConverters.StoreInstallMenuVisible, item));
+        Assert.False(Convert(RetromindObjectConverters.GogInstalledMenuVisible, item));
+        Assert.False(Convert(RetromindObjectConverters.GogUpdateCheckMenuVisible, item));
+        Assert.True(Convert(RetromindObjectConverters.GogUninstallMenuVisible, item));
+        Assert.True(File.Exists(temp.GetPath("managed-game", ".retromind-gog-installers", "setup.exe")));
+    }
+
     private static MediaItem CreateStoreItem(string providerId, string gameId)
     {
         var item = new MediaItem("Store game");

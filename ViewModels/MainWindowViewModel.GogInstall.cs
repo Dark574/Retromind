@@ -408,7 +408,14 @@ public partial class MainWindowViewModel
         finally
         {
             progressLogVm.MarkFinished();
-            UiThreadHelper.Post(() => progressLogVm.IsRunning = false);
+            UiThreadHelper.Post(() =>
+            {
+                progressLogVm.IsRunning = false;
+                // A cancelled clean install may have removed the executable while leaving
+                // the stored paths intact. Refresh file-dependent actions in either case.
+                item.NotifyStorePresentationChanged();
+                NotifyPlayAvailabilityChanged();
+            });
         }
 
         return true;

@@ -32,7 +32,8 @@ internal static class GogMediaItemStateHelper
         TryGetGameId(item) != null && !HasPlayableLaunchConfiguration(item!);
 
     public static bool CanInstallWithRetromind(MediaItem? item) =>
-        TryGetGameId(item) != null && !IsRetromindManagedInstallation(item);
+        TryGetGameId(item) != null &&
+        (!IsRetromindManagedInstallation(item) || !HasPlayableLaunchConfiguration(item!));
 
     public static bool IsRetromindManagedInstallation(MediaItem? item) =>
         TryResolveManagedInstallPath(item, out var installPath) && Directory.Exists(installPath);

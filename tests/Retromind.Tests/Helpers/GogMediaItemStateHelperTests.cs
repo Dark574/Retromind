@@ -97,6 +97,7 @@ public sealed class GogMediaItemStateHelperTests
         var installPath = temp.CreateDirectory("managed-game");
         var item = CreateGogItem();
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = installPath;
+        item.LauncherPath = temp.CreateFile("external/game.sh");
 
         Assert.True(GogMediaItemStateHelper.IsRetromindManagedInstallation(item));
         Assert.False(GogMediaItemStateHelper.CanInstallWithRetromind(item));
