@@ -7,7 +7,17 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ---
 
-## [0.2.4-alpha] - unreleased
+## [0.2.5-alpha] - unreleased
+
+### Added
+
+### Changed
+
+### Fixed
+
+---
+
+## [0.2.4-alpha] - 2026-11-16
 
 ### Added
 - new Navigator BigMode theme with compact vertical library navigation, breadcrumbs, a fixed artwork/video preview and achievement progress
@@ -568,7 +578,8 @@ also a lot of small fixes and changes
 
 ---
 
-[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.4-alpha...HEAD
+[Unreleased]: https://github.com/Dark574/Retromind/compare/v0.2.5-alpha...HEAD
+[0.2.4-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.4-alpha
 [0.2.3-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.3-alpha
 [0.2.2-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.2-alpha
 [0.2.1-alpha]: https://github.com/Dark574/Retromind/releases/tag/v0.2.1-alpha
