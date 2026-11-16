@@ -14,6 +14,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- show the title text in the Cinematic theme only when no logo is available, avoiding duplicate titles
 
 ---
 

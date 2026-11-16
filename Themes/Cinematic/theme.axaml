@@ -164,7 +164,8 @@
                             <!-- Downscale unusually long titles within a bounded area instead
                                  of truncating them or pushing descriptions into the shelf. -->
                             <Viewbox x:Name="TitleFit" MaxHeight="124" Stretch="Uniform" StretchDirection="DownOnly"
-                                     HorizontalAlignment="Left">
+                                     HorizontalAlignment="Left"
+                                     IsVisible="{Binding SelectedEntry.LogoPath, Converter={x:Static helpers:StringConverters.IsNullOrEmpty}}">
                                 <TextBlock x:Name="HeroTitle" Text="{Binding SelectedEntry.Title}" Width="1180"
                                            FontSize="54" FontWeight="SemiBold" Foreground="White"
                                            TextWrapping="Wrap" />
