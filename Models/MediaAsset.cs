@@ -58,6 +58,14 @@ public partial class MediaAsset : ObservableObject
     private string? _transientPreviewPath;
 
     [JsonIgnore]
+    public string? ImagePreviewPath => Type is
+        AssetType.Cover or AssetType.Wallpaper or AssetType.Logo or
+        AssetType.Marquee or AssetType.Banner or AssetType.Bezel or
+        AssetType.ControlPanel or AssetType.Screenshot
+            ? AbsolutePath
+            : null;
+
+    [JsonIgnore]
     public bool HasTransientPreview => !string.IsNullOrWhiteSpace(TransientPreviewPath);
 
     /// <summary>
@@ -74,6 +82,7 @@ public partial class MediaAsset : ObservableObject
 
             OnPropertyChanged(nameof(AbsolutePath));
             OnPropertyChanged(nameof(HasTransientPreview));
+            OnPropertyChanged(nameof(ImagePreviewPath));
         }
     }
     
@@ -113,6 +122,7 @@ public partial class MediaAsset : ObservableObject
             _absolutePath = null;
             OnPropertyChanged(nameof(AbsolutePath));
             OnPropertyChanged(nameof(DisplayLabel));
+            OnPropertyChanged(nameof(ImagePreviewPath));
         }
     }
 
