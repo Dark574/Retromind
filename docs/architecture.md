@@ -273,6 +273,8 @@ keyring writers are coordinated across multiple Retromind processes.
 
 ### Versioned metadata backups (`Backups/`)
 - service: `MetadataBackupService`; UI: `MetadataBackupViewModel` / `MetadataBackupView`
+- `DesktopMetadataBackupCoordinator` coordinates metadata snapshots, backup triggers and restore,
+  including rollback. The main window handles the dialogs and closes after a successful restore.
 - each ZIP contains serialized snapshots of `retromind_tree.json` and `app_settings.json` plus a manifest
   with format version, Retromind version, creation reason, and SHA-256 checksums
 - archives are written to a temporary file, fully reopened and validated, and only then published

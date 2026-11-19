@@ -154,8 +154,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private DateTime _lastControllerExitHandledUtc = DateTime.MinValue;
 
     private readonly DesktopPersistenceCoordinator _persistence;
+    private readonly DesktopMetadataBackupCoordinator _metadataBackups;
     private bool _libraryLoadFailed;
-    private bool _closeWithoutPersistenceAfterRestore;
     private CancellationTokenSource? _startupWarmupCts;
     private Task? _startupWarmupTask;
 
@@ -534,6 +534,15 @@ public partial class MainWindowViewModel : ViewModelBase
             () => UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings)),
             _errorService,
             TryShowPersistenceSaveFailureAsync);
+        _metadataBackups = new DesktopMetadataBackupCoordinator(
+            _metadataBackupService,
+            _dataService,
+            _settingsService,
+            _libraryTracker,
+            _currentSettings,
+            () => RootItems,
+            () => _libraryLoadFailed,
+            _persistence.CancelPendingSettingsSave);
         _fileService.LibraryChanged += _libraryTracker.MarkDirty;
         
         // Seed layout values early so bindings are stable before LoadData completes.
@@ -942,7 +951,7 @@ public partial class MainWindowViewModel : ViewModelBase
             .PrepareForShutdownAsync(GogShutdownGracePeriod)
             .ConfigureAwait(false);
 
-        if (_closeWithoutPersistenceAfterRestore)
+        if (_metadataBackups.RequiresRestart)
         {
             await UiThreadHelper.InvokeAsync(Cleanup).ConfigureAwait(false);
             return true;

@@ -1781,7 +1781,7 @@ public partial class MainWindowViewModel
         // A metadata restore deliberately replaced the persisted files and requested
         // application shutdown. Never let the settings-dialog continuation save the
         // preceding in-memory settings over that restored state.
-        if (_closeWithoutPersistenceAfterRestore)
+        if (_metadataBackups.RequiresRestart)
             return;
 
         if (settingsVm.LibraryModified)

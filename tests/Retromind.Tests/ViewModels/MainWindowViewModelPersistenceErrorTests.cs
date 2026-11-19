@@ -90,15 +90,21 @@ public sealed class MainWindowViewModelPersistenceErrorTests
         var vm = (MainWindowViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainWindowViewModel));
         var failure = new IOException("Final save failed");
         var tracker = CreateFailingLibraryTracker(failure);
-        using var persistence = new DesktopPersistenceCoordinator(tracker, new SettingsService(), () => false,
+        var settingsService = new SettingsService();
+        var settings = new AppSettings();
+        using var persistence = new DesktopPersistenceCoordinator(tracker, settingsService, () => false,
             () => throw new InvalidOperationException("The library failure must stop the flush."),
             errors, _ => Task.FromResult(false));
-        var launcher = new LauncherService(temp.RootPath, new AppSettings(),
+        var metadataBackups = new DesktopMetadataBackupCoordinator(new MetadataBackupService(temp.RootPath),
+            new MediaDataService(), settingsService, tracker, settings, () => [],
+            () => false, persistence.CancelPendingSettingsSave);
+        var launcher = new LauncherService(temp.RootPath, settings,
             new LaunchLogService(temp.GetPath("Logs", "Launch")));
         SetField(vm, "_audioService", new AudioService(errors));
         SetField(vm, "_launcherService", launcher);
         SetField(vm, "_libraryTracker", tracker);
         SetField(vm, "_persistence", persistence);
+        SetField(vm, "_metadataBackups", metadataBackups);
 
         try
         {

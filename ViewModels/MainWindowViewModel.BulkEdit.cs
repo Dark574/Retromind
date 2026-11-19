@@ -46,8 +46,8 @@ public partial class MainWindowViewModel
 
         try
         {
-            if (ShouldCreateAutomaticMetadataBackup(MetadataBackupReason.BeforeBulkEdit))
-                await CreateCurrentMetadataBackupAsync(MetadataBackupReason.BeforeBulkEdit);
+            if (_metadataBackups.ShouldCreateAutomaticBackup(MetadataBackupReason.BeforeBulkEdit))
+                await _metadataBackups.CreateBackupAsync(MetadataBackupReason.BeforeBulkEdit);
         }
         catch (Exception ex)
         {

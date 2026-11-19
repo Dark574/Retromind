@@ -1427,12 +1427,12 @@ public partial class MainWindowViewModel
         var dialog = new BulkScrapeView { DataContext = vm };
         vm.OnBeforeStartAsync = async () =>
         {
-            if (!ShouldCreateAutomaticMetadataBackup(MetadataBackupReason.BeforeBulkScrape))
+            if (!_metadataBackups.ShouldCreateAutomaticBackup(MetadataBackupReason.BeforeBulkScrape))
                 return true;
 
             try
             {
-                await CreateCurrentMetadataBackupAsync(MetadataBackupReason.BeforeBulkScrape);
+                await _metadataBackups.CreateBackupAsync(MetadataBackupReason.BeforeBulkScrape);
                 return true;
             }
             catch (Exception ex)
