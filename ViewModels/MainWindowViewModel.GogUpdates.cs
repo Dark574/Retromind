@@ -1,126 +1,23 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Resources;
 using Retromind.Services.Stores.Gog;
 
 namespace Retromind.ViewModels;
 
 public partial class MainWindowViewModel
 {
-    private static readonly TimeSpan GogUpdateSweepInterval = TimeSpan.FromHours(24);
-    private static readonly TimeSpan GogUpdateAuthCacheTtl = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan GogUpdatePerItemDelay = TimeSpan.FromSeconds(2);
+    private void StartGogUpdateBackgroundLoop() =>
+        _gogUpdateChecks.StartBackgroundChecks(
+            () => UiThreadHelper.InvokeAsync(GetInstalledGogItems),
+            (item, ct) => CheckGogUpdatesForItemCoreAsync(item, force: false, ct));
 
-    private readonly object _gogUpdateLock = new();
-    private readonly HashSet<string> _gogUpdateChecksInFlight = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _gogUpdateSweepSemaphore = new(1, 1);
-    private readonly SemaphoreSlim _gogUpdateAuthSemaphore = new(1, 1);
-    private CancellationTokenSource? _gogUpdateLoopCts;
-    private Task? _gogUpdateLoopTask;
-    private DateTimeOffset _gogUpdateAuthCacheValidUntilUtc = DateTimeOffset.MinValue;
-    private bool _gogUpdateAuthAvailableCached;
-
-    private enum GogUpdateResult
-    {
-        UpToDate,
-        UpdateAvailable,
-        NoBaseline,
-        NotDue,
-        NotApplicable,
-        InFlight,
-        NoAuth,
-        Failed
-    }
-
-    private sealed record GogInstalledSnapshot(
-        string ItemId,
-        string StoreGameId,
-        GogInstallPlatform Platform,
-        string? InstalledVersion,
-        string? InstalledSignature,
-        IReadOnlyList<GogDlcInstallationState> InstalledDlcs,
-        DateTimeOffset? LastCheckedUtc);
-
-    private void StartGogUpdateBackgroundLoop()
-    {
-        if (_gogUpdateLoopTask is { IsCompleted: false })
-            return;
-
-        _gogUpdateLoopCts?.Cancel();
-        _gogUpdateLoopCts?.Dispose();
-        _gogUpdateLoopCts = new CancellationTokenSource();
-        _gogUpdateLoopTask = Task.Run(() => RunGogUpdateBackgroundLoopAsync(_gogUpdateLoopCts.Token));
-    }
-
-    private void StopGogUpdateBackgroundLoop()
-    {
-        _gogUpdateLoopCts?.Cancel();
-        _gogUpdateLoopCts?.Dispose();
-        _gogUpdateLoopCts = null;
-        _gogUpdateLoopTask = null;
-    }
-
-    private async Task RunGogUpdateBackgroundLoopAsync(CancellationToken ct)
-    {
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                await RunGogUpdateSweepAsync(ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[GOG] Background update sweep failed: {ex.Message}");
-            }
-
-            try
-            {
-                await Task.Delay(GogUpdateSweepInterval, ct).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-        }
-    }
-
-    private async Task RunGogUpdateSweepAsync(CancellationToken ct)
-    {
-        if (!await _gogUpdateSweepSemaphore.WaitAsync(0, ct).ConfigureAwait(false))
-            return;
-
-        try
-        {
-            var candidates = await UiThreadHelper.InvokeAsync(GetInstalledGogItems).ConfigureAwait(false);
-            foreach (var item in candidates)
-            {
-                ct.ThrowIfCancellationRequested();
-                var result = await CheckGogUpdatesForItemCoreAsync(item, force: false, ct).ConfigureAwait(false);
-                if (ShouldThrottleGogUpdateSweep(result))
-                    await Task.Delay(GogUpdatePerItemDelay, ct).ConfigureAwait(false);
-            }
-        }
-        finally
-        {
-            _gogUpdateSweepSemaphore.Release();
-        }
-    }
-
-    private List<MediaItem> GetInstalledGogItems()
+    private IReadOnlyList<MediaItem> GetInstalledGogItems()
     {
         var result = new List<MediaItem>();
         foreach (var root in RootItems)
@@ -139,12 +36,6 @@ public partial class MainWindowViewModel
         foreach (var child in node.Children)
             CollectInstalledGogItemsRecursive(child, buffer);
     }
-
-    private static bool ShouldThrottleGogUpdateSweep(GogUpdateResult result)
-        => result is GogUpdateResult.UpToDate
-            or GogUpdateResult.UpdateAvailable
-            or GogUpdateResult.NoBaseline
-            or GogUpdateResult.Failed;
 
     private bool CanCheckGogUpdatesForItem(MediaItem? item)
     {
@@ -205,133 +96,16 @@ public partial class MainWindowViewModel
     }
 
     private async Task<GogUpdateResult> CheckGogUpdatesForItemCoreAsync(
-        MediaItem item,
-        bool force,
-        CancellationToken ct)
+        MediaItem item, bool force, CancellationToken ct)
     {
-        GogInstalledSnapshot? snapshot = null;
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            snapshot = CreateInstalledGogSnapshot(item);
-        }).ConfigureAwait(false);
-
-        if (snapshot == null)
-            return GogUpdateResult.NotApplicable;
-
-        if (!force && snapshot.LastCheckedUtc.HasValue &&
-            DateTimeOffset.UtcNow - snapshot.LastCheckedUtc.Value < GogUpdateSweepInterval)
-        {
-            return GogUpdateResult.NotDue;
-        }
-
-        if (!TryEnterGogUpdateCheck(snapshot.ItemId))
-            return GogUpdateResult.InFlight;
-
-        try
-        {
-            if (!await EnsureGogAuthForUpdateChecksAsync(forceRefresh: false, ct).ConfigureAwait(false))
-            {
-                await ApplyGogUpdateCheckMetadataAsync(
-                    item,
-                    status: "auth_missing",
-                    updateAvailable: null,
-                    installedVersion: null,
-                    installedSignature: null,
-                    DateTimeOffset.UtcNow).ConfigureAwait(false);
-                return GogUpdateResult.NoAuth;
-            }
-
-            GogInstallerPackage? remotePackage;
-            try
-            {
-                remotePackage = await _gogInstallService
-                    .ResolveInstallerPackageAsync(snapshot.StoreGameId, snapshot.Platform, ct)
-                    .ConfigureAwait(false);
-            }
-            catch (Exception ex) when (IsLikelyGogAuthIssue(ex))
-            {
-                if (!await EnsureGogAuthForUpdateChecksAsync(forceRefresh: true, ct).ConfigureAwait(false))
-                    return GogUpdateResult.NoAuth;
-
-                remotePackage = await _gogInstallService
-                    .ResolveInstallerPackageAsync(snapshot.StoreGameId, snapshot.Platform, ct)
-                    .ConfigureAwait(false);
-            }
-
-            if (remotePackage == null)
-            {
-                await ApplyGogUpdateCheckMetadataAsync(
-                    item,
-                    status: "unknown",
-                    updateAvailable: null,
-                    installedVersion: null,
-                    installedSignature: null,
-                    DateTimeOffset.UtcNow).ConfigureAwait(false);
-                return GogUpdateResult.Failed;
-            }
-
-            await RefreshGogDlcUpdateAvailabilityAsync(item, snapshot, ct).ConfigureAwait(false);
-
-            var remoteVersion = NormalizeGogVersion(remotePackage.Version);
-            var remoteSignature = BuildInstallerSignature(remotePackage);
-            var hasBaseline = !string.IsNullOrWhiteSpace(snapshot.InstalledVersion) ||
-                              !string.IsNullOrWhiteSpace(snapshot.InstalledSignature);
-
-            if (!hasBaseline)
-            {
-                await ApplyGogUpdateCheckMetadataAsync(
-                    item,
-                    status: "unknown",
-                    updateAvailable: false,
-                    installedVersion: null,
-                    installedSignature: null,
-                    DateTimeOffset.UtcNow).ConfigureAwait(false);
-                return GogUpdateResult.NoBaseline;
-            }
-
-            var versionChanged = !string.IsNullOrWhiteSpace(snapshot.InstalledVersion) &&
-                                 !string.Equals(
-                                     NormalizeGogVersion(snapshot.InstalledVersion),
-                                     remoteVersion,
-                                     StringComparison.OrdinalIgnoreCase);
-
-            var signatureChanged = !string.IsNullOrWhiteSpace(snapshot.InstalledSignature) &&
-                                   !string.Equals(
-                                       snapshot.InstalledSignature,
-                                       remoteSignature,
-                                       StringComparison.OrdinalIgnoreCase);
-
-            var updateAvailable = versionChanged || signatureChanged;
-            await ApplyGogUpdateCheckMetadataAsync(
-                item,
-                status: updateAvailable ? "available" : "up_to_date",
-                updateAvailable: updateAvailable,
-                installedVersion: null,
-                installedSignature: null,
-                DateTimeOffset.UtcNow).ConfigureAwait(false);
-
-            return updateAvailable ? GogUpdateResult.UpdateAvailable : GogUpdateResult.UpToDate;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[GOG] Update check failed for '{item.Title}': {ex.Message}");
-            await ApplyGogUpdateCheckMetadataAsync(
-                item,
-                status: "error",
-                updateAvailable: null,
-                installedVersion: null,
-                installedSignature: null,
-                DateTimeOffset.UtcNow).ConfigureAwait(false);
-            return GogUpdateResult.Failed;
-        }
-        finally
-        {
-            ExitGogUpdateCheck(snapshot.ItemId);
-        }
+        var snapshot = await UiThreadHelper.InvokeAsync(() => CreateInstalledGogSnapshot(item))
+            .ConfigureAwait(false);
+        return await _gogUpdateChecks.CheckAsync(
+                snapshot, force,
+                metadata => ApplyGogUpdateCheckMetadataAsync(item, metadata),
+                available => UiThreadHelper.InvokeAsync(() => SetGogDlcUpdateAvailability(item, available)),
+                ct)
+            .ConfigureAwait(false);
     }
 
     private GogInstalledSnapshot? CreateInstalledGogSnapshot(MediaItem item)
@@ -380,132 +154,19 @@ public partial class MainWindowViewModel
             lastCheckedUtc);
     }
 
-    private async Task RefreshGogDlcUpdateAvailabilityAsync(
-        MediaItem item,
-        GogInstalledSnapshot snapshot,
-        CancellationToken ct)
-    {
-        if (snapshot.InstalledDlcs.Count == 0)
-        {
-            await UiThreadHelper.InvokeAsync(() => SetGogDlcUpdateAvailability(item, false)).ConfigureAwait(false);
-            return;
-        }
-
-        try
-        {
-            var catalog = await _gogInstallService
-                .GetOwnedDlcCatalogAsync(snapshot.StoreGameId, ct)
-                .ConfigureAwait(false);
-            var hasUpdate = GogDlcUpdateComparer.HasUpdate(
-                snapshot.InstalledDlcs,
-                catalog,
-                snapshot.Platform);
-            await UiThreadHelper.InvokeAsync(() => SetGogDlcUpdateAvailability(item, hasUpdate)).ConfigureAwait(false);
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            // Keep the last known DLC update state when GOG cannot provide the
-            // catalog. A transient network failure must not hide an update badge.
-            Debug.WriteLine($"[GOG] DLC update check failed for '{item.Title}': {ex.Message}");
-        }
-    }
-
-    private async Task<bool> EnsureGogAuthForUpdateChecksAsync(bool forceRefresh, CancellationToken ct)
-    {
-        await _gogUpdateAuthSemaphore.WaitAsync(ct).ConfigureAwait(false);
-        try
-        {
-            var now = DateTimeOffset.UtcNow;
-            if (!forceRefresh && now < _gogUpdateAuthCacheValidUntilUtc)
-                return _gogUpdateAuthAvailableCached;
-
-            var isAuthenticated = false;
-            try
-            {
-                var authState = await _gogStoreAuthProvider.GetAuthStateAsync(ct).ConfigureAwait(false);
-                isAuthenticated = authState.IsAuthenticated;
-                if (!isAuthenticated)
-                    isAuthenticated = await _gogStoreAuthProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                Debug.WriteLine($"[GOG] Silent auth check for updates failed: {ex.Message}");
-                isAuthenticated = false;
-            }
-
-            _gogUpdateAuthAvailableCached = isAuthenticated;
-            _gogUpdateAuthCacheValidUntilUtc = now.Add(GogUpdateAuthCacheTtl);
-            return isAuthenticated;
-        }
-        finally
-        {
-            _gogUpdateAuthSemaphore.Release();
-        }
-    }
-
-    private bool TryEnterGogUpdateCheck(string itemId)
-    {
-        lock (_gogUpdateLock)
-            return _gogUpdateChecksInFlight.Add(itemId);
-    }
-
-    private void ExitGogUpdateCheck(string itemId)
-    {
-        lock (_gogUpdateLock)
-            _gogUpdateChecksInFlight.Remove(itemId);
-    }
-
-    private static string NormalizeGogVersion(string? version)
-        => string.IsNullOrWhiteSpace(version) ? string.Empty : version.Trim();
-
-    private static string BuildInstallerSignature(GogInstallerPackage package)
-    {
-        var builder = new StringBuilder();
-        foreach (var file in package.Files
-                     .OrderBy(f => f.FileName ?? string.Empty, StringComparer.OrdinalIgnoreCase))
-        {
-            builder.Append(file.FileName?.Trim() ?? string.Empty);
-            builder.Append('|');
-            builder.Append(file.Size?.ToString(CultureInfo.InvariantCulture) ?? string.Empty);
-            builder.Append('\n');
-        }
-
-        var payload = builder.ToString();
-        if (payload.Length == 0)
-            return string.Empty;
-
-        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(payload));
-        return Convert.ToHexString(hashBytes);
-    }
-
-    private async Task ApplyGogUpdateCheckMetadataAsync(
-        MediaItem item,
-        string status,
-        bool? updateAvailable,
-        string? installedVersion,
-        string? installedSignature,
-        DateTimeOffset checkedUtc)
+    private async Task ApplyGogUpdateCheckMetadataAsync(MediaItem item, GogUpdateMetadata metadata)
     {
         var changed = await UiThreadHelper.InvokeAsync(() =>
         {
             var fields = new Dictionary<string, string>(item.CustomFields, StringComparer.Ordinal);
             var hasChanged = false;
 
-            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, status);
-            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, checkedUtc.ToString("O", CultureInfo.InvariantCulture));
+            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, metadata.Status);
+            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc,
+                metadata.CheckedUtc.ToString("O", CultureInfo.InvariantCulture));
 
-            if (updateAvailable.HasValue)
-                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, updateAvailable.Value ? "true" : "false");
-
-            if (!string.IsNullOrWhiteSpace(installedVersion))
-                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreInstalledVersion, installedVersion.Trim());
-
-            if (!string.IsNullOrWhiteSpace(installedSignature))
-                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreInstalledInstallerSignature, installedSignature.Trim());
+            if (metadata.UpdateAvailable is { } available)
+                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, available ? "true" : "false");
 
             if (!hasChanged)
                 return false;
@@ -547,8 +208,8 @@ public partial class MainWindowViewModel
 
     private void UpdateInstalledGogFingerprint(MediaItem item, GogInstallerPackage package)
     {
-        var version = NormalizeGogVersion(package.Version);
-        var signature = BuildInstallerSignature(package);
+        var version = GogInstallerFingerprint.NormalizeVersion(package.Version);
+        var signature = GogInstallerFingerprint.BuildSignature(package);
         var fields = new Dictionary<string, string>(item.CustomFields, StringComparer.Ordinal);
         SetField(fields, CustomFieldKeyHelper.StoreInstalledVersion, version);
         SetField(fields, CustomFieldKeyHelper.StoreInstalledInstallerSignature, signature);

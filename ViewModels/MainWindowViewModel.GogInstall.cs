@@ -59,7 +59,7 @@ public partial class MainWindowViewModel
                 availablePlatforms = await _gogInstallService.GetAvailableInstallerPlatformsAsync(storeGameId);
             }
         }
-        catch (Exception ex) when (IsLikelyGogAuthIssue(ex))
+        catch (Exception ex) when (GogInstallService.IsLikelyAuthenticationIssue(ex))
         {
             Debug.WriteLine($"[GOG] Installer platform query auth issue: {ex.Message}");
             var reloginSucceeded = await EnsureGogSignInForInstallAsync(owner, forceInteractiveSignIn: true);
@@ -154,7 +154,7 @@ public partial class MainWindowViewModel
                     installRequest.Platform);
             }
         }
-        catch (Exception ex) when (IsLikelyGogAuthIssue(ex))
+        catch (Exception ex) when (GogInstallService.IsLikelyAuthenticationIssue(ex))
         {
             Debug.WriteLine($"[GOG] Installer resolve auth issue: {ex.Message}");
             var reloginSucceeded = await EnsureGogSignInForInstallAsync(owner, forceInteractiveSignIn: true);
@@ -574,16 +574,6 @@ public partial class MainWindowViewModel
             await ShowInfoDialog(owner, GetGogSignInErrorMessage(ex));
             return false;
         }
-    }
-
-    private static bool IsLikelyGogAuthIssue(Exception ex)
-    {
-        var message = ex.Message;
-        return message.IndexOf("authentication is required", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               message.IndexOf("401", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               message.IndexOf("403", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               message.IndexOf("unauthorized", StringComparison.OrdinalIgnoreCase) >= 0 ||
-               message.IndexOf("forbidden", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private static string BuildShortErrorDetail(Exception ex) =>

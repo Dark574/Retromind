@@ -1085,6 +1085,10 @@ the report never mutates JSON or deletes files.
   owned-library contracts extend that common identity so multiple providers can coexist without ambiguous DI
   registrations. GOG currently supplies those contracts through `GogProvider`, while its installer-specific services
   remain separate. Store identity and management state belong to each `MediaItem`, never to the containing node
+- `GogUpdateCheckService` owns the background sweep, per-item check gate, and silent authentication cache. It
+  compares installed snapshots with the remote base-game and DLC packages. The main window captures snapshots,
+  applies results on the UI thread, marks the library dirty, and owns the manual result dialog. Catalog failures
+  leave the last known DLC update state intact; the installer fingerprint format is shared with installation.
 - Epic's native provider boundary uses the Legendary CLI as an isolated backend. Executable discovery prefers the
   Retromind-managed copy before AppImage and host installations, arguments are passed without a shell, and each
   process receives a dedicated `LEGENDARY_CONFIG_PATH` below `Tools/Legendary/Data`. Legendary's account state,

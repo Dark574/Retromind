@@ -146,6 +146,16 @@ public sealed class GogInstallService
         _maxChecksumMetadataBytes = maxChecksumMetadataBytes;
     }
 
+    internal static bool IsLikelyAuthenticationIssue(Exception ex)
+    {
+        var message = ex.Message;
+        return message.IndexOf("authentication is required", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               message.IndexOf("401", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               message.IndexOf("403", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               message.IndexOf("unauthorized", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               message.IndexOf("forbidden", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
     public async Task<GogInstallerPackage?> ResolveInstallerPackageAsync(
         string gameId,
         GogInstallPlatform platform,

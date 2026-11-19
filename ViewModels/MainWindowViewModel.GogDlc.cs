@@ -505,10 +505,10 @@ public partial class MainWindowViewModel
             ProductId = entry.ProductId,
             Title = entry.Title,
             Platform = platform == GogInstallPlatform.Windows ? "windows" : "linux",
-            InstalledVersion = NormalizeGogVersion(package.Version),
+            InstalledVersion = GogInstallerFingerprint.NormalizeVersion(package.Version),
             InstalledInstallerSignature = !string.IsNullOrWhiteSpace(entry.CurrentInstallerMetadata?.Signature)
                 ? entry.CurrentInstallerMetadata.Signature
-                : BuildInstallerSignature(package)
+                : GogInstallerFingerprint.BuildSignature(package)
         });
         item.GogDlcInstallations = states;
     }

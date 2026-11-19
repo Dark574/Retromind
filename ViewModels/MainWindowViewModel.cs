@@ -61,6 +61,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly EpicInstallService _epicInstallService;
     private readonly EpicLaunchService _epicLaunchService;
     private readonly GogInstallService _gogInstallService;
+    private readonly GogUpdateCheckService _gogUpdateChecks;
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
     private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
     private readonly SettingsService _settingsService;
@@ -482,6 +483,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _epicInstallService = epicInstallService;
         _epicLaunchService = epicLaunchService;
         _gogInstallService = gogInstallService;
+        _gogUpdateChecks = new GogUpdateCheckService(_gogStoreAuthProvider, _gogInstallService);
         _gogLaunchDetectionService = gogLaunchDetectionService;
         _gogInstallerWorkflowService = gogInstallerWorkflowService;
         _settingsService = settingsService;
@@ -1251,7 +1253,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _updateContentTcs?.TrySetCanceled();
         _updateContentTcs = null;
 
-        StopGogUpdateBackgroundLoop();
+        _gogUpdateChecks.StopBackgroundChecks();
         
         _gamepadService.OnExitBigMode -= _onControllerExitRequested;
         _gamepadService.OnSessionExitRequested -= _onSessionExitRequested;
