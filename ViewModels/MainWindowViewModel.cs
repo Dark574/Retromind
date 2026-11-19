@@ -1448,7 +1448,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private string? ResolveSelectionMusicPath(MediaNode contextNode, MediaItem item)
     {
-        if (!IsRandomizeMusicActive(contextNode))
+        if (!DesktopMediaProjectionBuilder.IsMusicRandomized(contextNode, RootItems))
         {
             item.ClearActiveAsset(AssetType.Music);
             return item.GetPrimaryAssetPath(AssetType.Music);
@@ -1592,6 +1592,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Capture the node we want to load to prevent race conditions
         var nodeToLoad = SelectedNode;
+        var roots = RootItems;
         var filterProtected = IsParentalFilterActive;
 
         // Run the heavy collection logic in a background task
@@ -1605,7 +1606,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 // - the flat item list for this node (including children)
                 // - and the randomization plan for cover/wallpaper/video/music.
                 var (allItems, randomizationPlan) =
-                    await BuildDisplayItemsWithRandomizationAsync(nodeToLoad, token, filterProtected);
+                    await DesktopMediaProjectionBuilder.BuildAsync(nodeToLoad, roots, filterProtected, token);
 
                 if (token.IsCancellationRequested) return;
 
@@ -1636,7 +1637,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         return;
                     }
 
-                    ApplyRandomizationPlan(randomizationPlan);
+                    DesktopMediaProjectionBuilder.ApplyRandomizationPlan(randomizationPlan);
 
                     var preserveNodeFilters =
                         (previousVm != null && previousNodeId == nodeToLoad.Id) || hadSearchVm || restoreSearchUiState;
@@ -1713,171 +1714,4 @@ public partial class MainWindowViewModel : ViewModelBase
         }, TaskContinuationOptions.ExecuteSynchronously);
     }
     
-    /// <summary>
-    /// Builds the flat item list for the given node and precomputes
-    /// which cover, wallpaper and music assets should be active for
-    /// each item according to the node's randomization flags.
-    /// This method does no UI work and can run off the UI thread.
-    /// </summary>
-    private sealed record AssetSnapshot(AssetType Type, string RelativePath);
-
-    private async Task<(List<MediaItem> Items,
-            List<(MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music)> RandomizationPlan)>
-        BuildDisplayItemsWithRandomizationAsync(MediaNode node, CancellationToken token, bool filterProtected)
-    {
-        // 1. Collect items (recursive) using UI-thread snapshots for safety.
-        var itemList = new List<MediaItem>();
-        await CollectItemsRecursiveSnapshotAsync(node, itemList, token, filterProtected);
-
-        token.ThrowIfCancellationRequested();
-
-        // Globally sort by SortTitle (fallback: Title) so aggregated views
-        // keep a user-defined series order across subcategories.
-        itemList.Sort(MediaSortHelper.DisplayOrderComparer);
-
-        // 2. Randomization logic (covers/wallpapers/videos/music)
-        bool randomizeMusic = false;
-        bool randomizeCovers = false;
-
-        // Snapshot assets on the UI thread so background work never enumerates UI-bound collections.
-        var assetSnapshots = new List<(MediaItem Item, List<AssetSnapshot> Assets)>(itemList.Count);
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            randomizeMusic = IsRandomizeMusicActive(node);
-            randomizeCovers = IsRandomizeActive(node);
-
-            if (!randomizeCovers && !randomizeMusic)
-                return;
-
-            foreach (var item in itemList)
-            {
-                var assets = item.Assets
-                    .Select(a => new AssetSnapshot(a.Type, a.RelativePath))
-                    .ToList();
-
-                assetSnapshots.Add((item, assets));
-            }
-        });
-
-        var randomizationPlan =
-            new List<(MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music)>(
-                capacity: itemList.Count);
-
-        if (!randomizeCovers && !randomizeMusic)
-        {
-            // Ensure any previous randomization overrides are cleared.
-            for (int i = 0; i < itemList.Count; i++)
-                randomizationPlan.Add((itemList[i], null, null, null, null));
-
-            return (itemList, randomizationPlan);
-        }
-
-        foreach (var snapshot in assetSnapshots)
-        {
-            token.ThrowIfCancellationRequested();
-
-            var item = snapshot.Item;
-            var assets = snapshot.Assets;
-
-            List<AssetSnapshot>? covers = null;
-            List<AssetSnapshot>? wallpapers = null;
-            List<AssetSnapshot>? videos = null;
-            List<AssetSnapshot>? music = null;
-
-            foreach (var asset in assets)
-            {
-                if (randomizeCovers)
-                {
-                    if (asset.Type == AssetType.Cover)
-                        (covers ??= new()).Add(asset);
-                    else if (asset.Type == AssetType.Wallpaper)
-                        (wallpapers ??= new()).Add(asset);
-                    else if (asset.Type == AssetType.Video)
-                        (videos ??= new()).Add(asset);
-                }
-
-                if (randomizeMusic && asset.Type == AssetType.Music)
-                    (music ??= new()).Add(asset);
-            }
-
-            string? coverWinner = null;
-            string? wallpaperWinner = null;
-            string? videoWinner = null;
-            string? musicWinner = null;
-
-            if (randomizeCovers)
-            {
-                if (covers is { Count: > 1 })
-                    coverWinner = RandomHelper.PickRandom(covers)?.RelativePath;
-
-                if (wallpapers is { Count: > 1 })
-                    wallpaperWinner = RandomHelper.PickRandom(wallpapers)?.RelativePath;
-
-                if (videos is { Count: > 1 })
-                    videoWinner = RandomHelper.PickRandom(videos)?.RelativePath;
-            }
-
-            if (randomizeMusic && music is { Count: > 1 })
-                musicWinner = RandomHelper.PickRandom(music)?.RelativePath;
-
-            randomizationPlan.Add((item, coverWinner, wallpaperWinner, videoWinner, musicWinner));
-        }
-
-        return (itemList, randomizationPlan);
-    }
-
-    private async Task CollectItemsRecursiveSnapshotAsync(
-        MediaNode node,
-        List<MediaItem> targetList,
-        CancellationToken token,
-        bool filterProtected)
-    {
-        token.ThrowIfCancellationRequested();
-
-        List<MediaItem> items = new();
-        List<MediaNode> children = new();
-
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            items = node.Items.ToList();
-            children = node.Children.ToList();
-        });
-
-        if (filterProtected)
-            targetList.AddRange(items.Where(item => !item.IsProtected));
-        else
-            targetList.AddRange(items);
-
-        foreach (var child in children)
-        {
-            token.ThrowIfCancellationRequested();
-            await CollectItemsRecursiveSnapshotAsync(child, targetList, token, filterProtected);
-        }
-    }
-
-    /// <summary>
-    /// Applies the precomputed randomization winners to the given items.
-    /// Must be called on the UI thread because it mutates model objects
-    /// that are bound directly into the view.
-    /// </summary>
-    private static void ApplyRandomizationPlan(
-        List<(MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music)> randomizationPlan)
-    {
-        foreach (var plan in randomizationPlan)
-        {
-            plan.Item.ResetActiveAssets();
-
-            if (!string.IsNullOrEmpty(plan.Cover))
-                plan.Item.SetActiveAsset(AssetType.Cover, plan.Cover);
-
-            if (!string.IsNullOrEmpty(plan.Wallpaper))
-                plan.Item.SetActiveAsset(AssetType.Wallpaper, plan.Wallpaper);
-
-            if (!string.IsNullOrEmpty(plan.Video))
-                plan.Item.SetActiveAsset(AssetType.Video, plan.Video);
-
-            if (!string.IsNullOrEmpty(plan.Music))
-                plan.Item.SetActiveAsset(AssetType.Music, plan.Music);
-        }
-    }
 }

@@ -2376,23 +2376,6 @@ public partial class MainWindowViewModel
         return null;
     }
 
-    // --- Randomization Helpers ---
-
-    private bool IsRandomizeActive(MediaNode targetNode)
-    {
-        // Reverse chain to find nearest configuration (bottom-up)
-        var chain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true); 
-        chain.Reverse();
-        return chain.FirstOrDefault(n => n.RandomizeCovers.HasValue)?.RandomizeCovers ?? false;
-    }
-
-    private bool IsRandomizeMusicActive(MediaNode targetNode)
-    {
-        var chain = PathHelper.GetNodeChain(targetNode, RootItems, matchById: true); 
-        chain.Reverse();
-        return chain.FirstOrDefault(n => n.RandomizeMusic.HasValue)?.RandomizeMusic ?? false;
-    }
-
     // --- Helper for UpdateContent ---
     
     private bool IsNodeInCurrentView(MediaNode modifiedNode)

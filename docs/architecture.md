@@ -55,6 +55,9 @@ Main window is a layered shell:
 - owns tree/content selection, command wiring, persistence triggers, and lifecycle cleanup
 - rebuilds center content through a cancelable `UpdateContent()` pipeline
 - keeps content updates race-safe (CTS + TCS), with background item collection and single UI-thread commit
+- uses `DesktopMediaProjectionBuilder` to snapshot library collections on the UI thread, collect and sort
+  items, and plan artwork and music selection. The main window applies the plan only after checking that the
+  content update was not canceled and its node is still selected
 - preserves and restores search/filter UI state when switching between node view and global search
 - opens the library-statistics dialog and translates its navigation/filter requests back into the existing
   node-content or global-search workflows

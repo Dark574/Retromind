@@ -1343,12 +1343,8 @@ public partial class MainWindowViewModel
             return;
         }
 
-        var items = new List<MediaItem>();
-        await CollectItemsRecursiveSnapshotAsync(
-            selectedNode,
-            items,
-            CancellationToken.None,
-            IsParentalFilterActive);
+        var items = await DesktopMediaProjectionBuilder.CollectItemsAsync(
+            selectedNode, IsParentalFilterActive, CancellationToken.None);
 
         await UiThreadHelper.InvokeAsync(() =>
         {
