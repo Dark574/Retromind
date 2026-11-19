@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
@@ -88,10 +87,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
     
-    // Token Source for cancelling old content loading tasks
-    private CancellationTokenSource? _updateContentCts;
-    private TaskCompletionSource<bool>? _updateContentTcs;
-    
+    private readonly DesktopContentSession _desktopContent = new();
     // --- State ---
     private AppSettings _currentSettings;
 
@@ -145,9 +141,6 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public bool IsLaunchIdle => !IsLaunchInProgress;
     
-    // Keeps the currently active content VM so we can detach event handlers (prevents leaks).
-    private MediaAreaViewModel? _currentMediaAreaVm;
-    private SearchAreaViewModel? _currentSearchAreaVm;
     private int _currentShownGameCount;
     private int _totalLibraryGameCount;
     
@@ -180,10 +173,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private int _pendingBigModeEntry;
     private BigModeViewModel? _activeBigModeViewModel;
-
-    // Per-node selection memory for quick return after switching nodes.
-    private readonly Dictionary<string, string> _lastSelectedMediaByNodeId = new(StringComparer.Ordinal);
-    private readonly HashSet<string> _nodesWithClearedSelection = new(StringComparer.Ordinal);
 
     // ensure Cleanup() is executed at most once (Exit + Closing can both fire)
     private int _cleanupOnce;
@@ -593,6 +582,11 @@ public partial class MainWindowViewModel : ViewModelBase
         _gamepadService.OnSessionExitRequested += _onSessionExitRequested;
         
         InitializeCommands();
+        _desktopContent.ContentChanged += content => SelectedNodeContent = content;
+        _desktopContent.PlayRequested += OnDesktopPlayRequested;
+        _desktopContent.MediaPropertyChanged += OnMediaAreaPropertyChanged;
+        _desktopContent.SearchPropertyChanged += OnSearchAreaPropertyChanged;
+        _desktopContent.ItemsChanged += UpdateLibraryGameCounters;
         Debug.WriteLine("[DEBUG] Konstruktor finished. BigModeOnly = " + (App.Current?.IsBigModeOnly == true));
     }
 
@@ -809,9 +803,9 @@ public partial class MainWindowViewModel : ViewModelBase
         if (e.PropertyName == nameof(MediaItem.IsFavorite))
         {
             if (UiThreadHelper.CheckAccess())
-                _currentSearchAreaVm?.RefreshResults();
+                _desktopContent.SearchArea?.RefreshResults();
             else
-                UiThreadHelper.Post(() => _currentSearchAreaVm?.RefreshResults());
+                UiThreadHelper.Post(() => _desktopContent.SearchArea?.RefreshResults());
         }
 
         if (e.PropertyName == nameof(MediaItem.RetroAchievementsGame) &&
@@ -881,33 +875,8 @@ public partial class MainWindowViewModel : ViewModelBase
         await AwaitCurrentContentUpdateAsync().ConfigureAwait(false);
     }
 
-    private async Task AwaitCurrentContentUpdateAsync()
-    {
-        var tcs = _updateContentTcs;
-        if (tcs == null) return;
+    private Task AwaitCurrentContentUpdateAsync() => _desktopContent.AwaitMediaLoadAsync();
 
-        var timeoutTask = Task.Delay(5000);
-        var completed = await Task.WhenAny(tcs.Task, timeoutTask).ConfigureAwait(false);
-        if (completed == timeoutTask)
-        {
-            Debug.WriteLine("[DEBUG] UpdateContentAsync: Timeout - content update not completed.");
-            return;
-        }
-
-        try
-        {
-            await tcs.Task.ConfigureAwait(false);
-        }
-        catch (TaskCanceledException)
-        {
-            // Expected when a newer UpdateContent call supersedes this one.
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[DEBUG] UpdateContentAsync: Failed - {ex.Message}");
-        }
-    }
-    
     /// <summary>
     /// Confirms a clean tracked library and a current settings write. Protected/skipped stores,
     /// write failures, and newer pending edits return false without reverting applied changes.
@@ -1105,7 +1074,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private MediaItem? GetCurrentSelectedItem()
     {
-        var item = _currentMediaAreaVm?.SelectedMediaItem;
+        var item = _desktopContent.MediaArea?.SelectedMediaItem;
         if (item != null)
             return item;
 
@@ -1119,40 +1088,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// Clears the currently selected media item in the active center view (node or global search).
     /// Returns true if a selection was cleared.
     /// </summary>
-    public bool TryClearActiveSelection()
-    {
-        if (_currentMediaAreaVm?.SelectedMediaItem != null)
-        {
-            _currentMediaAreaVm.SelectedMediaItem = null;
-            return true;
-        }
-
-        if (_currentSearchAreaVm?.SelectedMediaItem != null)
-        {
-            _currentSearchAreaVm.SelectedMediaItem = null;
-            return true;
-        }
-
-        return false;
-    }
-
-    private void RememberNodeSelection(string nodeId, string itemId)
-    {
-        if (string.IsNullOrWhiteSpace(nodeId) || string.IsNullOrWhiteSpace(itemId))
-            return;
-
-        _lastSelectedMediaByNodeId[nodeId] = itemId;
-        _nodesWithClearedSelection.Remove(nodeId);
-    }
-
-    private void RememberNodeDeselection(string nodeId)
-    {
-        if (string.IsNullOrWhiteSpace(nodeId))
-            return;
-
-        _lastSelectedMediaByNodeId.Remove(nodeId);
-        _nodesWithClearedSelection.Add(nodeId);
-    }
+    public bool TryClearActiveSelection() => _desktopContent.TryClearSelection();
 
     /// <summary>
     /// Flushes pending saves and performs cleanup only after a successful write.
@@ -1172,7 +1108,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (_closeWithoutPersistenceAfterRestore)
         {
-            Cleanup();
+            await UiThreadHelper.InvokeAsync(Cleanup).ConfigureAwait(false);
             return true;
         }
 
@@ -1193,7 +1129,7 @@ public partial class MainWindowViewModel : ViewModelBase
             }
 
             lock (_persistenceStateLock) TryClearPersistenceNoticeCore();
-            Cleanup();
+            await UiThreadHelper.InvokeAsync(Cleanup).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
@@ -1226,9 +1162,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _libraryTracker.SaveSucceeded -= OnLibrarySaveSucceeded;
         _libraryTracker.StopTracking();
         
-        // Detach content VM handlers to avoid leaks.
-        DetachSearchAreaHandlers();
-        DetachMediaAreaHandlers();
+        _desktopContent.Dispose();
         
         _saveSettingsCts?.Cancel();
         _saveSettingsCts?.Dispose();
@@ -1247,12 +1181,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RetroAchievementsProgress.Dispose();
 
-        _updateContentCts?.Cancel();
-        _updateContentCts?.Dispose();
-        _updateContentCts = null;
-        _updateContentTcs?.TrySetCanceled();
-        _updateContentTcs = null;
-
         _gogUpdateChecks.StopBackgroundChecks();
         
         _gamepadService.OnExitBigMode -= _onControllerExitRequested;
@@ -1260,29 +1188,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _gamepadService.StopMonitoring();
     }
 
-    private void DetachMediaAreaHandlers()
-    {
-        if (_currentMediaAreaVm == null)
-            return;
-
-        // Unsubscribe events to avoid repeated invocations after content switches.
-        _currentMediaAreaVm.RequestPlay -= OnMediaAreaRequestPlay;
-        _currentMediaAreaVm.PropertyChanged -= OnMediaAreaPropertyChanged;
-        _currentMediaAreaVm.FilteredItems.CollectionChanged -= OnMediaAreaFilteredItemsChanged;
-        _currentMediaAreaVm.Dispose();
-
-        _currentMediaAreaVm = null;
-    }
-
-    private void OnMediaAreaFilteredItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        UpdateLibraryGameCounters();
-    }
-
     private void UpdateLibraryGameCounters()
     {
-        var shownCount = _currentMediaAreaVm?.FilteredItems.Count
-                         ?? _currentSearchAreaVm?.SearchResults.Count
+        var shownCount = _desktopContent.MediaArea?.FilteredItems.Count
+                         ?? _desktopContent.SearchArea?.SearchResults.Count
                          ?? 0;
         var totalCount = CountAllGames(RootItems);
 
@@ -1315,7 +1224,7 @@ public partial class MainWindowViewModel : ViewModelBase
         return total;
     }
 
-    private void OnMediaAreaRequestPlay(MediaItem item)
+    private void OnDesktopPlayRequested(MediaItem item)
     {
         _ = PlayMediaAsync(item);
     }
@@ -1354,10 +1263,10 @@ public partial class MainWindowViewModel : ViewModelBase
         if (item == null)
             return null;
 
-        if (_currentMediaAreaVm?.SelectedMediaItem == item)
-            return _currentMediaAreaVm.Node;
+        if (_desktopContent.MediaArea?.SelectedMediaItem == item)
+            return _desktopContent.MediaArea.Node;
 
-        if (_currentSearchAreaVm?.SelectedMediaItem == item)
+        if (_desktopContent.SearchArea?.SelectedMediaItem == item)
             return FindParentNode(RootItems, item);
 
         return null;
@@ -1399,14 +1308,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (args.PropertyName == nameof(MediaAreaViewModel.SearchText))
         {
-            _searchUiState.SharedSearchText = mediaVm.SearchText ?? string.Empty;
             ApplySavedSearchFavoriteState(mediaVm.SearchText, value => mediaVm.OnlyFavorites = value);
-            return;
-        }
-
-        if (args.PropertyName == nameof(MediaAreaViewModel.OnlyFavorites))
-        {
-            _searchUiState.SharedOnlyFavorites = mediaVm.OnlyFavorites;
             return;
         }
 
@@ -1428,9 +1330,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 _ = CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
 
             if (item != null)
-                RememberNodeSelection(mediaVm.Node.Id, item.Id);
+                _desktopContent.RememberNodeSelection(mediaVm.Node.Id, item.Id);
             else
-                RememberNodeDeselection(mediaVm.Node.Id);
+                _desktopContent.RememberNodeDeselection(mediaVm.Node.Id);
 
             if (SelectedNode != null)
                 UpdateBigModeStateFromCoreSelection(SelectedNode, item);
@@ -1546,7 +1448,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // --- Content Logic (The heart of the UI) ---
     private void RefreshContentAfterMediaCollectionChange()
     {
-        if (_currentSearchAreaVm is { } searchVm)
+        if (_desktopContent.SearchArea is { } searchVm)
         {
             searchVm.RefreshResults();
             return;
@@ -1558,160 +1460,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private void UpdateContent()
     {
         _audioService.StopMusic();
-    
-        // Cancel any previously running content update.
-        _updateContentCts?.Cancel();
-        _updateContentCts?.Dispose();
-        _updateContentCts = new CancellationTokenSource();
-        var token = _updateContentCts.Token;
-
-        _updateContentTcs?.TrySetCanceled();
-        var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _updateContentTcs = tcs;
-
-        // Capture current filters before we dispose the old VM (so edits don't reset UI filters).
-        var previousVm = _currentMediaAreaVm;
-        var hadSearchVm = _currentSearchAreaVm != null;
-        var restoreSearchUiState = _restoreSearchUiStateOnNextContentBuild;
-        _restoreSearchUiStateOnNextContentBuild = false;
-        var previousNodeId = previousVm?.Node?.Id;
-        var previousSearchText = previousVm?.SearchText ?? _searchUiState.SharedSearchText;
-        var previousOnlyFavorites = previousVm?.OnlyFavorites ?? _searchUiState.SharedOnlyFavorites;
-        var previousStatus = previousVm?.SelectedStatus;
-
-        // Any time we rebuild content, detach handlers from the previous VM.
-        DetachSearchAreaHandlers();
-        DetachMediaAreaHandlers();
-        
-        if (SelectedNode is null)
-        {
-            SelectedNodeContent = null;
-            tcs.TrySetResult(true);
-            return;
-        }
-
-        // Capture the node we want to load to prevent race conditions
-        var nodeToLoad = SelectedNode;
-        var roots = RootItems;
-        var filterProtected = IsParentalFilterActive;
-
-        // Run the heavy collection logic in a background task
-        var updateTask = Task.Run(async () =>
-        {
-            try
-            {
-                if (token.IsCancellationRequested) return;
-
-                // Build a lightweight description of what we want to display:
-                // - the flat item list for this node (including children)
-                // - and the randomization plan for cover/wallpaper/video/music.
-                var (allItems, randomizationPlan) =
-                    await DesktopMediaProjectionBuilder.BuildAsync(nodeToLoad, roots, filterProtected, token);
-
-                if (token.IsCancellationRequested) return;
-
-                // Create the display node used by MediaAreaViewModel.
-                var displayNode = new MediaNode(nodeToLoad.Name)
-                {
-                    Id = nodeToLoad.Id,
-                    GameSystemId = nodeToLoad.GameSystemId,
-                    Items = new ObservableCollection<MediaItem>(allItems),
-                    Assets = nodeToLoad.Assets,
-                    LogoFallbackEnabled = nodeToLoad.LogoFallbackEnabled,
-                    WallpaperFallbackEnabled = nodeToLoad.WallpaperFallbackEnabled,
-                    VideoFallbackEnabled = nodeToLoad.VideoFallbackEnabled,
-                    MarqueeFallbackEnabled = nodeToLoad.MarqueeFallbackEnabled
-                };
-
-                // Switch to UI thread once (apply randomization + build VM)
-                await UiThreadHelper.InvokeAsync(() =>
-                {
-                    if (token.IsCancellationRequested)
-                    {
-                        tcs.TrySetCanceled();
-                        return;
-                    }
-                    if (SelectedNode != nodeToLoad)
-                    {
-                        tcs.TrySetCanceled();
-                        return;
-                    }
-
-                    DesktopMediaProjectionBuilder.ApplyRandomizationPlan(randomizationPlan);
-
-                    var preserveNodeFilters =
-                        (previousVm != null && previousNodeId == nodeToLoad.Id) || hadSearchVm || restoreSearchUiState;
-                    var mediaVm = new MediaAreaViewModel(
-                        displayNode,
-                        ItemWidth,
-                        initialSearchText: previousSearchText,
-                        // Favorites filter is shared and should survive node changes
-                        // until the user explicitly clears it.
-                        initialOnlyFavorites: previousOnlyFavorites,
-                        initialStatus: preserveNodeFilters ? previousStatus : null);
-
-                    _currentMediaAreaVm = mediaVm;
-                    mediaVm.RequestPlay += OnMediaAreaRequestPlay;
-                    mediaVm.PropertyChanged += OnMediaAreaPropertyChanged;
-                    mediaVm.FilteredItems.CollectionChanged += OnMediaAreaFilteredItemsChanged;
-                    string? itemIdToSelect = null;
-                    var hadCachedNodeSelection = false;
-
-                    if (_nodesWithClearedSelection.Contains(nodeToLoad.Id))
-                    {
-                    }
-                    else if (_lastSelectedMediaByNodeId.TryGetValue(nodeToLoad.Id, out var cachedId))
-                    {
-                        itemIdToSelect = cachedId;
-                        hadCachedNodeSelection = true;
-                    }
-                    else if (!string.IsNullOrEmpty(_currentSettings.LastSelectedMediaId))
-                    {
-                        itemIdToSelect = _currentSettings.LastSelectedMediaId;
-                    }
-
-                    if (!string.IsNullOrEmpty(itemIdToSelect))
-                    {
-                        var itemToSelect = displayNode.Items
-                            .FirstOrDefault(i => i.Id == itemIdToSelect);
-                        if (itemToSelect != null)
-                        {
-                            mediaVm.SelectedMediaItem = itemToSelect;
-                        }
-                        else if (hadCachedNodeSelection)
-                        {
-                            _lastSelectedMediaByNodeId.Remove(nodeToLoad.Id);
-                        }
-                    }
-
-                    SelectedNodeContent = mediaVm;
-                    tcs.TrySetResult(true);
-                });
-            }
-            catch (OperationCanceledException)
-            {
-                tcs.TrySetCanceled();
-            }
-            catch (Exception ex)
-            {
-                tcs.TrySetException(ex);
-                throw;
-            }
-        }, token);
-        
-        updateTask.ContinueWith(t =>
-        {
-            if (t.IsCanceled)
-            {
-                tcs.TrySetCanceled();
-                return;
-            }
-
-            if (t.Exception == null) return;
-
-            tcs.TrySetException(t.Exception);
-            Debug.WriteLine($"[UpdateContent] Background task failed: {t.Exception}");
-        }, TaskContinuationOptions.ExecuteSynchronously);
+        _ = _desktopContent.LoadMediaAsync(
+            SelectedNode, RootItems, IsParentalFilterActive,
+            node => ReferenceEquals(SelectedNode, node) ? (ItemWidth, _currentSettings.LastSelectedMediaId) : null);
     }
-    
 }

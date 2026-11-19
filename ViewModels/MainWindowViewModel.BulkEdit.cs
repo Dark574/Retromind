@@ -71,7 +71,7 @@ public partial class MainWindowViewModel
         _libraryTracker.MarkDirty();
         await SaveData();
 
-        if (_currentSearchAreaVm is { } currentSearchVm)
+        if (_desktopContent.SearchArea is { } currentSearchVm)
         {
             currentSearchVm.RefreshResults();
             return;

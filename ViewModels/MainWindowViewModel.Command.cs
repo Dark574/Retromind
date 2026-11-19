@@ -269,35 +269,28 @@ public partial class MainWindowViewModel
         {
             await UiThreadHelper.InvokeAsync(() =>
             {
-                if (SelectedNodeContent is not SearchAreaViewModel)
+                if (_desktopContent.SearchArea == null)
                     OpenIntegratedSearch();
 
-                if (_currentSearchAreaVm == null)
+                if (_desktopContent.SearchArea is not { } search)
                     return;
 
-                _pendingGlobalSearchSelectionItemId = null;
-                _currentSearchAreaVm.SelectedMediaItem = null;
-                _currentSearchAreaVm.ApplyScopeSelection(RootItems.Select(root => root.Id).ToArray());
-                _currentSearchAreaVm.SearchYear = string.Empty;
-                _currentSearchAreaVm.SelectedStatus = null;
-                _currentSearchAreaVm.SearchText = query;
-                _currentSearchAreaVm.OnlyFavorites = favoritesOnly;
+                _desktopContent.ClearPendingSearchSelection();
+                search.SelectedMediaItem = null;
+                search.ApplyScopeSelection(RootItems.Select(root => root.Id).ToArray());
+                search.SearchYear = string.Empty;
+                search.SelectedStatus = null;
+                search.SearchText = query;
+                search.OnlyFavorites = favoritesOnly;
             });
             return;
         }
 
         await UiThreadHelper.InvokeAsync(() =>
         {
-            _searchUiState.SharedSearchText = query;
-            _searchUiState.SharedOnlyFavorites = favoritesOnly;
-            if (_currentMediaAreaVm != null)
-            {
-                _currentMediaAreaVm.SearchText = query;
-                _currentMediaAreaVm.OnlyFavorites = favoritesOnly;
-                _currentMediaAreaVm.SelectedStatus = null;
-            }
+            _desktopContent.SetMediaFilters(query, favoritesOnly);
 
-            RememberNodeDeselection(request.ScopeNode.Id);
+            _desktopContent.RememberNodeDeselection(request.ScopeNode.Id);
             _currentSettings.LastSelectedMediaId = null;
             ExpandPathToNode(RootItems, request.ScopeNode);
 
@@ -322,16 +315,9 @@ public partial class MainWindowViewModel
         {
             // A statistics result must remain visible after navigation, regardless
             // of filters that were active in the previous node or global search.
-            _searchUiState.SharedSearchText = string.Empty;
-            _searchUiState.SharedOnlyFavorites = false;
-            if (_currentMediaAreaVm != null)
-            {
-                _currentMediaAreaVm.SearchText = string.Empty;
-                _currentMediaAreaVm.OnlyFavorites = false;
-                _currentMediaAreaVm.SelectedStatus = null;
-            }
+            _desktopContent.SetMediaFilters(string.Empty, onlyFavorites: false);
 
-            RememberNodeSelection(targetNode.Id, item.Id);
+            _desktopContent.RememberNodeSelection(targetNode.Id, item.Id);
             _currentSettings.LastSelectedMediaId = item.Id;
             ExpandPathToNode(RootItems, targetNode);
 
@@ -425,8 +411,8 @@ public partial class MainWindowViewModel
          EpicMediaItemStateHelper.CanInstallWithRetromind(item));
 
     private bool IsMultiSelectModeActive =>
-        _currentMediaAreaVm?.IsMultiSelectMode == true ||
-        _currentSearchAreaVm?.IsMultiSelectMode == true;
+        _desktopContent.MediaArea?.IsMultiSelectMode == true ||
+        _desktopContent.SearchArea?.IsMultiSelectMode == true;
 
     private bool CanTestPlayMedia(MediaItem? item)
         => CanPlayMedia(item) && !ShouldOfferInstallForItem(item);
@@ -697,7 +683,7 @@ public partial class MainWindowViewModel
             {
                 ExpandPathToNode(RootItems, node);
                 if (!string.IsNullOrWhiteSpace(desiredItemId))
-                    RememberNodeSelection(node.Id, desiredItemId);
+                    _desktopContent.RememberNodeSelection(node.Id, desiredItemId);
 
                 if (ReferenceEquals(SelectedNode, node))
                     UpdateContent();
@@ -1548,7 +1534,7 @@ public partial class MainWindowViewModel
 
             if (ReferenceEquals(item, GetCurrentSelectedItem()))
             {
-                if (_currentSearchAreaVm is { } searchVm)
+                if (_desktopContent.SearchArea is { } searchVm)
                     searchVm.SelectedMediaItem = null;
                 else
                     _audioService.StopMusic();

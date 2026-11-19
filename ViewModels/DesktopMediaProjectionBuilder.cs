@@ -15,6 +15,8 @@ internal static class DesktopMediaProjectionBuilder
     internal readonly record struct AssetSelection(
         MediaItem Item, string? Cover, string? Wallpaper, string? Video, string? Music);
 
+    internal sealed record Projection(List<MediaItem> Items, List<AssetSelection> RandomizationPlan);
+
     internal static bool IsMusicRandomized(MediaNode node, ObservableCollection<MediaNode> roots) =>
         ResolveRandomization(node, roots).Music;
 
@@ -28,7 +30,7 @@ internal static class DesktopMediaProjectionBuilder
             chain.FirstOrDefault(entry => entry.RandomizeMusic.HasValue)?.RandomizeMusic ?? false);
     }
 
-    internal static async Task<(List<MediaItem> Items, List<AssetSelection> RandomizationPlan)> BuildAsync(
+    internal static async Task<Projection> BuildAsync(
         MediaNode node, ObservableCollection<MediaNode> roots, bool filterProtected, CancellationToken token)
     {
         // 1. Collect items (recursive) using UI-thread snapshots for safety.
@@ -71,7 +73,7 @@ internal static class DesktopMediaProjectionBuilder
             for (int i = 0; i < itemList.Count; i++)
                 randomizationPlan.Add(new AssetSelection(itemList[i], null, null, null, null));
 
-            return (itemList, randomizationPlan);
+            return new Projection(itemList, randomizationPlan);
         }
 
         foreach (var snapshot in assetSnapshots)
@@ -125,7 +127,7 @@ internal static class DesktopMediaProjectionBuilder
             randomizationPlan.Add(new AssetSelection(item, coverWinner, wallpaperWinner, videoWinner, musicWinner));
         }
 
-        return (itemList, randomizationPlan);
+        return new Projection(itemList, randomizationPlan);
     }
 
     internal static async Task<List<MediaItem>> CollectItemsAsync(

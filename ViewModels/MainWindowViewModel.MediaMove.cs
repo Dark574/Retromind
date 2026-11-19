@@ -166,13 +166,7 @@ public partial class MainWindowViewModel
 
         RefreshTreeVisibility();
 
-        foreach (var nodeId in _lastSelectedMediaByNodeId
-                     .Where(pair => string.Equals(pair.Value, item.Id, StringComparison.Ordinal))
-                     .Select(pair => pair.Key)
-                     .ToList())
-        {
-            _lastSelectedMediaByNodeId.Remove(nodeId);
-        }
+        _desktopContent.ForgetItemSelection(item.Id);
 
         if (string.Equals(_currentSettings.LastSelectedMediaId, item.Id, StringComparison.Ordinal))
             _currentSettings.LastSelectedMediaId = null;

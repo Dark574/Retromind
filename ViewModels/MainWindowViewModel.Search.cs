@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
 using System.Threading;
@@ -13,21 +12,6 @@ namespace Retromind.ViewModels;
 public partial class MainWindowViewModel
 {
     public ObservableCollection<string> SavedSearchTerms { get; } = new();
-
-    // Remembers where the user came from before entering global search.
-    private string? _searchReturnNodeId;
-    private string? _searchReturnItemId;
-    private string? _pendingGlobalSearchSelectionItemId;
-    private bool _restoreSearchUiStateOnNextContentBuild;
-    private readonly SearchUiState _searchUiState = new();
-
-    private sealed class SearchUiState
-    {
-        public string SharedSearchText { get; set; } = string.Empty;
-        public bool SharedOnlyFavorites { get; set; }
-        public HashSet<string> GlobalScopeNodeIds { get; } = new(StringComparer.Ordinal);
-        public bool HasGlobalScopeSelection { get; set; }
-    }
 
     private void SyncSavedSearchTermsCollectionFromSettings()
     {
@@ -115,10 +99,7 @@ public partial class MainWindowViewModel
             terms.RemoveAll(t => string.Equals(t, normalizedTerm, StringComparison.OrdinalIgnoreCase)) > 0 || removedState);
     }
 
-    private bool GetCurrentOnlyFavorites()
-        => _currentSearchAreaVm?.OnlyFavorites
-           ?? _currentMediaAreaVm?.OnlyFavorites
-           ?? _searchUiState.SharedOnlyFavorites;
+    private bool GetCurrentOnlyFavorites() => _desktopContent.OnlyFavorites;
 
     private bool TryGetSavedSearchFavoriteState(string term, out bool onlyFavorites)
     {
@@ -187,36 +168,58 @@ public partial class MainWindowViewModel
         apply(onlyFavorites);
     }
 
-    private void DetachSearchAreaHandlers()
+    private void OpenIntegratedSearch()
     {
-        if (_currentSearchAreaVm == null)
+        if (_desktopContent.SearchArea != null)
+        {
+            CloseIntegratedSearch();
             return;
+        }
 
-        _searchUiState.SharedSearchText = _currentSearchAreaVm.SearchText ?? string.Empty;
-        _searchUiState.SharedOnlyFavorites = _currentSearchAreaVm.OnlyFavorites;
-        _searchUiState.GlobalScopeNodeIds.Clear();
-        foreach (var id in _currentSearchAreaVm.GetSelectedScopeIdsSnapshot())
-            _searchUiState.GlobalScopeNodeIds.Add(id);
-        _searchUiState.HasGlobalScopeSelection = true;
-
-        _currentSearchAreaVm.RequestPlay -= OnSearchAreaRequestPlay;
-        _currentSearchAreaVm.PropertyChanged -= OnSearchAreaPropertyChanged;
-        _currentSearchAreaVm.SearchResults.CollectionChanged -= OnSearchAreaResultsChanged;
-        _currentSearchAreaVm.Dispose();
-        _currentSearchAreaVm = null;
+        _audioService.StopMusic();
+        _desktopContent.OpenSearch(SelectedNode?.Id, () =>
+        {
+            _selectedNode = null;
+            OnPropertyChanged(nameof(SelectedNode));
+            return new SearchAreaViewModel(RootItems, _errorService, IsParentalFilterActive) { ItemWidth = ItemWidth };
+        });
     }
 
-    private void AttachSearchAreaHandlers(SearchAreaViewModel searchVm)
+    private void CloseIntegratedSearch()
     {
-        _currentSearchAreaVm = searchVm;
-        searchVm.RequestPlay += OnSearchAreaRequestPlay;
-        searchVm.PropertyChanged += OnSearchAreaPropertyChanged;
-        searchVm.SearchResults.CollectionChanged += OnSearchAreaResultsChanged;
-    }
+        var (returnNodeId, selectedSearchItemId, desiredItemId) = _desktopContent.CloseSearch();
+        MediaNode? targetNode = null;
 
-    private void OnSearchAreaRequestPlay(MediaItem item)
-    {
-        _ = PlayMediaAsync(item);
+        if (!string.IsNullOrWhiteSpace(selectedSearchItemId))
+            TryFindNodeByMediaId(RootItems, selectedSearchItemId, out targetNode);
+
+        if (targetNode == null && !string.IsNullOrWhiteSpace(returnNodeId))
+            targetNode = FindNodeById(RootItems, returnNodeId);
+
+        if (targetNode == null && !string.IsNullOrWhiteSpace(desiredItemId))
+            TryFindNodeByMediaId(RootItems, desiredItemId, out targetNode);
+
+        if (targetNode != null && !targetNode.IsVisibleInTree)
+            targetNode = null;
+
+        targetNode ??= FindFirstVisibleNode();
+        if (targetNode == null)
+        {
+            _selectedNode = null;
+            OnPropertyChanged(nameof(SelectedNode));
+            UpdateContent();
+            OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
+            OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(desiredItemId))
+            _desktopContent.RememberNodeSelection(targetNode.Id, desiredItemId);
+
+        ExpandPathToNode(RootItems, targetNode);
+        SelectedNode = targetNode;
     }
 
     private void OnSearchAreaPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -233,23 +236,7 @@ public partial class MainWindowViewModel
 
         if (e.PropertyName == nameof(SearchAreaViewModel.SearchText))
         {
-            _searchUiState.SharedSearchText = searchVm.SearchText ?? string.Empty;
             ApplySavedSearchFavoriteState(searchVm.SearchText, value => searchVm.OnlyFavorites = value);
-            return;
-        }
-
-        if (e.PropertyName == nameof(SearchAreaViewModel.OnlyFavorites))
-        {
-            _searchUiState.SharedOnlyFavorites = searchVm.OnlyFavorites;
-            return;
-        }
-
-        if (e.PropertyName == nameof(SearchAreaViewModel.SelectedScopeCount))
-        {
-            _searchUiState.GlobalScopeNodeIds.Clear();
-            foreach (var id in searchVm.GetSelectedScopeIdsSnapshot())
-                _searchUiState.GlobalScopeNodeIds.Add(id);
-            _searchUiState.HasGlobalScopeSelection = true;
             return;
         }
 
@@ -264,8 +251,6 @@ public partial class MainWindowViewModel
             return;
 
         var item = searchVm.SelectedMediaItem;
-        if (item != null)
-            _pendingGlobalSearchSelectionItemId = null;
 
         if (item != null && CanCheckGogUpdatesForItem(item))
             _ = CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
@@ -281,29 +266,5 @@ public partial class MainWindowViewModel
         _ = RetroAchievementsProgress.SelectItemAsync(item);
         var contextNode = item == null ? null : FindParentNode(RootItems, item);
         _ = PlaySelectionMusicAsync(item, contextNode);
-    }
-
-    private void OnSearchAreaResultsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        TryApplyPendingGlobalSearchSelection();
-        UpdateLibraryGameCounters();
-    }
-
-    private void TryApplyPendingGlobalSearchSelection()
-    {
-        if (string.IsNullOrWhiteSpace(_pendingGlobalSearchSelectionItemId))
-            return;
-
-        var searchVm = _currentSearchAreaVm;
-        if (searchVm == null || searchVm.SelectedMediaItem != null)
-            return;
-
-        var pendingId = _pendingGlobalSearchSelectionItemId;
-        var candidate = searchVm.SearchResults.FirstOrDefault(i => i.Id == pendingId);
-        if (candidate == null)
-            return;
-
-        searchVm.SelectedMediaItem = candidate;
-        _pendingGlobalSearchSelectionItemId = null;
     }
 }

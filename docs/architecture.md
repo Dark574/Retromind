@@ -53,12 +53,14 @@ Main window is a layered shell:
 
 `MainWindowViewModel` is the core orchestrator:
 - owns tree/content selection, command wiring, persistence triggers, and lifecycle cleanup
-- rebuilds center content through a cancelable `UpdateContent()` pipeline
-- keeps content updates race-safe (CTS + TCS), with background item collection and single UI-thread commit
+- delegates the center view lifecycle to `DesktopContentSession`, which owns the active node or search
+  view, its event subscriptions, and cancelable media load requests. Opening search, changing nodes, or
+  disposing the session prevents an old request from publishing over the current view
 - uses `DesktopMediaProjectionBuilder` to snapshot library collections on the UI thread, collect and sort
-  items, and plan artwork and music selection. The main window applies the plan only after checking that the
-  content update was not canceled and its node is still selected
-- preserves and restores search/filter UI state when switching between node view and global search
+  items, and plan artwork and music selection. The session applies the plan on the UI thread only after checking
+  that the request is still current and the main window still has its node selected
+- resolves the return category and synchronizes resulting selection, actions, audio, and achievement presentation.
+  The session retains per-node item bookmarks, shared search text and favorites, and the last global search scope
 - opens the library-statistics dialog and translates its navigation/filter requests back into the existing
   node-content or global-search workflows
 - coordinates explicit item moves between nodes through a single-selection tree or tile-to-tree drag-and-drop;
@@ -886,7 +888,8 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - scope selection by node IDs
 - parental-filter-aware visibility
 - row grouping for large virtualized result grids
-- shared filter state (text/favorites/status/year) coordinated by `MainWindowViewModel`
+- search text and favorites are shared with the node view through `DesktopContentSession`; status and year remain
+  local to the views that expose them
 - saved search terms persist their associated favorites-only state as part of the saved filter behavior
 - structured query matching includes `played:true` and `played:false` (alias: `started`); play evidence is
   defined centrally by `MediaPlayStateHelper` as a launch count, recorded play time, or last-played timestamp

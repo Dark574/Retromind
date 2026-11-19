@@ -368,7 +368,7 @@ public partial class MainWindowViewModel
 
         var lastItem = itemsToAdd[^1];
         _currentSettings.LastSelectedMediaId = lastItem.Id;
-        RememberNodeSelection(targetNode.Id, lastItem.Id);
+        _desktopContent.RememberNodeSelection(targetNode.Id, lastItem.Id);
         SaveSettingsOnly();
 
         if (IsNodeInCurrentView(targetNode))
@@ -879,7 +879,7 @@ public partial class MainWindowViewModel
 
         var lastItem = itemsToAdd[^1];
         _currentSettings.LastSelectedMediaId = lastItem.Id;
-        RememberNodeSelection(targetNode.Id, lastItem.Id);
+        _desktopContent.RememberNodeSelection(targetNode.Id, lastItem.Id);
         SaveSettingsOnly();
 
         if (IsNodeInCurrentView(targetNode))
@@ -1204,7 +1204,7 @@ public partial class MainWindowViewModel
         {
             var lastItem = newlyAddedItems[^1];
             _currentSettings.LastSelectedMediaId = lastItem.Id;
-            RememberNodeSelection(targetNode.Id, lastItem.Id);
+            _desktopContent.RememberNodeSelection(targetNode.Id, lastItem.Id);
             SaveSettingsOnly();
         }
         
@@ -1258,7 +1258,7 @@ public partial class MainWindowViewModel
         });
 
         _currentSettings.LastSelectedMediaId = item.Id;
-        RememberNodeSelection(targetNode.Id, item.Id);
+        _desktopContent.RememberNodeSelection(targetNode.Id, item.Id);
         SaveSettingsOnly();
 
         if (IsNodeInCurrentView(targetNode))
@@ -1328,13 +1328,13 @@ public partial class MainWindowViewModel
 
     private async Task RefreshItemPresentationAsync(MediaNode parentNode)
     {
-        if (_currentSearchAreaVm is { } searchVm)
+        if (_desktopContent.SearchArea is { } searchVm)
         {
             searchVm.RefreshResults();
             return;
         }
 
-        var mediaVm = _currentMediaAreaVm;
+        var mediaVm = _desktopContent.MediaArea;
         var selectedNode = SelectedNode;
         if (mediaVm == null ||
             selectedNode == null ||
@@ -1348,7 +1348,7 @@ public partial class MainWindowViewModel
 
         await UiThreadHelper.InvokeAsync(() =>
         {
-            if (ReferenceEquals(_currentMediaAreaVm, mediaVm) &&
+            if (ReferenceEquals(_desktopContent.MediaArea, mediaVm) &&
                 ReferenceEquals(SelectedNode, selectedNode))
             {
                 mediaVm.RefreshItems(items);
@@ -1724,101 +1724,6 @@ public partial class MainWindowViewModel
         }
 
         return false;
-    }
-
-    private void OpenIntegratedSearch()
-    {
-        // Toggle behavior: pressing search while search is already open jumps back.
-        if (SelectedNodeContent is SearchAreaViewModel activeSearchVm)
-        {
-            CloseIntegratedSearch(activeSearchVm);
-            return;
-        }
-
-        // The new search view starts without a selection. Since null -> null does not
-        // raise a selection change, stop the previous media area's music explicitly.
-        _audioService.StopMusic();
-
-        if (_currentMediaAreaVm != null)
-        {
-            _searchUiState.SharedSearchText = _currentMediaAreaVm.SearchText ?? string.Empty;
-            _searchUiState.SharedOnlyFavorites = _currentMediaAreaVm.OnlyFavorites;
-        }
-
-        // Remember where the user came from so we can restore it on next toggle.
-        _searchReturnNodeId = SelectedNode?.Id;
-        _searchReturnItemId = _currentMediaAreaVm?.SelectedMediaItem?.Id;
-        _pendingGlobalSearchSelectionItemId = _searchReturnItemId;
-
-        // Ensure any previous media-area handlers are detached before switching views.
-        DetachMediaAreaHandlers();
-        DetachSearchAreaHandlers();
-
-        _selectedNode = null;
-        // Force refresh of selection
-        OnPropertyChanged(nameof(SelectedNode));
-        
-        var searchVm = new SearchAreaViewModel(RootItems, _errorService, IsParentalFilterActive) { ItemWidth = ItemWidth };
-        searchVm.OnlyFavorites = _searchUiState.SharedOnlyFavorites;
-        searchVm.SearchText = _searchUiState.SharedSearchText;
-        if (_searchUiState.HasGlobalScopeSelection)
-            searchVm.ApplyScopeSelection(_searchUiState.GlobalScopeNodeIds);
-        AttachSearchAreaHandlers(searchVm);
-        SelectedNodeContent = searchVm;
-    }
-
-    private void CloseIntegratedSearch(SearchAreaViewModel searchVm)
-    {
-        _searchUiState.SharedSearchText = searchVm.SearchText ?? string.Empty;
-        var selectedSearchItemId = searchVm.SelectedMediaItem?.Id;
-        var desiredItemId = selectedSearchItemId ?? _searchReturnItemId;
-
-        MediaNode? targetNode = null;
-
-        if (!string.IsNullOrWhiteSpace(selectedSearchItemId))
-            TryFindNodeByMediaId(RootItems, selectedSearchItemId, out targetNode);
-
-        if (targetNode == null && !string.IsNullOrWhiteSpace(_searchReturnNodeId))
-            targetNode = FindNodeById(RootItems, _searchReturnNodeId);
-
-        if (targetNode == null && !string.IsNullOrWhiteSpace(desiredItemId))
-            TryFindNodeByMediaId(RootItems, desiredItemId, out targetNode);
-
-        if (targetNode != null && !targetNode.IsVisibleInTree)
-            targetNode = null;
-
-        if (targetNode == null)
-            targetNode = FindFirstVisibleNode();
-
-        // Leave search mode now (dispose search VM) before restoring content.
-        DetachSearchAreaHandlers();
-
-        // Clear remembered return state once the toggle-back was requested.
-        _searchReturnNodeId = null;
-        _searchReturnItemId = null;
-
-        if (targetNode == null)
-        {
-            _restoreSearchUiStateOnNextContentBuild = false;
-            _pendingGlobalSearchSelectionItemId = null;
-            _selectedNode = null;
-            OnPropertyChanged(nameof(SelectedNode));
-            SelectedNodeContent = null;
-            _audioService.StopMusic();
-
-            OnPropertyChanged(nameof(ResolvedSelectedItemLogoPath));
-            OnPropertyChanged(nameof(ResolvedSelectedItemWallpaperPath));
-            OnPropertyChanged(nameof(ResolvedSelectedItemVideoPath));
-            OnPropertyChanged(nameof(ResolvedSelectedItemMarqueePath));
-            return;
-        }
-
-        if (!string.IsNullOrWhiteSpace(desiredItemId))
-            RememberNodeSelection(targetNode.Id, desiredItemId);
-
-        _restoreSearchUiStateOnNextContentBuild = true;
-        ExpandPathToNode(RootItems, targetNode);
-        SelectedNode = targetNode;
     }
 
     private EmulatorConfig? FindInheritedEmulator(MediaItem item)
