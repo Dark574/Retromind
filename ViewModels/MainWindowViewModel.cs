@@ -561,7 +561,7 @@ public partial class MainWindowViewModel : ViewModelBase
         Environment.SetEnvironmentVariable("SDL_LINUX_JOYSTICK_DEADZONES", "1");
 
         // Gamepad service (hot-plug + configurable action routing)
-        _gamepadService = new GamepadService(_currentSettings);
+        _gamepadService = new GamepadService(_currentSettings, errorService: _errorService);
         _gamepadService.StartMonitoring();
     
         // Route the configured exit action globally: only act if BigMode is actually active.

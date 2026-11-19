@@ -93,22 +93,24 @@ public sealed class GamepadService : IDisposable
     private long _monitoringGeneration;
     private readonly Queue<PendingInputEvent> _pendingInputEvents = new();
     private bool _dispatchingEvents;
+    private readonly IErrorService? _errorService;
 
     private sealed record PendingInputEvent(
         Action? Callback, long Generation, bool UiOnly = false, bool BackgroundOnly = false,
         GamepadDirection? Direction = null, bool IsPressed = false);
 
-    public GamepadService(AppSettings? settings = null)
-        : this(settings, loadSdl: true)
+    public GamepadService(AppSettings? settings = null, IErrorService? errorService = null)
+        : this(settings, loadSdl: true, errorService: errorService)
     {
     }
 
     // Tests drive the same SDL event processor without opening native controllers or sleeping for holds.
-    internal GamepadService(AppSettings? settings, bool loadSdl, TimeProvider? timeProvider = null)
+    internal GamepadService(AppSettings? settings, bool loadSdl, TimeProvider? timeProvider = null, IErrorService? errorService = null)
     {
         _settings = settings ?? new AppSettings();
         _settings.ControllerBindings ??= new ControllerBindingSettings();
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _errorService = errorService;
 
         if (!loadSdl)
         {
@@ -126,11 +128,43 @@ public sealed class GamepadService : IDisposable
             // SDL is optional. If it is not available, keep the app running without gamepad input.
             _sdl = null!;
             _isSdlAvailable = false;
-            Debug.WriteLine($"[Gamepad] SDL unavailable, gamepad disabled: {ex.Message}");
+            ReportGamepadWarning(
+                "Gamepad.InitializationFailed",
+                "The SDL runtime could not be loaded. Controller input is unavailable.",
+                "LoadSdl",
+                ex);
         }
     }
 
     public void StartMonitoring() => StartMonitoring(expectedGeneration: null);
+
+    private void ReportGamepadWarning(
+        string code, string message, string phase,
+        Exception? exception = null,
+        int? sdlResult = null)
+    {
+        var context = new Dictionary<string, string>
+        {
+            ["Phase"] = phase
+        };
+
+        if (exception is not null)
+            context["ExceptionType"] = exception.GetType().Name;
+
+        if (sdlResult is int result)
+            context["SdlResult"] = result.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+        try
+        {
+            _errorService?.Report(new ErrorReport(
+                code, ErrorSeverity.Warning, nameof(GamepadService), message,
+                Context: context));
+        }
+        catch
+        {
+            // Ein Fehler beim Protokollieren darf das Startresultat nicht verändern.
+        }
+    }
 
     private void StartMonitoring(long? expectedGeneration)
     {
@@ -188,7 +222,7 @@ public sealed class GamepadService : IDisposable
                 var cts = new CancellationTokenSource();
                 _cts = cts;
                 // Always enter the loop's finally, even if StopMonitoring immediately cancels the token.
-                _loopTask = Task.Run(() => GameLoopAsync(cts));
+                _loopTask = Task.Run(() => GameLoopAsync(cts, PollNextEvent));
                 return;
             }
         }
@@ -310,11 +344,11 @@ public sealed class GamepadService : IDisposable
         UpdateAggregatedDirections();
     }
 
-    private bool EnsureInitialized()
-    {
-        if (!_isSdlAvailable)
-            return false;
+    private bool EnsureInitialized() =>
+        _isSdlAvailable && EnsureInitialized(() => _sdl.Init(Sdl.InitGamecontroller));
 
+    internal bool EnsureInitialized(Func<int> initialize)
+    {
         if (_isInitialized)
             return true;
 
@@ -322,10 +356,15 @@ public sealed class GamepadService : IDisposable
         // INIT_GAMECONTROLLER implies INIT_JOYSTICK.
         try
         {
-            if (_sdl.Init(Sdl.InitGamecontroller) < 0)
+            var result = initialize();
+            if (result < 0)
             {
-                Debug.WriteLine($"[SDL] Init failed: {_sdl.GetErrorS()}");
                 _isInitialized = false;
+                ReportGamepadWarning(
+                    "Gamepad.InitializationFailed",
+                    "SDL could not initialize its controller subsystem.",
+                    "InitGameController",
+                    sdlResult: result);
                 return false;
             }
 
@@ -334,20 +373,26 @@ public sealed class GamepadService : IDisposable
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[SDL] Init exception: {ex.Message}");
+            ReportGamepadWarning(
+                    "Gamepad.InitializationFailed",
+                    "SDL could not initialize its controller subsystem.",
+                    "InitGameController",
+                    ex);
             _isInitialized = false;
             return false;
         }
     }
 
-    private async Task GameLoopAsync(CancellationTokenSource cts)
+    internal delegate bool TryPollEvent(out Event sdlEvent);
+
+    internal async Task GameLoopAsync(CancellationTokenSource cts, TryPollEvent pollEvent)
     {
         var token = cts.Token;
         try
         {
             while (!token.IsCancellationRequested)
             {
-                while (!token.IsCancellationRequested && PollNextEvent(out var sdlEvent))
+                while (!token.IsCancellationRequested && pollEvent(out var sdlEvent))
                     ProcessEvent(sdlEvent);
 
                 CheckSessionExitHold();
@@ -355,6 +400,15 @@ public sealed class GamepadService : IDisposable
                 try { await Task.Delay(10, token).ConfigureAwait(false); }
                 catch (OperationCanceledException) { break; }
             }
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException || !token.IsCancellationRequested)
+        {
+            ReportGamepadWarning(
+                "Gamepad.MonitoringFailed",
+                "Controller monitoring stopped unexpectedly.",
+                "PollLoop",
+                ex);
+            throw;
         }
         finally
         {

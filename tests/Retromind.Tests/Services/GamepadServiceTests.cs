@@ -1,4 +1,5 @@
 using Retromind.Models;
+using Retromind.Tests.TestInfrastructure;
 using System.Reflection;
 using Retromind.Services;
 using Silk.NET.SDL;
@@ -73,6 +74,55 @@ public sealed class GamepadServiceTests
         if (releaseStickFirst) Button(service, 11, GameControllerButton.DpadLeft, false);
         else Axis(service, 11, GameControllerAxis.Leftx, 0);
         Assert.Equal([(Direction.Left, true), (Direction.Left, false)], events);
+    }
+
+    [Fact]
+    public void EnsureInitialized_NegativeSdlResultReportsWarning()
+    {
+        var errors = new RecordingErrorService();
+        using var service = new GamepadService(
+            settings: null, loadSdl: false, errorService: errors);
+
+        Assert.False(service.EnsureInitialized(() => -1));
+
+        var report = Assert.Single(errors.Reports);
+        Assert.Equal("Gamepad.InitializationFailed", report.Code);
+        Assert.Equal(ErrorSeverity.Warning, report.Severity);
+        var context = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(report.Context);
+        Assert.Equal("InitGameController", context["Phase"]);
+        Assert.Equal("-1", context["SdlResult"]);
+        Assert.Null(report.Exception);
+        Assert.Null(Assert.Single(errors.Notifications));
+    }
+
+    [Fact]
+    public async Task GameLoopAsync_ReportsEachFailedRunOnce()
+    {
+        var errors = new RecordingErrorService();
+        using var service = new GamepadService(
+            settings: null, loadSdl: false, errorService: errors);
+        var failure = new InvalidOperationException("Simulated polling failure");
+
+        bool FailPolling(out Event sdlEvent) => throw failure;
+
+        var firstRun = service.GameLoopAsync(new CancellationTokenSource(), FailPolling);
+
+        Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => firstRun));
+        var report = Assert.Single(errors.Reports);
+        Assert.Equal("Gamepad.MonitoringFailed", report.Code);
+        Assert.Equal(ErrorSeverity.Warning, report.Severity);
+        var context = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(report.Context);
+        Assert.Equal("PollLoop", context["Phase"]);
+        Assert.Equal(nameof(InvalidOperationException), context["ExceptionType"]);
+        Assert.Null(report.Exception);
+        Assert.Null(Assert.Single(errors.Notifications));
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() => firstRun);
+        Assert.Single(errors.Reports);
+
+        var secondRun = service.GameLoopAsync(new CancellationTokenSource(), FailPolling);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => secondRun);
+        Assert.Equal(2, errors.Reports.Count);
     }
 
     [Fact]
