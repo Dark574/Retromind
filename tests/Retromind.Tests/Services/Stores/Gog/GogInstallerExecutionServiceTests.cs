@@ -9,9 +9,6 @@ public sealed class GogInstallerExecutionServiceTests
     [Fact]
     public async Task RunLinuxAsync_InstallsThroughSafeTemporaryDestinationAndPreservesExecutableMode()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("My Game (Test)");
         var stagingPath = temporaryDirectory.CreateDirectory("staging");
@@ -54,9 +51,6 @@ public sealed class GogInstallerExecutionServiceTests
     [Fact]
     public async Task RunLinuxAsync_ExtractFallbackUsesPrivateDirectoryAndDoesNotFollowCleanupLinks()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var externalDirectory = new TemporaryDirectory();
         var externalSentinel = externalDirectory.CreateFile("keep.txt", "keep");
         using var temporaryDirectory = new TemporaryDirectory();
@@ -120,9 +114,6 @@ public sealed class GogInstallerExecutionServiceTests
     [Fact]
     public async Task RunLinuxAsync_ShellSensitiveExistingDestinationUsesPrivateTemporaryAlias()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("Alias Game");
         var stagingPath = temporaryDirectory.CreateDirectory("staging");
@@ -162,9 +153,6 @@ public sealed class GogInstallerExecutionServiceTests
     [Fact]
     public async Task RunLinuxAsync_RejectsSuccessfulProcessWithoutChangedPayloadWhenRequired()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("unchanged-game");
         var stagingPath = temporaryDirectory.CreateDirectory("staging");
@@ -185,9 +173,6 @@ public sealed class GogInstallerExecutionServiceTests
     [InlineData(true)]
     public async Task RunWindowsAsync_PreparesRequiredDrivesBeforeWineAndReusesIncompletePrefix(bool incompletePrefix)
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("windows-game");
         var stagingPath = temporaryDirectory.CreateDirectory("windows-staging");
@@ -388,9 +373,6 @@ public sealed class GogInstallerExecutionServiceTests
     [Fact]
     public void ToWineWindowsAbsolutePath_MapsLinuxPathToWineZDrive()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         Assert.Equal(
             @"Z:\mnt\games\My Game",
             GogInstallerExecutionService.ToWineWindowsAbsolutePath("/mnt/games/My Game"));

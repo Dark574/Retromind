@@ -131,9 +131,6 @@ public sealed class LaunchEnvironmentServiceTests
     [Fact]
     public void SanitizePortableEnvironment_RemovesOnlyPortableHomeValues()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         var portableHome = Path.Combine(AppPaths.DataRoot, "Home");
         var startInfo = new ProcessStartInfo();
         startInfo.EnvironmentVariables["XDG_CONFIG_HOME"] = Path.Combine(portableHome, "config");

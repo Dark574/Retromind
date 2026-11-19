@@ -35,9 +35,6 @@ public sealed class CometProcessRunnerTests
     [Fact]
     public async Task StartAsync_UsesStdinAndIsolatedRuntimePaths()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var executable = CreateExecutable(
             temp.RootPath,
@@ -113,9 +110,6 @@ public sealed class CometProcessRunnerTests
     [Fact]
     public async Task StartAsync_DoesNotExposeCredentialsWhenProcessFails()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var executable = CreateExecutable(
             temp.RootPath,
@@ -140,9 +134,6 @@ public sealed class CometProcessRunnerTests
     [Fact]
     public async Task StartAsync_RejectsOversizedCredentialsBeforeStartingProcess()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var markerPath = Path.Combine(temp.RootPath, "started");
         var executable = CreateExecutable(
@@ -164,9 +155,6 @@ public sealed class CometProcessRunnerTests
     [Fact]
     public async Task StartAsync_KillsProcessWhenReadinessTimesOut()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var executable = CreateExecutable(
             temp.RootPath,

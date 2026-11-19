@@ -10,9 +10,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_CreatesPortableWinePrefixAndDriveMappings()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var item = new MediaItem("My  Game") { Id = "item-id" };
@@ -35,9 +32,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_CreatesNestedPfxForNewProtonPrefix()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var item = new MediaItem("Proton Game") { Id = "proton-id" };
@@ -57,9 +51,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_LeavesNewUmuPfxForUmuRunToCreate()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var item = new MediaItem("UMU Game") { Id = "umu-id" };
@@ -81,9 +72,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_PreservesLegacyRootPrefixForProton()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixRoot = temp.CreateDirectory("Library", "Prefixes", "Legacy");
@@ -105,9 +93,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_UsesParentAsCompatRootWhenStoredProtonPathEndsInPfx()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixRoot = temp.CreateDirectory("Library", "Prefixes", "Existing");
@@ -129,9 +114,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_ConvertsExistingInternalAbsolutePrefixToPortablePathWhenEnabled()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = temp.CreateDirectory("Library", "Prefixes", "Existing");
@@ -150,9 +132,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_DoesNotCreateLibraryMappingForExternalPrefix()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var externalPrefix = temp.GetPath("External", "Prefix");
@@ -174,9 +153,6 @@ public sealed class WinePrefixServiceTests
     [Fact]
     public void Prepare_OnLinuxDoesNotTreatDifferentlyCasedSiblingAsInternalPrefix()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var externalPrefix = temp.GetPath("library", "Prefixes", "External");

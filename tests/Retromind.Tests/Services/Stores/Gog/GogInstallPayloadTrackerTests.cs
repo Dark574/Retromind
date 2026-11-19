@@ -25,9 +25,6 @@ public sealed class GogInstallPayloadTrackerTests
     [Fact]
     public void Capture_OnLinuxDoesNotIgnoreDifferentlyCasedStagingDirectory()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("game");
         var baseline = GogInstallPayloadTracker.Capture(installPath);
@@ -40,9 +37,6 @@ public sealed class GogInstallPayloadTrackerTests
     [Fact]
     public void Capture_OnLinuxDoesNotIgnoreDifferentlyCasedMojoDirectory()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("game");
         var baseline = GogInstallPayloadTracker.Capture(installPath);

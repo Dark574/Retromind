@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -36,6 +37,7 @@ public sealed class LauncherService
     private readonly object _gogCometCompletionLock = new();
     private readonly object _gogLaunchCompletionLock = new();
     private readonly HashSet<TaskCompletionSource> _activeGogLaunchCompletions = [];
+    private readonly IErrorService? _errorService;
     private PendingGogCometCompletion? _pendingGogCometCompletion;
     private int _shutdownRequested;
 
@@ -48,7 +50,8 @@ public sealed class LauncherService
         WinePrefixService? winePrefixService = null,
         LaunchProcessService? launchProcessService = null,
         ProtonPrefixRelocationService? protonPrefixRelocationService = null,
-        SteamProcessTrackingService? steamProcessTrackingService = null)
+        SteamProcessTrackingService? steamProcessTrackingService = null,
+        IErrorService? errorService = null)
         : this(
             libraryRootPath,
             settings,
@@ -61,7 +64,8 @@ public sealed class LauncherService
             protonPrefixRelocationService ?? new ProtonPrefixRelocationService(libraryRootPath, settings),
             steamProcessTrackingService ?? new SteamProcessTrackingService(),
             gogCometSessionService: null,
-            gogPlaytimeSyncService: null)
+            gogPlaytimeSyncService: null,
+            errorService: errorService)
     {
     }
 
@@ -76,7 +80,8 @@ public sealed class LauncherService
         ProtonPrefixRelocationService protonPrefixRelocationService,
         SteamProcessTrackingService steamProcessTrackingService,
         IGogCometSessionService? gogCometSessionService,
-        IGogPlaytimeSyncService? gogPlaytimeSyncService)
+        IGogPlaytimeSyncService? gogPlaytimeSyncService,
+        IErrorService? errorService = null)
     {
         _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
@@ -91,6 +96,7 @@ public sealed class LauncherService
                                        throw new ArgumentNullException(nameof(steamProcessTrackingService));
         _gogCometSessionService = gogCometSessionService;
         _gogPlaytimeSyncService = gogPlaytimeSyncService;
+        _errorService = errorService;
     }
 
     internal Task<LaunchSessionStopRequestResult> RequestActiveSessionStopAsync(
@@ -278,6 +284,9 @@ public sealed class LauncherService
             return failedResult;
         }
 
+        var trackingMode = "Unknown";
+        var trackingPhase = "Unknown";
+
         try
         {
             // Tracking strategy:
@@ -287,6 +296,9 @@ public sealed class LauncherService
             // D) Otherwise, if we have a process handle, wait for it.
             if (watchedProcessName != null)
             {
+                trackingMode = "ProcessName";
+                trackingPhase = "WatchProcessByName";
+
                 var watchOutcome = await _launchProcessService.WatchProcessByNameAsync(
                         watchedProcessName,
                         watchedProcessWasAlreadyRunning,
@@ -311,6 +323,9 @@ public sealed class LauncherService
             }
             else if (steamProcessTrackingSession != null && process != null)
             {
+                trackingMode = "SteamAppId";
+                trackingPhase = "ObserveHandoff";
+
                 // First inspect the Steam handoff itself for an immediate failure.
                 // A successful handoff is then tracked by its exact Steam AppID.
                 if (await _launchProcessService.WaitForDelegatedCommandAsync(process, cancellationToken)
@@ -321,6 +336,8 @@ public sealed class LauncherService
 
                 if (exitCode is null or 0)
                 {
+                    trackingPhase = "TrackSteamAppId";
+
                     var trackingResult = await _steamProcessTrackingService.TrackAsync(
                             steamProcessTrackingSession,
                             onGameProcessesDetected: processIds =>
@@ -343,6 +360,9 @@ public sealed class LauncherService
             }
             else if (isDelegatedCommand && process != null)
             {
+                trackingMode = "DelegatedCommand";
+                trackingPhase = "ObserveHandoff";
+
                 // The Steam/Heroic/xdg-open process is not the game. Observe it
                 // briefly for an immediate error, but never use its lifetime as
                 // game playtime or as a game-exit boundary.
@@ -352,12 +372,18 @@ public sealed class LauncherService
             }
             else if (process is { HasExited: false })
             {
+                trackingMode = "DirectProcess";
+                trackingPhase = "WaitForExit";
+
                 shouldRecordSession = true;
                 await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
                 exitCode = process.ExitCode;
             }
             else if (process != null)
             {
+                trackingMode = "DirectProcess";
+                trackingPhase = "WaitForExit";
+
                 // Process started but already exited (very fast failure or immediate exit).
                 // Still count as a launch attempt.
                 shouldRecordSession = true;
@@ -374,7 +400,13 @@ public sealed class LauncherService
         catch (Exception ex)
         {
             // The process was already started. A tracking failure must not be reported as a launch failure.
-            Debug.WriteLine($"[Launcher] Error during session tracking: {ex.Message}");
+            ReportSessionWarning(
+                "Launcher.SessionTrackingFailed",
+                "The game started, but its session could not be tracked reliably.",
+                item.Id,
+                trackingPhase,
+                ex,
+                trackingMode);
         }
         finally
         {
@@ -445,7 +477,12 @@ public sealed class LauncherService
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[Launcher] Failed to record session statistics: {ex.Message}");
+                ReportSessionWarning(
+                    "Launcher.StatisticsUpdateFailed",
+                    "The game started, but its launch statistics could not be updated.",
+                    item.Id,
+                    shouldRecordSession ? "UpdateTrackedSession" : "RecordLaunch",
+                    ex);
             }
         }
 
@@ -499,6 +536,32 @@ public sealed class LauncherService
                     consoleOutput: consoleOutput))
             .ConfigureAwait(false);
         return result;
+    }
+
+    private void ReportSessionWarning(
+        string code, string message, string itemId, string phase,
+        Exception exception, string? trackingMode = null)
+    {
+        var context = new Dictionary<string, string>
+        {
+            ["ItemId"] = itemId,
+            ["Phase"] = phase,
+            ["ExceptionType"] = exception.GetType().Name
+        };
+
+        if (trackingMode is not null)
+            context["TrackingMode"] = trackingMode;
+
+        try
+        {
+            _errorService?.Report(new ErrorReport(
+                code, ErrorSeverity.Warning, nameof(LauncherService), message,
+                Context: context));
+        }
+        catch
+        {
+            // dont change the result when trying to log
+        }
     }
 
     internal async Task TryReportGogPlaytimeSessionAsync(

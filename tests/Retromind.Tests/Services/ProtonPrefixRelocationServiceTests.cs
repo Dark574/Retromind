@@ -10,9 +10,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_RebasesBrokenProtonRuntimeLinksToConfiguredRunner()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Portable Game");
@@ -51,9 +48,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_RebasesReachableTrackedProtonLinkToConfiguredRunner()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Copied Game");
@@ -87,9 +81,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_RebasesReachableTrackedLinkInNestedProtonPrefix()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var compatRoot = temp.CreateDirectory("Library", "Prefixes", "Nested Game");
@@ -130,9 +121,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_LeavesValidProtonLinkUnchanged()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Working Game");
@@ -160,9 +148,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_LeavesReachableUntrackedLinkUnchanged()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Custom Link Game");
@@ -195,9 +180,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_PreservesReachableTrackedLinkWhenConfiguredRunnerHasNoEquivalent()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Missing Replacement Game");
@@ -227,9 +209,6 @@ public sealed class ProtonPrefixRelocationServiceTests
     [Fact]
     public void Repair_ReportsBrokenLinksWhenConfiguredRunnerIsUnavailable()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixPath = CreateProtonPrefix(temp, "Library", "Prefixes", "Missing Runner Game");

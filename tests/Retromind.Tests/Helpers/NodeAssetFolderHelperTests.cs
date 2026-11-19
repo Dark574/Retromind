@@ -382,7 +382,6 @@ public sealed class NodeAssetFolderHelperTests
     [InlineData(true)]
     public void SymlinkFolders_AreRejectedBeforeAnyFileOrMetadataChange(bool targetLink)
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var state = new AssetState();
         using var external = new TemporaryDirectory();
         var foreign = external.CreateFile("Game_Cover_01.png", "foreign");

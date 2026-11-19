@@ -30,9 +30,6 @@ public sealed class SteamProcessTrackingServiceTests
     [Fact]
     public void Prepare_RemainsAvailableWhenDiagnosticLoggingIsDisabled()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var messages = new List<string>();
         var service = new SteamProcessTrackingService(

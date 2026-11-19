@@ -66,9 +66,6 @@ public sealed class ImportServiceTests : IDisposable
     [Fact]
     public async Task ImportFromFolderAsync_OnLinuxKeepsCaseDistinctCuePayloadPath()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         Directory.CreateDirectory(_root);
         WriteFile("Game.cue", "FILE \"Track.bin\" BINARY\n");
         WriteFile("Track.bin");

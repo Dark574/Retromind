@@ -40,9 +40,6 @@ public sealed class LaunchProcessServiceTests
     [Fact]
     public async Task StartAndOutputCapture_PreserveStandardOutputAndError()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         var service = new LaunchProcessService();
         var startInfo = new ProcessStartInfo
         {
@@ -103,9 +100,6 @@ public sealed class LaunchProcessServiceTests
     [Fact]
     public async Task SessionStop_RequiresASecondRequestBeforeForceKillingDirectProcess()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         var service = new LaunchProcessService();
         using var process = Process.Start("/bin/sleep", "30");
         Assert.NotNull(process);
@@ -140,9 +134,6 @@ public sealed class LaunchProcessServiceTests
     [Fact]
     public async Task SessionStop_OnlyForceKillsRegisteredWatchedProcessIds()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var processName = "rtm" + Guid.NewGuid().ToString("N")[..8];
         var executablePath = temp.GetPath(processName);
@@ -185,9 +176,6 @@ public sealed class LaunchProcessServiceTests
     [Fact]
     public async Task SessionStop_ForceKillsOnlyRegisteredObservedProcessIdentities()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var process = Process.Start("/bin/sleep", "30");
         using var unrelatedProcess = Process.Start("/bin/sleep", "30");
         Assert.NotNull(process);

@@ -69,9 +69,6 @@ public sealed class GogInstallerProcessServiceTests
     [Fact]
     public async Task ExecuteAsync_CapturesFinalOutputAndNonZeroExitCode()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         var output = new ConcurrentQueue<string>();
         var startInfo = _service.CreateStartInfo(Path.GetTempPath());
         startInfo.FileName = "/bin/sh";
@@ -138,9 +135,6 @@ public sealed class GogInstallerProcessServiceTests
     [Fact]
     public void PrepareLinuxCompatibilityEnvironment_UsesPrivateTemporaryDirectoryAndCleansIt()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var fakeKonsolePath = temporaryDirectory.CreateFile("konsole", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(

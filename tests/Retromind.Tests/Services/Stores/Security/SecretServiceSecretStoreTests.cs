@@ -12,7 +12,6 @@ public sealed class SecretServiceSecretStoreTests
     [Fact]
     public async Task SuccessfulCommand_ReturnsPersistentWriteAndNormalizesLookup()
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var tool = CreateTool(temp, "case \"$1\" in\nstore) /bin/cat >/dev/null;;\nlookup) printf 'secret-value\\n';;\nclear) exit 0;;\nesac");
         ISecretStore store = new SecretServiceSecretStore(tool);
@@ -25,7 +24,6 @@ public sealed class SecretServiceSecretStoreTests
     [Fact]
     public async Task MissingExecutable_ReadWriteAndDeleteAllFailWithoutFalseSuccess()
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var store = new SecretServiceSecretStore(temp.GetPath("missing-tool"));
 
@@ -42,7 +40,6 @@ public sealed class SecretServiceSecretStoreTests
     [InlineData("delete")]
     public async Task FailedCommand_DoesNotExposeStdoutStderrKeysOrValues(string operation)
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var tool = CreateTool(temp, "/bin/cat >/dev/null </dev/null\nprintf 'unlabeled-secret'\nprintf 'private-service private-account private-password' >&2\nexit 7");
         var store = new SecretServiceSecretStore(tool);
@@ -65,7 +62,6 @@ public sealed class SecretServiceSecretStoreTests
     [Fact]
     public async Task EmptyExitOne_IsMissingValueAndSuccessfulClear()
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var store = new SecretServiceSecretStore(CreateTool(temp, "exit 1"));
 
@@ -81,7 +77,6 @@ public sealed class SecretServiceSecretStoreTests
     [InlineData("delete")]
     public async Task Cancellation_TerminatesStartedCommandAndPropagatesCancellation(string operation)
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         // The process test program lives in a temporary path that contains no shell quoting characters.
         var marker = temp.GetPath("pid");
@@ -112,7 +107,6 @@ public sealed class SecretServiceSecretStoreTests
     [Fact]
     public async Task Timeout_CoversBlockedInputWriteAndTerminatesCommand()
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var marker = temp.GetPath("pid");
         var tool = CreateTool(temp, $"printf '%s' \"$$\" > '{marker}'\nwhile :; do /bin/sleep 1; done");
@@ -128,7 +122,6 @@ public sealed class SecretServiceSecretStoreTests
     [Fact]
     public async Task PreCanceledCommand_DoesNotStartProcess()
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var marker = temp.GetPath("started");
         var store = new SecretServiceSecretStore(CreateTool(temp, $"touch '{marker}'"));
@@ -142,7 +135,6 @@ public sealed class SecretServiceSecretStoreTests
     [Fact]
     public async Task FailedCommand_CentralDiagnosticFileContainsOnlySafeMetadata()
     {
-        if (!OperatingSystem.IsLinux()) return;
         using var temp = new TemporaryDirectory();
         var tool = CreateTool(temp, "printf 'private-service private-account unlabeled-secret' >&2\nexit 7");
         var logDirectory = temp.GetPath("Logs", "Exceptions");

@@ -123,9 +123,6 @@ public sealed class PrefixPathHelperTests
     [Fact]
     public void EnsurePortableGamesDriveMapping_UsesPreferredFreeDrive()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixRoot = temp.CreateDirectory("Library", "Prefixes", "Game");
@@ -140,9 +137,6 @@ public sealed class PrefixPathHelperTests
     [Fact]
     public void EnsurePortableGamesDriveMapping_MigratesOwnedMappingShadowedByRawDevice()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var gamesRoot = temp.CreateDirectory("Library", "Games");
@@ -163,9 +157,6 @@ public sealed class PrefixPathHelperTests
     [Fact]
     public void EnsurePortableGamesDriveMapping_PreservesUserMappingAndUsesFallback()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixRoot = temp.CreateDirectory("Library", "Prefixes", "Game");
@@ -182,9 +173,6 @@ public sealed class PrefixPathHelperTests
     [Fact]
     public void EnsurePortableGamesDriveMapping_DoesNotModifyExternalPrefix()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var prefixRoot = temp.CreateDirectory("External", "Prefix");

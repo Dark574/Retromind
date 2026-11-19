@@ -35,9 +35,6 @@ public sealed class PathHelperTests
     [Fact]
     public void ResolveNodeFolder_OnLinuxRejectsDifferentlyCasedSiblingRoot()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         temp.CreateDirectory("library", "Legacy");

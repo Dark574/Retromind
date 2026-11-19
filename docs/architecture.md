@@ -1645,6 +1645,7 @@ interruption tests) and `jq` are required. Real container validation remains par
 `Retromind.sln` includes the `tests/Retromind.Tests` xUnit project. The main SDK project explicitly excludes
 `tests/**/*.cs` from its own default compile items, and selected internal contracts are exposed to the test
 assembly through `InternalsVisibleTo` rather than widening the production API.
+The test suite targets Linux and CI runs it on Ubuntu.
 
 The suite is risk-focused rather than UI-complete. It covers persistence recovery and restore behavior,
 portable-path and prefix contracts, Winetricks prefix/command preparation, launch planning, import and multi-disc

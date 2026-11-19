@@ -16,9 +16,6 @@ public sealed class LauncherServiceTests
     [InlineData(true)]
     public async Task LaunchAsync_PlaylistFailureLaunchesPrimaryAndNeverUsesStalePlaylist(bool failWriting)
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var primary = temp.CreateFile("primary.sh", "#!/bin/sh\nprintf 'primary-fallback-ok\\n'\nexit 23\n");
         var item = new MediaItem("Multi-disc fallback")
@@ -106,9 +103,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_RunsNestedWrapperWhosePathContainsSpaces()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var outerWrapperPath = temp.CreateFile(
             "outer-wrapper.sh",
@@ -160,9 +154,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_NormalizesExplicitRelativePrefixBeforeSettingEnvironment()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var libraryRoot = temp.CreateDirectory("Library");
         var expectedPrefix = temp.GetPath("Library", "Prefixes", "Trailing Slash Game");
@@ -229,9 +220,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_ReturnsCapturedOutputWhenProcessExitsEarlyWithError()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile(
             "failing-launch.sh",
@@ -266,9 +254,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_InvalidUtf8OutputDoesNotBreakLaunchTracking()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile(
             "invalid-utf8-output.sh",
@@ -302,9 +287,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_ReportsTrackedSessionWhenProcessExitWasObserved()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("successful-launch.sh", "#!/bin/sh\nexit 0\n");
         var item = new MediaItem("Successful Launch")
@@ -333,9 +315,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_CancelledTrackingDoesNotRecordOrReportCompletedSession()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         var sleepPath = File.Exists("/usr/bin/sleep") ? "/usr/bin/sleep" : "/bin/sleep";
         using var temp = new TemporaryDirectory();
         using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
@@ -369,9 +348,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_DoesNotTreatNonSteamStoreCommandAsTrackedGameSession()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var heroicPath = temp.CreateFile("heroic", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -406,9 +382,6 @@ public sealed class LauncherServiceTests
     [InlineData(MediaType.Native)]
     public async Task LaunchAsync_TracksSteamAppIdAndReportsCompletedSession(MediaType mediaType)
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var steamPath = temp.CreateFile("steam", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -444,20 +417,96 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task LaunchAsync_SteamTrackingFailureReportsWarningAndPreservesLaunch()
+    {
+        // Arrange: Launch works but session tracking fails
+        using var temp = new TemporaryDirectory();
+        var item = CreateSteamCommandItem(temp, "Steam tracking failure");
+        var errors = new RecordingErrorService();
+        var steamTracker = new StubSteamProcessTrackingService(
+            TimeSpan.Zero,
+            failure: new InvalidOperationException("Simulated tracking failure"));
+
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")),
+            steamProcessTrackingService: steamTracker,
+            errorService: errors);
+
+        // Act: check only session tracking without statistics update
+        var result = await service.LaunchAsync(item, recordStatistics: false);
+
+        // Assert: start is working but the tracking fails
+        Assert.Equal(LaunchOutcome.Started, result.Outcome);
+        Assert.False(result.WasSessionTracked);
+
+        var report = Assert.Single(errors.Reports);
+        Assert.Equal("Launcher.SessionTrackingFailed", report.Code);
+        Assert.Equal(ErrorSeverity.Warning, report.Severity);
+        var context = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(report.Context);
+        Assert.Equal(item.Id, context["ItemId"]);
+        Assert.Equal("SteamAppId", context["TrackingMode"]);
+        Assert.Equal("TrackSteamAppId", context["Phase"]);
+        Assert.Equal(nameof(InvalidOperationException), context["ExceptionType"]);
+        Assert.Null(report.Exception);
+        Assert.Null(Assert.Single(errors.Notifications));
+    }
+
+    [Fact]
+    public async Task LaunchAsync_StatisticsFailureReportsWarningAndPreservesTrackedSession()
+    {
+        AvaloniaTestDispatcher.EnsureStarted();
+
+        using var temp = new TemporaryDirectory();
+        var item = CreateSteamCommandItem(temp, "Statistics update failure");
+        var errors = new RecordingErrorService();
+        var steamTracker = new StubSteamProcessTrackingService(TimeSpan.FromSeconds(42));
+
+        item.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(MediaItem.LastPlayed))
+                throw new InvalidOperationException("Simulated statistics failure");
+        };
+
+        var service = new LauncherService(
+            temp.RootPath,
+            new AppSettings(),
+            new LaunchLogService(temp.GetPath("launch-logs")),
+            steamProcessTrackingService: steamTracker,
+            errorService: errors);
+
+        var result = await service.LaunchAsync(item);
+
+        Assert.Equal(LaunchOutcome.Started, result.Outcome);
+        Assert.True(result.WasSessionTracked);
+
+        var report = Assert.Single(errors.Reports);
+        Assert.Equal("Launcher.StatisticsUpdateFailed", report.Code);
+        Assert.Equal(ErrorSeverity.Warning, report.Severity);
+
+        var context = Assert.IsAssignableFrom<IReadOnlyDictionary<string, string>>(report.Context);
+        Assert.Equal(item.Id, context["ItemId"]);
+        Assert.Equal("UpdateTrackedSession", context["Phase"]);
+        Assert.Equal(nameof(InvalidOperationException), context["ExceptionType"]);
+        Assert.Null(report.Exception);
+        Assert.Null(Assert.Single(errors.Notifications));
+    }
+
+    [Fact]
     public async Task LaunchAsync_CancelledSteamTrackingDoesNotRecordAPartialSession()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
         var item = CreateSteamCommandItem(temp, "Cancelled Steam game");
+        var errors = new RecordingErrorService();
         var steamTracker = new BlockingSteamProcessTrackingService();
         var service = new LauncherService(
             temp.RootPath,
             new AppSettings(),
             new LaunchLogService(temp.GetPath("launch-logs")),
-            steamProcessTrackingService: steamTracker);
+            steamProcessTrackingService: steamTracker,
+            errorService: errors);
 
         var result = await service.LaunchAsync(
             item,
@@ -467,14 +516,12 @@ public sealed class LauncherServiceTests
         Assert.Equal(0, item.PlayCount);
         Assert.Equal(TimeSpan.Zero, item.TotalPlayTime);
         Assert.Null(item.LastPlayed);
+        Assert.Empty(errors.Reports);
     }
 
     [Fact]
     public async Task LaunchAsync_ManualWatchProcessTakesPriorityOverSteamAppIdTracking()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         using var cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromMilliseconds(50));
         var item = CreateSteamCommandItem(temp, "Manually tracked Steam game");
@@ -495,9 +542,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_DoesNotMarkFailedSteamHandoffAsTrackedSession()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var steamPath = temp.CreateFile("steam", "#!/bin/sh\nexit 23\n");
         File.SetUnixFileMode(
@@ -578,9 +622,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_PersistsCopyableLogAndRedactsSecrets()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile(
             "logged-launch.sh",
@@ -625,9 +666,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_RedactsSecretsFromPreparedEpicLaunchThroughoutTheSavedLog()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         const string argumentSecret = "epic-exchange-secret";
         const string environmentSecret = "epic-environment-secret";
         using var temp = new TemporaryDirectory();
@@ -686,9 +724,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_CompletesCometSessionForEnabledGogGame()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-game.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -710,9 +745,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_ReturnsWhileCometCompletesInBackground()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-background-completion.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -746,9 +778,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task PrepareForShutdownAsync_AllowsPendingCometToFinishWithinGracePeriod()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-shutdown-grace.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -775,9 +804,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task PrepareForShutdownAsync_CancelsPendingCometAfterGracePeriod()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-shutdown-timeout.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -801,9 +827,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task PrepareForShutdownAsync_WaitsForActiveGogLaunchLocalCompletion()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-shutdown-local.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -833,9 +856,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_DoesNotStartCometWhenIntegrationIsDisabled()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-game.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -854,9 +874,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_CometStartupFailureDoesNotBlockGogGame()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-game.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -897,9 +914,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_DoesNotStartCometForLegacyExternalGogCommand()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var heroicPath = temp.CreateFile("heroic", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -971,9 +985,6 @@ public sealed class LauncherServiceTests
     [Fact]
     public async Task LaunchAsync_DoesNotReportGogPlaytimeForTestLaunch()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var scriptPath = temp.CreateFile("gog-test-launch.sh", "#!/bin/sh\nexit 0\n");
         File.SetUnixFileMode(
@@ -1127,7 +1138,7 @@ public sealed class LauncherServiceTests
         DateTimeOffset StartedAtUtc,
         TimeSpan Duration);
 
-    private sealed class StubSteamProcessTrackingService(TimeSpan duration)
+    private sealed class StubSteamProcessTrackingService(TimeSpan duration, Exception? failure = null)
         : SteamProcessTrackingService(
             "/proc",
             _ => { },
@@ -1157,6 +1168,8 @@ public sealed class LauncherServiceTests
             CancellationToken cancellationToken = default)
         {
             TrackCalls++;
+            if (failure is not null)
+                return Task.FromException<SteamProcessTrackingResult>(failure);
             return Task.FromResult(new SteamProcessTrackingResult(true, duration));
         }
     }

@@ -313,6 +313,7 @@ public partial class App : Application
             var steamProcessTrackingService = provider.GetRequiredService<SteamProcessTrackingService>();
             var gogCometSessionService = provider.GetRequiredService<IGogCometSessionService>();
             var gogPlaytimeSyncService = provider.GetRequiredService<IGogPlaytimeSyncService>();
+            var errorService = provider.GetRequiredService<IErrorService>();
             return new LauncherService(
                 libraryPath,
                 settings,
@@ -324,7 +325,8 @@ public partial class App : Application
                 protonPrefixRelocationService,
                 steamProcessTrackingService,
                 gogCometSessionService,
-                gogPlaytimeSyncService);
+                gogPlaytimeSyncService,
+                errorService);
         });
         services.AddSingleton<ImportService>();
         services.AddSingleton<StoreImportService>();

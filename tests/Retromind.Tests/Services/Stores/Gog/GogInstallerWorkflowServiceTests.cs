@@ -13,9 +13,6 @@ public sealed class GogInstallerWorkflowServiceTests
     [Fact]
     public async Task RunAsync_ReusesDownloadExecutesInstallerAndWritesDetailedLog()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("Library", "Games", "Workflow Game");
         var stagingPath = temporaryDirectory.CreateDirectory(
@@ -66,9 +63,6 @@ public sealed class GogInstallerWorkflowServiceTests
     [Fact]
     public async Task RunAsync_CleanInstallPreservesNestedStagingAndRemovesOldPayload()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("Library", "Games", "Clean Workflow Game");
         var stagingPath = temporaryDirectory.CreateDirectory(
@@ -159,9 +153,6 @@ public sealed class GogInstallerWorkflowServiceTests
     [Fact]
     public void DeleteStagingDirectoryBestEffort_OnLinuxRejectsDifferentlyCasedMarker()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temporaryDirectory = new TemporaryDirectory();
         var stagingPath = temporaryDirectory.CreateDirectory(
             "game",

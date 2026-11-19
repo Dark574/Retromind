@@ -384,9 +384,6 @@ public sealed class LaunchPlaylistServiceTests
     [Fact]
     public void ResolveLaunchFilePath_CleanupFailureAddsContextToOriginalReport()
     {
-        if (!OperatingSystem.IsLinux())
-            return;
-
         using var temp = new TemporaryDirectory();
         var errors = new RecordingErrorService();
         string? temporaryPath = null;
