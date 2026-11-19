@@ -52,7 +52,7 @@ public partial class MainWindowViewModel
 
         // Block every regular settings save before capturing the preceding state.
         // The scope drains an active write and unblocks automatically if restore fails.
-        _saveSettingsCts?.Cancel();
+        _persistence.CancelPendingSettingsSave();
         using var settingsRestore = await _settingsService.BeginRestoreAsync();
 
         MetadataBackupContent? current = null;

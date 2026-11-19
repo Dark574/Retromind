@@ -153,16 +153,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private DateTime _lastControllerExitHandledUtc = DateTime.MinValue;
 
-    // Debounced Settings Save
-    private CancellationTokenSource? _saveSettingsCts;
-    private readonly TimeSpan _saveSettingsDebounce = TimeSpan.FromMilliseconds(500);
-    private int _settingsDirtyVersion;
-    private int _persistenceErrorNoticeShown;
-    private int _suppressPersistenceErrorNotice;
-    private readonly object _persistenceStateLock = new();
-    private bool _librarySaveFailed;
-    private bool _settingsSaveFailed;
-    private int _settingsSaveFailureVersion;
+    private readonly DesktopPersistenceCoordinator _persistence;
     private bool _libraryLoadFailed;
     private bool _closeWithoutPersistenceAfterRestore;
     private CancellationTokenSource? _startupWarmupCts;
@@ -536,8 +527,13 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             UpdateLibraryGameCounters();
         };
-        _libraryTracker.SaveFailed += OnLibrarySaveFailed;
-        _libraryTracker.SaveSucceeded += OnLibrarySaveSucceeded;
+        _persistence = new DesktopPersistenceCoordinator(
+            _libraryTracker,
+            _settingsService,
+            () => _libraryLoadFailed,
+            () => UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings)),
+            _errorService,
+            TryShowPersistenceSaveFailureAsync);
         _fileService.LibraryChanged += _libraryTracker.MarkDirty;
         
         // Seed layout values early so bindings are stable before LoadData completes.
@@ -888,178 +884,18 @@ public partial class MainWindowViewModel : ViewModelBase
         "Persistence.OperationSavePending",
         "The operation completed, but its changes could not be fully saved. Changes remain in memory; completed work was retained.");
 
-    // Settings commit/secret handling needs to distinguish an actual settings write from a partial full save.
     private Task<(bool AllSaved, bool SettingsSaved)> SaveDataWithStatusAsync()
-        => SaveDataWithStatusAsync(() => UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings)));
+        => _persistence.SaveAsync();
 
-    // Keep snapshot acquisition separate from persistence policy, including in headless regression tests.
-    internal async Task<(bool AllSaved, bool SettingsSaved)> SaveDataWithStatusAsync(Func<Task<string>> settingsSnapshot)
+    private void SaveSettingsOnly() => _ = _persistence.ScheduleSettingsSave();
+
+    private async Task<bool> TryShowPersistenceSaveFailureAsync(string message)
     {
-        var librarySaved = false;
-        if (!_libraryLoadFailed && _libraryTracker.IsTracking)
-        {
-            try
-            {
-                await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
-                librarySaved = _libraryTracker.IsTracking && !_libraryTracker.IsDirty;
-            }
-            catch
-            {
-                // SaveIfDirtyAsync retains dirty state and raises SaveFailed. That event owns diagnosis/notice.
-                return (false, false);
-            }
-        }
+        if (CurrentWindow is not { } owner)
+            return false;
 
-        if (_settingsService.HasLoadFailure)
-            return (false, false);
-        try
-        {
-            var saveVersion = Volatile.Read(ref _settingsDirtyVersion);
-            await SaveSettingsSnapshotAsync(saveVersion, settingsSnapshot: settingsSnapshot).ConfigureAwait(false);
-            lock (_persistenceStateLock)
-                return (librarySaved && !_libraryLoadFailed && _libraryTracker.IsTracking && !_libraryTracker.IsDirty &&
-                        !_librarySaveFailed && !_settingsSaveFailed &&
-                        Volatile.Read(ref _settingsDirtyVersion) == saveVersion, true);
-        }
-        catch (OperationCanceledException)
-        {
-            // A restore deliberately rejects regular settings saves. Do not report
-            // success or open a persistence-error dialog while shutdown is requested.
-            return (false, false);
-        }
-        catch (Exception ex)
-        {
-            OnSettingsSaveFailed(ex);
-            return (false, false);
-        }
-    }
-
-    private void SaveSettingsOnly()
-    {
-        if (_settingsService.HasLoadFailure)
-            return;
-
-        var saveVersion = Interlocked.Increment(ref _settingsDirtyVersion);
-
-        _saveSettingsCts?.Cancel();
-        _saveSettingsCts?.Dispose();
-        _saveSettingsCts = new CancellationTokenSource();
-
-        var token = _saveSettingsCts.Token;
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(_saveSettingsDebounce, token);
-                token.ThrowIfCancellationRequested();
-
-                await SaveSettingsSnapshotAsync(saveVersion, token).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Debounce cancellation: expected.
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[Settings] Debounced save failed: {ex.Message}");
-                OnSettingsSaveFailed(ex);
-            }
-        }, token);
-    }
-
-    private async Task SaveSettingsSnapshotAsync(int saveVersion, CancellationToken token = default,
-        Func<Task<string>>? settingsSnapshot = null)
-    {
-        int failureVersion;
-        lock (_persistenceStateLock) failureVersion = _settingsSaveFailureVersion;
-        var json = await (settingsSnapshot?.Invoke() ??
-            UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_currentSettings))).ConfigureAwait(false);
-        await _settingsService.SaveJsonAsync(json, token).ConfigureAwait(false);
-        lock (_persistenceStateLock)
-        {
-            if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion && failureVersion == _settingsSaveFailureVersion)
-            {
-                _settingsSaveFailed = false;
-                TryClearPersistenceNoticeCore();
-            }
-        }
-    }
-
-    private void OnLibrarySaveFailed(Exception exception)
-    {
-        lock (_persistenceStateLock) _librarySaveFailed = true;
-        if (exception is not OperationCanceledException)
-            ReportPersistenceSaveFailure(exception);
-    }
-
-    private void OnLibrarySaveSucceeded()
-    {
-        lock (_persistenceStateLock)
-        {
-            if (!_libraryTracker.IsDirty)
-                _librarySaveFailed = false;
-            TryClearPersistenceNoticeCore();
-        }
-    }
-
-    private void OnSettingsSaveFailed(Exception exception)
-    {
-        lock (_persistenceStateLock)
-        {
-            _settingsSaveFailed = true;
-            _settingsSaveFailureVersion++;
-        }
-        ReportPersistenceSaveFailure(exception);
-    }
-
-    // Called under _persistenceStateLock. A successful write only resolves its own data source.
-    private void TryClearPersistenceNoticeCore()
-    {
-        if (!_librarySaveFailed && !_settingsSaveFailed && !_libraryLoadFailed && !_settingsService.HasLoadFailure &&
-            _libraryTracker.IsTracking && !_libraryTracker.IsDirty)
-            ResetPersistenceErrorNotice();
-    }
-
-    private void ReportPersistenceSaveFailure(Exception exception)
-    {
-        var showNotice = Volatile.Read(ref _suppressPersistenceErrorNotice) == 0 &&
-                         Interlocked.CompareExchange(ref _persistenceErrorNoticeShown, 1, 0) == 0;
-        var format = T(
-            "Persistence.SaveFailedFormat",
-            "Retromind could not save its data.\n\n{0}\n\nUnsaved changes remain in memory. Please check free disk space and write permissions.");
-        var message = string.Format(format, exception.Message);
-
-        _errorService.Report(new ErrorReport(
-            "Persistence.SaveFailed",
-            ErrorSeverity.Error,
-            nameof(MainWindowViewModel),
-            message,
-            exception,
-            Context: new Dictionary<string, string> { ["Operation"] = "Save" }),
-            notifyUser: showNotice ? async () =>
-        {
-            try
-            {
-                if (CurrentWindow is not { } owner)
-                {
-                    ResetPersistenceErrorNotice();
-                    return;
-                }
-
-                await ShowInfoDialog(owner, message);
-            }
-            catch (Exception dialogException)
-            {
-                Debug.WriteLine($"[Persistence] Could not show save failure: {dialogException.Message}");
-                ResetPersistenceErrorNotice();
-            }
-        } : null);
-    }
-
-    private void ResetPersistenceErrorNotice()
-    {
-        Interlocked.Exchange(ref _persistenceErrorNoticeShown, 0);
+        await ShowInfoDialog(owner, message);
+        return true;
     }
 
     private string? ResolveSelectedItemAsset(AssetType type)
@@ -1113,23 +949,12 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         // Cancel pending debounces so we don't race with our final flush.
-        _saveSettingsCts?.Cancel();
+        _persistence.CancelPendingSettingsSave();
         _parentalRefreshCts?.Cancel();
 
-        Interlocked.Exchange(ref _suppressPersistenceErrorNotice, 1);
         try
         {
-            // 1. Save FIRST (while tracking is still active)
-            if (!_libraryLoadFailed)
-                await _libraryTracker.SaveIfDirtyAsync(force: true).ConfigureAwait(false);
-            
-            if (!_settingsService.HasLoadFailure)
-            {
-                await SaveSettingsSnapshotAsync(Volatile.Read(ref _settingsDirtyVersion)).ConfigureAwait(false);
-            }
-
-            lock (_persistenceStateLock) TryClearPersistenceNoticeCore();
-            await UiThreadHelper.InvokeAsync(Cleanup).ConfigureAwait(false);
+            await _persistence.FlushAsync(() => UiThreadHelper.InvokeAsync(Cleanup)).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
@@ -1137,10 +962,6 @@ public partial class MainWindowViewModel : ViewModelBase
             Console.WriteLine($"[Shutdown] Final save failed: {ex.Message}");
             _launcherService.ResumeAfterCancelledShutdown();
             return false;
-        }
-        finally
-        {
-            Interlocked.Exchange(ref _suppressPersistenceErrorNotice, 0);
         }
     }
     
@@ -1158,15 +979,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _audioService.MusicPlaybackEnded -= OnMusicPlaybackEnded;
         
         _fileService.LibraryChanged -= _libraryTracker.MarkDirty;
-        _libraryTracker.SaveFailed -= OnLibrarySaveFailed;
-        _libraryTracker.SaveSucceeded -= OnLibrarySaveSucceeded;
+        _persistence.Dispose();
         _libraryTracker.StopTracking();
         
         _desktopContent.Dispose();
-        
-        _saveSettingsCts?.Cancel();
-        _saveSettingsCts?.Dispose();
-        _saveSettingsCts = null;
         
         _parentalRefreshCts?.Cancel();
         _parentalRefreshCts?.Dispose();

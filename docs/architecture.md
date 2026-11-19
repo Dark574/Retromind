@@ -104,11 +104,15 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 
 ### Explicit save results and callers
 
+`DesktopPersistenceCoordinator` coordinates explicit saves, the settings debounce, and the final flush.
+The main window view model supplies settings snapshots on the UI thread and handles dialogs and the
+window lifecycle. Library change tracking and writes remain with `LibraryChangeTracker`.
+
 `MainWindowViewModel.SaveData()` returns `true` only when the tracked library is clean after its save
 and the current settings snapshot was written without an outstanding save failure or a newer settings
 edit. A clean, tracked library needs no further write. `LibraryChangeTracker.SaveIfDirtyAsync()` itself
 returns `Task`, not a persistence acknowledgement: it may skip clean/stale work or an unavailable snapshot.
-The view model therefore also checks tracking and dirty state. A library-load failure, an untracked
+The coordinator therefore also checks tracking and dirty state. A library-load failure, an untracked
 library, or `SettingsService.HasLoadFailure` prevents a full-success result; the existing protections
 against overwriting unreadable data remain in force. Healthy stores may still be saved independently.
 Skipping a protected store does not fabricate a write exception or another dialog; startup already
@@ -355,10 +359,11 @@ or prevent an independently requested notification.
 
 ### Persistence, audio, video, and Winetricks integration
 
-`MainWindowViewModel.ReportPersistenceSaveFailure()` reports
+`DesktopPersistenceCoordinator` reports
 `Persistence.SaveFailed` with severity `Error`, the existing localized `Persistence.SaveFailedFormat`
 message, the original exception, and `Operation=Save` context. Its existing atomic notification gate
-permits only one notice while a persistence failure remains unresolved. Library failures are diagnosed
+permits only one notice while a persistence failure remains unresolved. The main window view model
+shows the dialog. Library failures are diagnosed
 by the tracker event, without a duplicate report from the explicit-save catch. Separate library/settings
 failure state prevents a successful write to one store from clearing the other store's failure. Settings
 completion also checks edit and failure generations so an older success cannot clear a newer failure.
