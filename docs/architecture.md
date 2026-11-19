@@ -942,6 +942,8 @@ the report never mutates JSON or deletes files.
 
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
+- `ScrapedMetadataApplier` applies the field selection and existing-data policy shared by manual and bulk
+  scraping. Callers still own asset downloads, dialogs, and persistence.
 - `MultiDiscFileNameHelper`: shared recognition for separated `Disk`, `Disc`, `CD`, `Side`, `Part`, and
   `Scen` filename forms; `LauncherService` can consume generated playlists for grouped media
 - game-system assignments use stable provider-neutral identifiers, are inherited from node to item, and remain
