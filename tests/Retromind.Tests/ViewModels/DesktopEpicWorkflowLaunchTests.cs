@@ -2,12 +2,12 @@ using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
 
-public sealed class MainWindowViewModelEpicLaunchTests
+public sealed class DesktopEpicWorkflowLaunchTests
 {
     [Fact]
     public void MergeEpicLaunchEnvironment_PreservesEpicValuesWithoutRetromindOverride()
     {
-        var merged = MainWindowViewModel.MergeEpicLaunchEnvironment(
+        var merged = DesktopEpicWorkflow.MergeEpicLaunchEnvironment(
             effectiveEnvironment: null,
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
@@ -21,7 +21,7 @@ public sealed class MainWindowViewModelEpicLaunchTests
     [Fact]
     public void MergeEpicLaunchEnvironment_PrefersExplicitRetromindOverride()
     {
-        var merged = MainWindowViewModel.MergeEpicLaunchEnvironment(
+        var merged = DesktopEpicWorkflow.MergeEpicLaunchEnvironment(
             new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["LANG"] = "en_US.UTF-8",

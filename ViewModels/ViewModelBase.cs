@@ -9,7 +9,7 @@ namespace Retromind.ViewModels;
 /// </summary>
 public abstract class ViewModelBase : ObservableObject
 {
-    protected static string T(string key, string fallback)
+    protected internal static string T(string key, string fallback)
     {
         var value = Strings.ResourceManager.GetString(key, Strings.Culture);
         return string.IsNullOrWhiteSpace(value) ? fallback : value;

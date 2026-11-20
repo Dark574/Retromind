@@ -3,7 +3,7 @@ using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
 
-public sealed class MainWindowViewModelGogAuthTests
+public sealed class DesktopGogWorkflowAuthTests
 {
     [Theory]
     [InlineData("1", true)]
@@ -17,6 +17,6 @@ public sealed class MainWindowViewModelGogAuthTests
         using var environment = new EnvironmentVariableScope(
             ("RETROMIND_GOG_FORCE_BROWSER_LOGIN", value));
 
-        Assert.Equal(expected, MainWindowViewModel.IsGogBrowserLoginForced());
+        Assert.Equal(expected, DesktopGogWorkflow.IsGogBrowserLoginForced());
     }
 }

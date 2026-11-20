@@ -14,12 +14,12 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopGogWorkflow
 {
-    private bool CanManageGogDlcs(MediaItem? item) =>
+    internal bool CanManageGogDlcs(MediaItem? item) =>
         !IsLaunchInProgress && GogMediaItemStateHelper.IsInstalled(item);
 
-    private async Task ShowGogDlcManagerAsync(MediaItem? item)
+    internal async Task ShowGogDlcManagerAsync(MediaItem? item)
     {
         if (!CanManageGogDlcs(item) || item == null || CurrentWindow is not { } owner)
             return;
@@ -27,7 +27,7 @@ public partial class MainWindowViewModel
         await ShowGogDlcManagerAsync(item, owner);
     }
 
-    private async Task ShowGogDlcManagerAsync(MediaItem item, Window owner)
+    internal async Task ShowGogDlcManagerAsync(MediaItem item, Window owner)
     {
         var gameId = GogMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(gameId))
@@ -260,7 +260,7 @@ public partial class MainWindowViewModel
                 var downloadedPackage = workflowResult.DownloadedPackage!;
 
                 UpdateInstalledGogDlcState(item, entry, platform.Value, installerPackage);
-                _libraryTracker.MarkDirty();
+                Workspace.MarkLibraryDirty();
                 if (!await SaveData())
                 {
                     var message = OperationSavePendingMessage();

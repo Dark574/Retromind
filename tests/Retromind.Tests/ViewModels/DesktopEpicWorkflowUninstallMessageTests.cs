@@ -3,7 +3,7 @@ using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
 
-public sealed class MainWindowViewModelEpicUninstallMessageTests
+public sealed class DesktopEpicWorkflowUninstallMessageTests
 {
     [Theory]
     [InlineData("[LFS Utils] ERROR: Removing game directory failed with OSError(39, 'Directory not empty')", true)]
@@ -14,7 +14,7 @@ public sealed class MainWindowViewModelEpicUninstallMessageTests
     [InlineData("", false)]
     public void NonemptyDirectoryDetectionIsRestrictedToSpecificLegendaryMessage(string line, bool expected)
     {
-        Assert.Equal(expected, MainWindowViewModel.IsLegendaryNonemptyDirectoryMessage(line));
+        Assert.Equal(expected, DesktopEpicWorkflow.IsLegendaryNonemptyDirectoryMessage(line));
     }
 
     [Theory]
@@ -22,7 +22,7 @@ public sealed class MainWindowViewModelEpicUninstallMessageTests
     [InlineData(true)]
     public void ConfirmedFolderCleanupExplainsEarlierBackendMessageEvenWhenPrefixWasPreserved(bool prefixPreserved)
     {
-        var notice = MainWindowViewModel.GetEpicUninstallDirectoryCleanupNotice(
+        var notice = DesktopEpicWorkflow.GetEpicUninstallDirectoryCleanupNotice(
             new EpicUninstallResult(prefixPreserved, null), nonemptyDirectoryReported: true);
 
         Assert.NotNull(notice);
@@ -38,7 +38,7 @@ public sealed class MainWindowViewModelEpicUninstallMessageTests
     public void NoResolvedNoticeForOtherMessagesRetainedFilesOrUnsuccessfulCleanup(
         bool reported, string? remainingPath, bool failed, bool cancelled)
     {
-        Assert.Null(MainWindowViewModel.GetEpicUninstallDirectoryCleanupNotice(
+        Assert.Null(DesktopEpicWorkflow.GetEpicUninstallDirectoryCleanupNotice(
             new EpicUninstallResult(false, remainingPath, failed, cancelled), reported));
     }
 }

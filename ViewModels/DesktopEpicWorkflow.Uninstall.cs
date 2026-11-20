@@ -12,12 +12,12 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopEpicWorkflow
 {
-    private bool CanUninstallEpicMedia(MediaItem? item) =>
+    internal bool CanUninstallEpicMedia(MediaItem? item) =>
         !IsLaunchInProgress && EpicMediaItemStateHelper.CanUninstall(item);
 
-    private async Task UninstallEpicMediaAsync(MediaItem? item)
+    internal async Task UninstallEpicMediaAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner)
             return;
@@ -25,7 +25,7 @@ public partial class MainWindowViewModel
         _ = await RunEpicUninstallAsync(item, owner);
     }
 
-    private async Task<bool> RunEpicUninstallAsync(MediaItem item, Window owner)
+    internal async Task<bool> RunEpicUninstallAsync(MediaItem item, Window owner)
     {
         if (!CanUninstallEpicMedia(item))
             return false;
@@ -186,7 +186,7 @@ public partial class MainWindowViewModel
 
     private async Task<bool> PersistEpicUninstallStateAsync()
     {
-        _libraryTracker.MarkDirty();
+        Workspace.MarkLibraryDirty();
         var saved = await SaveData();
         NotifyPlayAvailabilityChanged();
         return saved;

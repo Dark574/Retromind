@@ -12,12 +12,12 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopEpicWorkflow
 {
-    private bool CanManageEpicDlcs(MediaItem? item) =>
+    internal bool CanManageEpicDlcs(MediaItem? item) =>
         !IsLaunchInProgress && EpicMediaItemStateHelper.IsRetromindManagedInstallation(item);
 
-    private async Task ShowEpicDlcManagerAsync(MediaItem? item)
+    internal async Task ShowEpicDlcManagerAsync(MediaItem? item)
     {
         if (!CanManageEpicDlcs(item) || item == null || CurrentWindow is not { } owner)
             return;
@@ -25,7 +25,7 @@ public partial class MainWindowViewModel
         await ShowEpicDlcManagerAsync(item, owner);
     }
 
-    private async Task ShowEpicDlcManagerAsync(MediaItem item, Window owner)
+    internal async Task ShowEpicDlcManagerAsync(MediaItem item, Window owner)
     {
         if (!CanManageEpicDlcs(item))
             return;

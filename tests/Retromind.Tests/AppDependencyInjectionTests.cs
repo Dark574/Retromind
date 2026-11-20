@@ -1,5 +1,4 @@
 using Microsoft.Extensions.DependencyInjection;
-using System.Reflection;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.Stores.Gog.Auth;
@@ -19,8 +18,7 @@ public sealed class AppDependencyInjectionTests
         using var temp = new TemporaryDirectory();
         using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
         var services = new ServiceCollection();
-        typeof(App).GetMethod("ConfigureServices", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(new App(), [services]);
+        App.ConfigureServices(services);
         using var provider = services.BuildServiceProvider();
 
         var errors = provider.GetRequiredService<IErrorService>();

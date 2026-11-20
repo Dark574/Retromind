@@ -220,8 +220,10 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - `Views/GogPickerDialogView.axaml.cs`
 - `Views/GogInstallDialogView.axaml`
 - `Views/GogInstallDialogView.axaml.cs`
-- `ViewModels/MainWindowViewModel.GogInstall.cs`
-- `ViewModels/MainWindowViewModel.GogUpdates.cs`
+- `ViewModels/DesktopGogWorkflow.Import.cs` (desktop sign-in, picker, and import preparation)
+- `ViewModels/DesktopGogWorkflow.Install.cs`
+- `ViewModels/DesktopGogWorkflow.Updates.cs`
+- `ViewModels/DesktopGogWorkflow.Operations.cs` (desktop install, update, reinstall, and uninstall actions)
 - `ViewModels/MainWindowViewModel.Command.cs`
   - uninstall command wiring for GOG items
 - `ViewModels/ProcessLogViewModel.cs` (long-running process log, cancellation, and lifecycle management)

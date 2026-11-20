@@ -12,7 +12,7 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopEpicWorkflow
 {
     private enum EpicMaintenanceOperation
     {
@@ -20,18 +20,18 @@ public partial class MainWindowViewModel
         Repair
     }
 
-    private bool CanCheckEpicUpdates(MediaItem? item) =>
+    internal bool CanCheckEpicUpdates(MediaItem? item) =>
         !IsLaunchInProgress &&
         EpicMediaItemStateHelper.CanCheckUpdates(item) &&
         !EpicMediaItemStateHelper.HasUpdateAvailable(item);
 
-    private bool CanUpdateEpicMedia(MediaItem? item) =>
+    internal bool CanUpdateEpicMedia(MediaItem? item) =>
         !IsLaunchInProgress && EpicMediaItemStateHelper.HasUpdateAvailable(item);
 
-    private bool CanRepairEpicMedia(MediaItem? item) =>
+    internal bool CanRepairEpicMedia(MediaItem? item) =>
         !IsLaunchInProgress && EpicMediaItemStateHelper.IsRetromindManagedInstallation(item);
 
-    private async Task CheckEpicUpdatesNowAsync(MediaItem? item)
+    internal async Task CheckEpicUpdatesNowAsync(MediaItem? item)
     {
         if (!CanCheckEpicUpdates(item) || item == null || CurrentWindow is not { } owner)
             return;
@@ -39,7 +39,7 @@ public partial class MainWindowViewModel
         await CheckEpicUpdatesNowAsync(item, owner);
     }
 
-    private async Task CheckEpicUpdatesNowAsync(MediaItem item, Window owner)
+    internal async Task CheckEpicUpdatesNowAsync(MediaItem item, Window owner)
     {
         if (!CanCheckEpicUpdates(item))
             return;
@@ -60,7 +60,7 @@ public partial class MainWindowViewModel
             item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = status.InstalledVersion;
             item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] =
                 status.IsUpdateAvailable ? "true" : "false";
-            _libraryTracker.MarkDirty();
+            Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             if (!await SaveData())
                 return; // The central persistence notice already explains the unsaved metadata.
@@ -94,7 +94,7 @@ public partial class MainWindowViewModel
         }
     }
 
-    private async Task UpdateEpicMediaAsync(MediaItem? item)
+    internal async Task UpdateEpicMediaAsync(MediaItem? item)
     {
         if (!CanUpdateEpicMedia(item) || item == null)
             return;
@@ -119,7 +119,7 @@ public partial class MainWindowViewModel
         return await MaintainEpicItemAsync(item, EpicMaintenanceOperation.Update);
     }
 
-    private async Task<bool> RunEpicMaintenanceFromEditorAsync(
+    internal async Task<bool> RunEpicMaintenanceFromEditorAsync(
         MediaItem item,
         Window owner,
         bool repair)
@@ -149,7 +149,7 @@ public partial class MainWindowViewModel
         }
     }
 
-    private async Task RepairEpicMediaAsync(MediaItem? item)
+    internal async Task RepairEpicMediaAsync(MediaItem? item)
     {
         if (!CanRepairEpicMedia(item) || item == null)
             return;
@@ -238,11 +238,11 @@ public partial class MainWindowViewModel
 
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = StoreInstallPathHelper.ToStoredPath(
                 installed.InstallPath,
-                _currentSettings.PreferPortableLaunchPaths);
+                Workspace.Settings.PreferPortableLaunchPaths);
             item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = installed.Version;
             if (!isRepair)
                 item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "false";
-            _libraryTracker.MarkDirty();
+            Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             if (!await SaveData())
             {

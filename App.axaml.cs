@@ -263,7 +263,7 @@ public partial class App : Application
     /// <summary>
     /// Configures the application's dependency injection container.
     /// </summary>
-    private void ConfigureServices(IServiceCollection services)
+    internal static void ConfigureServices(IServiceCollection services)
     {
         // --- Infrastructure ---
         services.AddSingleton<HttpClient>(_ =>
@@ -405,6 +405,7 @@ public partial class App : Application
 
         // --- ViewModels ---
         services.AddSingleton<DesktopSettingsWorkflow>();
+        services.AddSingleton<DesktopStoreWorkflowFactory>();
         // MainWindowViewModel is the long-lived app coordinator -> singleton is safer.
         services.AddSingleton<MainWindowViewModel>();
     }

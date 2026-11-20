@@ -13,6 +13,10 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
 {
     private static readonly TimeSpan SettingsSaveDelay = TimeSpan.FromMilliseconds(500);
 
+    internal static string OperationSavePendingMessage() => ViewModelBase.T(
+        "Persistence.OperationSavePending",
+        "The operation completed, but its changes could not be fully saved. Changes remain in memory; completed work was retained.");
+
     private readonly LibraryChangeTracker _libraryTracker;
     private readonly SettingsService _settingsService;
     private readonly Func<bool> _libraryLoadFailed;

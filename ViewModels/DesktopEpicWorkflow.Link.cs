@@ -12,9 +12,9 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopEpicWorkflow
 {
-    private bool CanLinkMediaItemToEpic(MediaItem? item)
+    internal bool CanLinkMediaItemToEpic(MediaItem? item)
     {
         var providerId = StoreProviderBadgeHelper.GetProviderId(item);
         return !IsLaunchInProgress &&
@@ -26,7 +26,7 @@ public partial class MainWindowViewModel
                  !StoreGameIdentityHelper.HasStoredIdentity(item)));
     }
 
-    private async Task LinkMediaItemToEpicFromContextAsync(MediaItem? item)
+    internal async Task LinkMediaItemToEpicFromContextAsync(MediaItem? item)
     {
         if (!CanLinkMediaItemToEpic(item) || item == null || CurrentWindow is not { } owner)
             return;
@@ -34,9 +34,9 @@ public partial class MainWindowViewModel
         _ = await LinkMediaItemToEpicAsync(item, owner);
     }
 
-    private async Task<bool> LinkMediaItemToEpicAsync(MediaItem item, Window owner)
+    internal async Task<bool> LinkMediaItemToEpicAsync(MediaItem item, Window owner)
     {
-        var parentNode = FindParentNode(RootItems, item);
+        var parentNode = Workspace.FindParentNode(item);
         var previousProviderId = StoreProviderBadgeHelper.GetProviderId(item);
         if (!await CanChangeStoreLinkAsync(
                 item,
@@ -155,7 +155,7 @@ public partial class MainWindowViewModel
                 item,
                 updatedFields,
                 SaveData,
-                _libraryTracker.MarkDirty,
+                Workspace.MarkLibraryDirty,
                 "The linked Epic Games identity could not be saved.");
         }
         catch (Exception ex)

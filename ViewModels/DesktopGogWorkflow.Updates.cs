@@ -10,9 +10,9 @@ using Retromind.Services.Stores.Gog;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopGogWorkflow
 {
-    private void StartGogUpdateBackgroundLoop() =>
+    internal void StartGogUpdateBackgroundLoop() =>
         _gogUpdateChecks.StartBackgroundChecks(
             () => UiThreadHelper.InvokeAsync(GetInstalledGogItems),
             (item, ct) => CheckGogUpdatesForItemCoreAsync(item, force: false, ct));
@@ -37,7 +37,7 @@ public partial class MainWindowViewModel
             CollectInstalledGogItemsRecursive(child, buffer);
     }
 
-    private bool CanCheckGogUpdatesForItem(MediaItem? item)
+    internal bool CanCheckGogUpdatesForItem(MediaItem? item)
     {
         if (item == null || IsLaunchInProgress)
             return false;
@@ -49,7 +49,7 @@ public partial class MainWindowViewModel
     private static bool ShouldOfferGogUpdateForItem(MediaItem? item) =>
         GogMediaItemStateHelper.HasUpdateAvailable(item);
 
-    private async Task CheckGogUpdatesNowAsync(MediaItem? item)
+    internal async Task CheckGogUpdatesNowAsync(MediaItem? item)
     {
         if (item == null || CurrentWindow is not { } owner)
             return;
@@ -57,7 +57,7 @@ public partial class MainWindowViewModel
         await CheckGogUpdatesNowAsync(item, owner);
     }
 
-    private async Task CheckGogUpdatesNowAsync(MediaItem item, Avalonia.Controls.Window owner)
+    internal async Task CheckGogUpdatesNowAsync(MediaItem item, Avalonia.Controls.Window owner)
     {
         if (!CanCheckGogUpdatesForItem(item))
             return;
@@ -95,7 +95,7 @@ public partial class MainWindowViewModel
         await ShowInfoDialog(owner, message, showCopyButton: false).ConfigureAwait(false);
     }
 
-    private async Task<GogUpdateResult> CheckGogUpdatesForItemCoreAsync(
+    internal async Task<GogUpdateResult> CheckGogUpdatesForItemCoreAsync(
         MediaItem item, bool force, CancellationToken ct)
     {
         var snapshot = await UiThreadHelper.InvokeAsync(() => CreateInstalledGogSnapshot(item))
@@ -182,7 +182,7 @@ public partial class MainWindowViewModel
         }).ConfigureAwait(false);
 
         if (changed)
-            _libraryTracker.MarkDirtyAndSaveSoon();
+            Workspace.MarkLibraryDirtyAndSaveSoon();
     }
 
     private void SetGogDlcUpdateAvailability(MediaItem item, bool updateAvailable)
@@ -196,7 +196,7 @@ public partial class MainWindowViewModel
 
         item.CustomFields = fields;
         NotifyPlayAvailabilityChanged();
-        _libraryTracker.MarkDirtyAndSaveSoon();
+        Workspace.MarkLibraryDirtyAndSaveSoon();
     }
 
     private static bool SetField(IDictionary<string, string> fields, string key, string value)

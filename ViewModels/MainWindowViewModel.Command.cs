@@ -16,9 +16,7 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.BigMode;
-using Retromind.Services.Stores;
 using Retromind.Services.Stores.Epic;
-using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -152,22 +150,22 @@ public partial class MainWindowViewModel
         ChangeParentalPasswordCommand = new AsyncRelayCommand(ChangeParentalPasswordAsync);
         PlayCommand = new AsyncRelayCommand<MediaItem?>(item => PlayMediaAsync(item), CanPlayMedia);
         InstallStoreItemCommand = new AsyncRelayCommand<MediaItem?>(InstallStoreMediaAsync, CanInstallStoreMedia);
-        CheckGogUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckGogUpdatesNowAsync, CanCheckGogUpdatesForItem);
-        ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(ReinstallGogMediaAsync, CanReinstallGogMedia);
-        UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(UpdateGogMediaAsync, CanUpdateGogMedia);
-        UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(UninstallGogMediaAsync, CanUninstallGogMedia);
-        CheckEpicUpdatesCommand = new AsyncRelayCommand<MediaItem?>(CheckEpicUpdatesNowAsync, CanCheckEpicUpdates);
-        UpdateEpicCommand = new AsyncRelayCommand<MediaItem?>(UpdateEpicMediaAsync, CanUpdateEpicMedia);
-        RepairEpicCommand = new AsyncRelayCommand<MediaItem?>(RepairEpicMediaAsync, CanRepairEpicMedia);
-        UninstallEpicCommand = new AsyncRelayCommand<MediaItem?>(UninstallEpicMediaAsync, CanUninstallEpicMedia);
-        ManageEpicDlcsCommand = new AsyncRelayCommand<MediaItem?>(ShowEpicDlcManagerAsync, CanManageEpicDlcs);
-        ManageGogDlcsCommand = new AsyncRelayCommand<MediaItem?>(ShowGogDlcManagerAsync, CanManageGogDlcs);
+        CheckGogUpdatesCommand = new AsyncRelayCommand<MediaItem?>(_gogWorkflow.CheckGogUpdatesNowAsync, _gogWorkflow.CanCheckGogUpdatesForItem);
+        ReinstallGogCommand = new AsyncRelayCommand<MediaItem?>(_gogWorkflow.ReinstallGogMediaAsync, _gogWorkflow.CanReinstallGogMedia);
+        UpdateGogCommand = new AsyncRelayCommand<MediaItem?>(_gogWorkflow.UpdateGogMediaAsync, _gogWorkflow.CanUpdateGogMedia);
+        UninstallGogCommand = new AsyncRelayCommand<MediaItem?>(_gogWorkflow.UninstallGogMediaAsync, _gogWorkflow.CanUninstallGogMedia);
+        CheckEpicUpdatesCommand = new AsyncRelayCommand<MediaItem?>(_epicWorkflow.CheckEpicUpdatesNowAsync, _epicWorkflow.CanCheckEpicUpdates);
+        UpdateEpicCommand = new AsyncRelayCommand<MediaItem?>(_epicWorkflow.UpdateEpicMediaAsync, _epicWorkflow.CanUpdateEpicMedia);
+        RepairEpicCommand = new AsyncRelayCommand<MediaItem?>(_epicWorkflow.RepairEpicMediaAsync, _epicWorkflow.CanRepairEpicMedia);
+        UninstallEpicCommand = new AsyncRelayCommand<MediaItem?>(_epicWorkflow.UninstallEpicMediaAsync, _epicWorkflow.CanUninstallEpicMedia);
+        ManageEpicDlcsCommand = new AsyncRelayCommand<MediaItem?>(_epicWorkflow.ShowEpicDlcManagerAsync, _epicWorkflow.CanManageEpicDlcs);
+        ManageGogDlcsCommand = new AsyncRelayCommand<MediaItem?>(_gogWorkflow.ShowGogDlcManagerAsync, _gogWorkflow.CanManageGogDlcs);
         LinkMediaItemToGogCommand = new AsyncRelayCommand<MediaItem?>(
-            LinkMediaItemToGogFromContextAsync,
-            CanLinkMediaItemToGog);
+            _gogWorkflow.LinkMediaItemToGogFromContextAsync,
+            _gogWorkflow.CanLinkMediaItemToGog);
         LinkMediaItemToEpicCommand = new AsyncRelayCommand<MediaItem?>(
-            LinkMediaItemToEpicFromContextAsync,
-            CanLinkMediaItemToEpic);
+            _epicWorkflow.LinkMediaItemToEpicFromContextAsync,
+            _epicWorkflow.CanLinkMediaItemToEpic);
         
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
@@ -184,8 +182,8 @@ public partial class MainWindowViewModel
         
         ImportRomsCommand = new AsyncRelayCommand<MediaNode?>(ImportRomsAsync, CanOperateOnNode);
         ImportSteamCommand = new AsyncRelayCommand<MediaNode?>(ImportSteamAsync, CanOperateOnNode);
-        ImportEpicCommand = new AsyncRelayCommand<MediaNode?>(ImportEpicAsync, CanOperateOnNode);
-        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(ImportGogAsync, CanOperateOnNode);
+        ImportEpicCommand = new AsyncRelayCommand<MediaNode?>(node => _epicWorkflow.ImportEpicAsync(node ?? SelectedNode), CanOperateOnNode);
+        ImportGogCommand = new AsyncRelayCommand<MediaNode?>(node => _gogWorkflow.ImportGogAsync(node ?? SelectedNode), CanOperateOnNode);
         IdentifyNodeWithRetroAchievementsCommand = new AsyncRelayCommand<MediaNode?>(
             IdentifyNodeWithRetroAchievementsAsync,
             CanIdentifyNodeWithRetroAchievements);
@@ -406,6 +404,9 @@ public partial class MainWindowViewModel
         return !string.IsNullOrWhiteSpace(primaryLaunchPath);
     }
 
+    private static bool ShouldOfferInstallForItem(MediaItem? item) =>
+        DesktopStoreWorkflow.ShouldOfferInstallForItem(item);
+
     private bool CanInstallStoreMedia(MediaItem? item) =>
         !IsLaunchInProgress &&
         !IsMultiSelectModeActive &&
@@ -419,31 +420,6 @@ public partial class MainWindowViewModel
     private bool CanTestPlayMedia(MediaItem? item)
         => CanPlayMedia(item) && !ShouldOfferInstallForItem(item);
 
-    private bool CanReinstallGogMedia(MediaItem? item)
-    {
-        if (IsLaunchInProgress || item == null)
-            return false;
-
-        return GogMediaItemStateHelper.IsInstalled(item) &&
-               GogMediaItemStateHelper.IsRetromindManagedInstallation(item);
-    }
-
-    private bool CanUpdateGogMedia(MediaItem? item)
-    {
-        if (IsLaunchInProgress || item == null)
-            return false;
-
-        return ShouldOfferGogUpdateForItem(item);
-    }
-
-    private bool CanUninstallGogMedia(MediaItem? item)
-    {
-        if (IsLaunchInProgress || item == null)
-            return false;
-
-        return GogMediaItemStateHelper.CanUninstall(item);
-    }
-    
     // --- Basic Actions ---
 
     private void EnterBigMode()
@@ -810,14 +786,21 @@ public partial class MainWindowViewModel
 
         if (EpicMediaItemStateHelper.TryGetGameId(item) != null)
         {
-            _ = await RunEpicInstallFromEditorAsync(item, owner);
+            _ = await _epicWorkflow.RunEpicInstallFromEditorAsync(item, owner);
             return;
         }
 
-        _ = await RunGogInstallFromEditorAsync(
+        _ = await _gogWorkflow.RunGogInstallFromEditorAsync(
             item,
             owner,
             requireAvailableUpdate: false);
+    }
+
+    private Task<bool> InstallStoreItemAsync(MediaItem item)
+    {
+        return EpicMediaItemStateHelper.TryGetGameId(item) != null
+            ? _epicWorkflow.InstallEpicItemAsync(item)
+            : _gogWorkflow.InstallGogItemAsync(item);
     }
 
     private async Task<LaunchResult?> PlayMediaAsync(MediaItem? item, bool recordStatistics = true)
@@ -926,11 +909,11 @@ public partial class MainWindowViewModel
             if (EpicMediaItemStateHelper.IsRetromindManagedInstallation(item) &&
                 CurrentWindow is { } epicOwner)
             {
-                epicLaunch = await PrepareEpicLaunchAsync(item, epicOwner);
+                epicLaunch = await _epicWorkflow.PrepareEpicLaunchAsync(item, epicOwner);
                 if (epicLaunch == null)
                     return null;
 
-                effectiveEnvironment = MergeEpicLaunchEnvironment(
+                effectiveEnvironment = DesktopEpicWorkflow.MergeEpicLaunchEnvironment(
                     effectiveEnvironment,
                     epicLaunch.Environment);
             }
@@ -1084,167 +1067,6 @@ public partial class MainWindowViewModel
         logView.Show(owner);
     }
 
-    private async Task ReinstallGogMediaAsync(MediaItem? item)
-    {
-        if (!CanReinstallGogMedia(item) || item == null)
-            return;
-
-        if (IsLaunchInProgress)
-            return;
-
-        IsLaunchInProgress = true;
-        try
-        {
-            await InstallGogItemAsync(item, operation: GogInstallOperation.Reinstall);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Error] ReinstallGogMedia failed: {ex.Message}");
-        }
-        finally
-        {
-            IsLaunchInProgress = false;
-        }
-    }
-
-    private async Task UpdateGogMediaAsync(MediaItem? item)
-    {
-        if (!CanUpdateGogMedia(item) || item == null)
-            return;
-
-        if (IsLaunchInProgress)
-            return;
-
-        IsLaunchInProgress = true;
-        try
-        {
-            await InstallGogItemAsync(item, operation: GogInstallOperation.Update);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Error] UpdateGogMedia failed: {ex.Message}");
-        }
-        finally
-        {
-            IsLaunchInProgress = false;
-        }
-    }
-
-    private async Task<bool> RunGogInstallFromEditorAsync(
-        MediaItem item,
-        Window owner,
-        bool requireAvailableUpdate)
-    {
-        if (IsLaunchInProgress ||
-            GogMediaItemStateHelper.TryGetGameId(item) == null ||
-            (requireAvailableUpdate && !GogMediaItemStateHelper.HasUpdateAvailable(item)))
-        {
-            return false;
-        }
-
-        IsLaunchInProgress = true;
-        try
-        {
-            var operation = requireAvailableUpdate
-                ? GogInstallOperation.Update
-                : GogMediaItemStateHelper.IsInstalled(item)
-                    ? GogInstallOperation.Reinstall
-                    : GogInstallOperation.Install;
-            return await InstallGogItemAsync(
-                item,
-                owner,
-                operation);
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Error] GOG install from media editor failed: {ex.Message}");
-            return false;
-        }
-        finally
-        {
-            IsLaunchInProgress = false;
-        }
-    }
-
-    private async Task UninstallGogMediaAsync(MediaItem? item)
-    {
-        if (item == null || CurrentWindow is not { } owner)
-            return;
-
-        _ = await RunGogUninstallAsync(item, owner);
-    }
-
-    private async Task<bool> RunGogUninstallAsync(MediaItem item, Window owner)
-    {
-        if (!CanUninstallGogMedia(item))
-            return false;
-
-        if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) &&
-            GogInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath) &&
-            IsInstallDirectoryUsedByAnotherItem(installPath, item))
-        {
-            await ShowInfoDialog(
-                owner,
-                string.Format(
-                    T(
-                        "Gog.Uninstall.SharedInstallDirectoryFormat",
-                        "The game folder is also used by another library item and will not be deleted:\n{0}"),
-                    installPath));
-            return false;
-        }
-
-        var preserveSharedPrefix = IsPrefixUsedByAnotherItem(item.PrefixPath, item);
-        var confirmMessage = preserveSharedPrefix
-            ? string.Format(
-                T(
-                    "Gog.Uninstall.ConfirmSharedPrefixFormat",
-                    "Uninstall \"{0}\"?\n\nThe game files will be deleted. Its Wine/Proton prefix is also used by another item and will be preserved.\n\nThis action cannot be undone."),
-                item.Title)
-            : string.Format(
-                Strings.Gog_Uninstall_ConfirmMessage,
-                item.Title);
-
-        var confirmed = await ShowConfirmDialog(owner, confirmMessage);
-        if (!confirmed)
-            return false;
-
-        IsLaunchInProgress = true;
-        try
-        {
-            await _gogInstallService.UninstallGogGameAsync(
-                item,
-                deletePrefix: !preserveSharedPrefix);
-
-            // after successfull deinstall: reload the library
-            _libraryTracker.MarkDirty();
-            var saved = await SaveData();
-            NotifyPlayAvailabilityChanged();
-
-            if (!saved)
-                return true; // Confirms the physical uninstall; the central notice explains the pending save.
-
-            await ShowInfoDialog(
-                owner,
-                preserveSharedPrefix
-                    ? T(
-                        "Gog.Uninstall.SuccessSharedPrefix",
-                        "Game uninstalled successfully. The shared Wine/Proton prefix was preserved.")
-                    : Strings.Gog_Uninstall_Success);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine($"[Error] UninstallGogMedia failed: {ex.Message}");
-            await ShowInfoDialog(owner,
-                string.Format(Strings.Gog_Uninstall_FailedWithMessage, ex.Message));
-            return false;
-        }
-        finally
-        {
-            IsLaunchInProgress = false;
-        }
-    }
-    
     private Dictionary<string, string>? ResolveEffectiveEnvironmentOverrides(
         MediaItem item,
         EmulatorConfig? emulator,
@@ -1298,80 +1120,16 @@ public partial class MainWindowViewModel
         
         try
         {
-            var removeManagedEpicInstallation =
-                EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item);
-            var preserveSharedEpicPrefix = removeManagedEpicInstallation &&
-                                           IsPrefixUsedByAnotherItem(item.PrefixPath, item);
-            if (removeManagedEpicInstallation &&
-                item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) &&
-                StoreInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var installPath) &&
-                IsInstallDirectoryUsedByAnotherItem(installPath, item))
+            if (EpicMediaItemStateHelper.HasRetromindManagedInstallMetadata(item))
             {
-                await ShowInfoDialog(
-                    owner,
-                    string.Format(
-                        CultureInfo.CurrentCulture,
-                        T(
-                            "Epic.Uninstall.SharedInstallDirectoryFormat",
-                            "The game folder is also used by another library item and will not be deleted:\n{0}"),
-                        installPath));
-                return;
+                var (canDelete, preservedDirectory) = await _epicWorkflow.PrepareLibraryItemDeletionAsync(item, owner);
+                if (!canDelete)
+                    return;
+                preservedEpicInstallDirectory = preservedDirectory;
             }
-
-            var confirmMessage = removeManagedEpicInstallation
-                ? string.Format(
-                    CultureInfo.CurrentCulture,
-                    preserveSharedEpicPrefix
-                        ? T(
-                            "Epic.Delete.ManagedSharedPrefixConfirmFormat",
-                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation will be unregistered from Legendary and its managed game files will be deleted. Unrecognized files such as mods or saves will remain in the game folder. Its Wine/Proton prefix is used by another item and will be preserved.\n\nThis action cannot be undone.")
-                        : T(
-                            "Epic.Delete.ManagedConfirmFormat",
-                            "Delete \"{0}\" from the library?\n\nThe Retromind-managed Epic Games installation will be unregistered from Legendary, its managed game files and its Wine/Proton prefix will be deleted. Unrecognized files such as mods or saves will remain in the game folder.\n\nThis action cannot be undone."),
-                    item.Title)
-                : Strings.Dialog_MsgConfirmDelete;
-            if (!await ShowConfirmDialog(owner, confirmMessage)) return;
-
-            if (removeManagedEpicInstallation)
+            else if (!await ShowConfirmDialog(owner, Strings.Dialog_MsgConfirmDelete))
             {
-                if (!await EnsureEpicSignInAsync(owner))
-                    return;
-
-                try
-                {
-                    EpicUninstallResult uninstallResult;
-                    bool stateSaved;
-                    using (BeginBusyCursor(owner))
-                    {
-                        await Task.Yield();
-                        (uninstallResult, stateSaved) = await UninstallEpicAndPersistAsync(
-                            _epicInstallService, item,
-                            deletePrefix: !preserveSharedEpicPrefix, PersistEpicUninstallStateAsync);
-                        preservedEpicInstallDirectory = uninstallResult.PreservedInstallDirectory;
-                    }
-                    // SaveData already owns persistence-error notification and keeps the model dirty.
-                    if (!stateSaved)
-                        return;
-                    if (uninstallResult.CleanupFailed || uninstallResult.CleanupCancelled)
-                    {
-                        await ShowInfoDialog(owner, T("Epic.Delete.CleanupIncomplete",
-                            "The game was uninstalled. The library item was kept because follow-up cleanup did not complete. Its remaining game-folder and prefix paths are retained for manual cleanup."));
-                        return;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[Epic] Delete-time uninstall failed: {ex.Message}");
-                    await ShowInfoDialog(
-                        owner,
-                        string.Format(
-                            CultureInfo.CurrentCulture,
-                            T(
-                                "Epic.Delete.UninstallFailedFormat",
-                                "The Epic Games installation could not be removed, so the library item was kept:\n\n{0}"),
-                            BuildShortErrorDetail(ex)));
-                    return;
-                }
+                return;
             }
 
             if (ReferenceEquals(item, GetCurrentSelectedItem()))
@@ -1396,17 +1154,7 @@ public partial class MainWindowViewModel
                 RefreshContentAfterMediaCollectionChange();
             }
 
-            if (!string.IsNullOrWhiteSpace(preservedEpicInstallDirectory))
-            {
-                await ShowInfoDialog(
-                    owner,
-                    string.Format(
-                        CultureInfo.CurrentCulture,
-                        T(
-                            "Epic.Uninstall.RemainingFilesPreservedFormat",
-                            "The game folder still contains files or could not be removed safely. It was preserved in:\n{0}"),
-                        preservedEpicInstallDirectory));
-            }
+            await _epicWorkflow.ShowPreservedInstallDirectoryAsync(owner, preservedEpicInstallDirectory);
         }
         catch (Exception ex)
         {
@@ -1416,25 +1164,11 @@ public partial class MainWindowViewModel
 
     // --- Dialog Helpers ---
 
-    private async Task<bool> ShowConfirmDialog(Window owner, string message)
-    {
-        var dialog = new ConfirmView { DataContext = message };
-        var result = await dialog.ShowDialog<bool>(owner);
-        return result;
-    }
+    private static Task<bool> ShowConfirmDialog(Window owner, string message) =>
+        DesktopDialogs.ShowConfirmAsync(owner, message);
 
-    private async Task ShowInfoDialog(Window owner, string message, bool showCopyButton = true)
-    {
-        await UiThreadHelper.InvokeAsync(async () =>
-        {
-            var dialog = new InfoView
-            {
-                DataContext = message,
-                ShowCopyButton = showCopyButton
-            };
-            await dialog.ShowDialog<bool>(owner);
-        });
-    }
+    private static Task ShowInfoDialog(Window owner, string message, bool showCopyButton = true) =>
+        DesktopDialogs.ShowInfoAsync(owner, message, showCopyButton);
 
     private async Task<string?> PromptForName(
         Window owner,

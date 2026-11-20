@@ -1111,9 +1111,14 @@ the report never mutates JSON or deletes files.
   owned-library contracts extend that common identity so multiple providers can coexist without ambiguous DI
   registrations. GOG currently supplies those contracts through `GogProvider`, while its installer-specific services
   remain separate. Store identity and management state belong to each `MediaItem`, never to the containing node
+- `DesktopGogWorkflow` and `DesktopEpicWorkflow` own the desktop dialogs and provider-specific flows for
+  sign-in, import, linking, install, updates, DLCs and uninstall. Epic also prepares authenticated
+  launches and handles the managed uninstall that precedes library-item deletion. Both use the same
+  desktop operation guard, persistence and selection callbacks. The main window owns command bindings,
+  library selection after import, and the call to the launcher with the prepared arguments.
 - `GogUpdateCheckService` owns the background sweep, per-item check gate, and silent authentication cache. It
-  compares installed snapshots with the remote base-game and DLC packages. The main window captures snapshots,
-  applies results on the UI thread, marks the library dirty, and owns the manual result dialog. Catalog failures
+  compares installed snapshots with the remote base-game and DLC packages. The GOG desktop workflow captures
+  snapshots, applies results on the UI thread, marks the library dirty, and owns the manual result dialog. Catalog failures
   leave the last known DLC update state intact; the installer fingerprint format is shared with installation.
   The background sweep looks for due checks every five minutes. Completed checks are due after 24 hours.
   A failed installer request, unavailable session, or missing installer sets a separate retry deadline of
@@ -1161,7 +1166,7 @@ the report never mutates JSON or deletes files.
     the install directory or its ancestor, so it cannot erase retained game-folder contents indirectly. Failed
     cleanup stops further cleanup and returns the confirmed result; cancellation after confirmation does the same.
     A partially deleted prefix retains its path for manual recovery, with no automatic retry or aggressive sweep.
-  - Both standalone uninstall and delete-item flows use `MainWindowViewModel.UninstallEpicAndPersistAsync`.
+  - Both standalone uninstall and delete-item flows use `DesktopEpicWorkflow.UninstallEpicAndPersistAsync`.
     It awaits the result and then always runs the normal persistence callback without the cleanup cancellation token.
     The callback marks the library dirty, calls `SaveData()`, and only then refreshes action availability. Standalone
     uninstall reports cleanup warnings/cancellation in its existing process log. Item deletion retains and saves

@@ -252,8 +252,8 @@ public partial class MainWindowViewModel
 
         var item = searchVm.SelectedMediaItem;
 
-        if (item != null && CanCheckGogUpdatesForItem(item))
-            _ = CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
+        if (item != null && _gogWorkflow.CanCheckGogUpdatesForItem(item))
+            _ = _gogWorkflow.CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
 
         NotifyPlayAvailabilityChanged();
 

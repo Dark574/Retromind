@@ -7,7 +7,7 @@ using Retromind.Services.Stores.Gog;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopGogWorkflow
 {
     private async Task<bool> ConfirmGogInstallSpaceAsync(
         Window owner,

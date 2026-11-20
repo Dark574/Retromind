@@ -32,11 +32,11 @@ public sealed class EpicUninstallSafetyTests
         var output = new List<string>();
         var nonemptyDirectoryReported = false;
 
-        var (result, saved) = await MainWindowViewModel.UninstallEpicAndPersistAsync(
+        var (result, saved) = await DesktopEpicWorkflow.UninstallEpicAndPersistAsync(
             service, item, true, () => Task.FromResult(true), line =>
             {
                 output.Add(line);
-                nonemptyDirectoryReported |= MainWindowViewModel.IsLegendaryNonemptyDirectoryMessage(line);
+                nonemptyDirectoryReported |= DesktopEpicWorkflow.IsLegendaryNonemptyDirectoryMessage(line);
             });
 
         Assert.True(saved);
@@ -46,7 +46,7 @@ public sealed class EpicUninstallSafetyTests
         Assert.False(result.CleanupFailed);
         Assert.Equal(retainUserFile, Directory.Exists(InstallPath(temp)));
         Assert.Empty(errors.Reports);
-        var notice = MainWindowViewModel.GetEpicUninstallDirectoryCleanupNotice(result, nonemptyDirectoryReported);
+        var notice = DesktopEpicWorkflow.GetEpicUninstallDirectoryCleanupNotice(result, nonemptyDirectoryReported);
         if (retainUserFile)
         {
             Assert.Null(notice);
@@ -140,7 +140,7 @@ public sealed class EpicUninstallSafetyTests
         service.WriteMarker(InstallPath(temp), item);
         var saves = 0;
 
-        await Assert.ThrowsAsync<LegendaryCliException>(() => MainWindowViewModel.UninstallEpicAndPersistAsync(
+        await Assert.ThrowsAsync<LegendaryCliException>(() => DesktopEpicWorkflow.UninstallEpicAndPersistAsync(
             service, item, true, () => { saves++; return Task.FromResult(true); }));
 
         Assert.Equal(before, JsonSerializer.Serialize(item));
@@ -249,7 +249,7 @@ public sealed class EpicUninstallSafetyTests
         service.WriteMarker(InstallPath(temp), item);
         var saves = 0;
 
-        var (result, saved) = await MainWindowViewModel.UninstallEpicAndPersistAsync(service, item, true, async () =>
+        var (result, saved) = await DesktopEpicWorkflow.UninstallEpicAndPersistAsync(service, item, true, async () =>
         {
             saves++;
             AssertUninstalled(item);
@@ -280,7 +280,7 @@ public sealed class EpicUninstallSafetyTests
         var service = CreateService(new Backend());
         service.WriteMarker(InstallPath(temp), item);
 
-        var (_, saved) = await MainWindowViewModel.UninstallEpicAndPersistAsync(service, item, true,
+        var (_, saved) = await DesktopEpicWorkflow.UninstallEpicAndPersistAsync(service, item, true,
             () => Task.FromResult(false));
 
         Assert.False(saved);

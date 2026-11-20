@@ -5,7 +5,7 @@ using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
 
-public sealed class MainWindowViewModelGogInstallTests
+public sealed class DesktopGogWorkflowInstallTests
 {
     [Fact]
     public void DefaultInstallPath_PreservesFormerNativeLinuxInstallDirectory()
@@ -24,7 +24,7 @@ public sealed class MainWindowViewModelGogInstallTests
             ]
         };
 
-        var result = MainWindowViewModel.ResolveDefaultGogInstallPath(item, "12345");
+        var result = DesktopGogWorkflow.ResolveDefaultGogInstallPath(item, "12345");
 
         Assert.Equal("/games/Test Game", result);
     }
@@ -50,7 +50,7 @@ public sealed class MainWindowViewModelGogInstallTests
             }
         };
 
-        var result = MainWindowViewModel.ResolveDefaultGogInstallPath(item, "12345");
+        var result = DesktopGogWorkflow.ResolveDefaultGogInstallPath(item, "12345");
 
         Assert.Equal("/games/Managed Location", result);
     }
@@ -193,7 +193,7 @@ public sealed class MainWindowViewModelGogInstallTests
     [InlineData(true)]
     public void DlcInstallRequest_InheritsInstallerCleanupChoice(bool deleteStagingAfterSuccess)
     {
-        var request = MainWindowViewModel.CreateGogDlcInstallRequest(
+        var request = DesktopGogWorkflow.CreateGogDlcInstallRequest(
             "/tmp/test-game",
             GogInstallPlatform.Linux,
             GogWindowsInstallerPreference.AutoPrefer64,

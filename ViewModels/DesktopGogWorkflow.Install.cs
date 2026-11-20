@@ -14,20 +14,16 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopGogWorkflow
 {
-    private enum GogInstallOperation
+    internal enum GogInstallOperation
     {
         Install,
         Reinstall,
         Update
     }
 
-    private bool ShouldOfferInstallForItem(MediaItem? item)
-        => GogMediaItemStateHelper.ShouldOfferInstall(item) ||
-           EpicMediaItemStateHelper.ShouldOfferInstall(item);
-
-    private async Task<bool> InstallGogItemAsync(
+    internal async Task<bool> InstallGogItemAsync(
         MediaItem item,
         Window? ownerOverride = null,
         GogInstallOperation operation = GogInstallOperation.Install)
@@ -106,7 +102,7 @@ public partial class MainWindowViewModel
 
         var defaultInstallPath = ResolveDefaultGogInstallPath(item, storeGameId);
         var preferredPlatform = GetPreferredInstalledGogPlatform(item);
-        var inheritedEmulator = FindInheritedEmulator(item);
+        var inheritedEmulator = Workspace.FindInheritedEmulator(item);
         var preferredRunnerId = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(
             item,
             inheritedEmulator);
@@ -114,7 +110,7 @@ public partial class MainWindowViewModel
         var dialogVm = new GogInstallDialogViewModel(
             item.Title,
             defaultInstallPath,
-            _currentSettings.RunnerVersions,
+            Workspace.Settings.RunnerVersions,
             availablePlatforms,
             preferredPlatform,
             preferredRunnerId,
@@ -341,7 +337,7 @@ public partial class MainWindowViewModel
 
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = GogInstallPathHelper.ToStoredPath(
                 launchInfo.InstallRoot,
-                _currentSettings.PreferPortableLaunchPaths);
+                Workspace.Settings.PreferPortableLaunchPaths);
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPlatform] = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
             if (installRequest.Platform == GogInstallPlatform.Windows && installRequest.Runner != null)
             {
@@ -369,7 +365,7 @@ public partial class MainWindowViewModel
                             "Installation succeeded, but Retromind could not mark the install directory as managed: {0}"),
                         BuildShortErrorDetail(ex)));
             }
-            
+
             UpdateInstalledGogFingerprint(item, selectedInstallerPackage);
             if (installRequest.CleanInstall)
             {
@@ -379,7 +375,7 @@ public partial class MainWindowViewModel
                     .ToDictionary(static field => field.Key, static field => field.Value, StringComparer.Ordinal);
             }
 
-            _libraryTracker.MarkDirty();
+            Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             if (!await SaveData())
             {
@@ -512,7 +508,7 @@ public partial class MainWindowViewModel
             return false;
         }
     }
-    
+
     private async Task<bool> EnsureGogSignInForInstallAsync(Window owner, bool forceInteractiveSignIn = false)
     {
         if (!forceInteractiveSignIn)
@@ -574,18 +570,6 @@ public partial class MainWindowViewModel
             await ShowInfoDialog(owner, GetGogSignInErrorMessage(ex));
             return false;
         }
-    }
-
-    private static string BuildShortErrorDetail(Exception ex) =>
-        BuildShortErrorDetail(ex.Message);
-
-    private static string BuildShortErrorDetail(string? message)
-    {
-        if (string.IsNullOrWhiteSpace(message))
-            return "Unknown error";
-
-        var compact = message.Trim().Replace(Environment.NewLine, " ", StringComparison.Ordinal).Trim();
-        return compact.Length <= 260 ? compact : compact[..260] + "...";
     }
 
     internal static string ResolveDefaultGogInstallPath(MediaItem item, string storeGameId)
@@ -736,14 +720,6 @@ public partial class MainWindowViewModel
     private static bool IsUmuRunAvailable()
         => !string.IsNullOrWhiteSpace(EnvironmentPathHelper.TryFindExecutableInCurrentPath("umu-run"));
 
-    private static void AppendProcessLog(ProcessLogViewModel logVm, string line)
-    {
-        if (string.IsNullOrWhiteSpace(line))
-            return;
-
-        UiThreadHelper.Post(() => logVm.AppendLine(line));
-    }
-
     private bool ApplyDetectedGogLaunchConfiguration(
         MediaItem item,
         string storeGameId,
@@ -805,7 +781,7 @@ public partial class MainWindowViewModel
 
         var storedFilePath = launchInfo.ExecutablePath;
         var storedFileKind = MediaFileKind.Absolute;
-        if (_currentSettings.PreferPortableLaunchPaths &&
+        if (Workspace.Settings.PreferPortableLaunchPaths &&
             PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(launchInfo.ExecutablePath, out var relativeExecutable))
         {
             storedFilePath = relativeExecutable;

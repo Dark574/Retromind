@@ -16,9 +16,9 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopEpicWorkflow
 {
-    private async Task<EpicLaunchPreparation?> PrepareEpicLaunchAsync(MediaItem item, Window owner)
+    internal async Task<EpicLaunchPreparation?> PrepareEpicLaunchAsync(MediaItem item, Window owner)
     {
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(appName))
@@ -85,14 +85,7 @@ public partial class MainWindowViewModel
         return merged;
     }
 
-    private Task<bool> InstallStoreItemAsync(MediaItem item)
-    {
-        return EpicMediaItemStateHelper.TryGetGameId(item) != null
-            ? InstallEpicItemAsync(item)
-            : InstallGogItemAsync(item);
-    }
-
-    private Task<bool> InstallEpicItemAsync(MediaItem item)
+    internal Task<bool> InstallEpicItemAsync(MediaItem item)
     {
         if (CurrentWindow is not { } owner)
             return Task.FromResult(false);
@@ -100,7 +93,7 @@ public partial class MainWindowViewModel
         return InstallEpicItemAsync(item, owner);
     }
 
-    private async Task<bool> RunEpicInstallFromEditorAsync(MediaItem item, Window owner)
+    internal async Task<bool> RunEpicInstallFromEditorAsync(MediaItem item, Window owner)
     {
         if (IsLaunchInProgress || !EpicMediaItemStateHelper.CanInstallWithRetromind(item))
             return false;
@@ -130,14 +123,14 @@ public partial class MainWindowViewModel
         if (!await EnsureEpicSignInAsync(owner))
             return false;
 
-        var inheritedEmulator = FindInheritedEmulator(item);
+        var inheritedEmulator = Workspace.FindInheritedEmulator(item);
         var preferredRunnerId = GogLaunchConfigurationHelper.ResolvePreferredRunnerVersionId(
             item,
             inheritedEmulator);
         var dialogVm = new EpicInstallDialogViewModel(
             item.Title,
             ResolveDefaultEpicInstallPath(item, appName),
-            _currentSettings.RunnerVersions,
+            Workspace.Settings.RunnerVersions,
             preferredRunnerId);
         dialogVm.RequestBrowseInstallPath += () => BrowseFolderForEpicInstallAsync(owner);
 
@@ -244,7 +237,7 @@ public partial class MainWindowViewModel
 
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = StoreInstallPathHelper.ToStoredPath(
                 installed.InstallPath,
-                _currentSettings.PreferPortableLaunchPaths);
+                Workspace.Settings.PreferPortableLaunchPaths);
             item.CustomFields[CustomFieldKeyHelper.StoreInstallPlatform] = "windows";
             item.CustomFields[CustomFieldKeyHelper.StoreInstallRunnerVersionId] = request.Runner.Id;
             if (string.IsNullOrWhiteSpace(installed.Version))
@@ -266,7 +259,7 @@ public partial class MainWindowViewModel
                         "Installation succeeded, but Retromind could not mark the install directory as managed."));
             }
 
-            _libraryTracker.MarkDirty();
+            Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             if (!await SaveData())
             {
@@ -462,7 +455,7 @@ public partial class MainWindowViewModel
 
         var storedExecutable = executablePath;
         var fileKind = MediaFileKind.Absolute;
-        if (_currentSettings.PreferPortableLaunchPaths &&
+        if (Workspace.Settings.PreferPortableLaunchPaths &&
             PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(executablePath, out var relativeExecutable))
         {
             storedExecutable = relativeExecutable;

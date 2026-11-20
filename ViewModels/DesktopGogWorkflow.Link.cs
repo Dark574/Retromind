@@ -14,9 +14,9 @@ using Retromind.Views;
 
 namespace Retromind.ViewModels;
 
-public partial class MainWindowViewModel
+internal sealed partial class DesktopGogWorkflow
 {
-    private bool CanLinkMediaItemToGog(MediaItem? item)
+    internal bool CanLinkMediaItemToGog(MediaItem? item)
     {
         var providerId = StoreProviderBadgeHelper.GetProviderId(item);
         return !IsLaunchInProgress &&
@@ -26,7 +26,7 @@ public partial class MainWindowViewModel
                 string.Equals(providerId, StoreProviderIds.Epic, StringComparison.Ordinal));
     }
 
-    private async Task LinkMediaItemToGogFromContextAsync(MediaItem? item)
+    internal async Task LinkMediaItemToGogFromContextAsync(MediaItem? item)
     {
         if (!CanLinkMediaItemToGog(item) || item == null || CurrentWindow is not { } owner)
             return;
@@ -34,9 +34,9 @@ public partial class MainWindowViewModel
         _ = await LinkMediaItemToGogAsync(item, owner);
     }
 
-    private async Task<bool> LinkMediaItemToGogAsync(MediaItem item, Window owner)
+    internal async Task<bool> LinkMediaItemToGogAsync(MediaItem item, Window owner)
     {
-        var parentNode = FindParentNode(RootItems, item);
+        var parentNode = Workspace.FindParentNode(item);
         var previousProviderId = StoreProviderBadgeHelper.GetProviderId(item);
         if (!await CanChangeStoreLinkAsync(
                 item,
@@ -175,7 +175,7 @@ public partial class MainWindowViewModel
         {
             updatedFields[CustomFieldKeyHelper.StoreInstallPath] = GogInstallPathHelper.ToStoredPath(
                 legacyInstallRoot,
-                _currentSettings.PreferPortableLaunchPaths);
+                Workspace.Settings.PreferPortableLaunchPaths);
         }
 
         var markerWritten = false;
@@ -185,7 +185,7 @@ public partial class MainWindowViewModel
                 item,
                 updatedFields,
                 SaveData,
-                _libraryTracker.MarkDirty,
+                Workspace.MarkLibraryDirty,
                 "The linked GOG identity could not be saved.",
                 beforeSave: () =>
                 {
@@ -246,51 +246,6 @@ public partial class MainWindowViewModel
         return true;
     }
 
-    private async Task<bool> CanChangeStoreLinkAsync(
-        MediaItem item,
-        string targetProviderId,
-        string targetDisplayName,
-        Window owner)
-    {
-        var blockReason = StoreLinkChangeService.GetBlockReason(item, targetProviderId);
-        if (blockReason != StoreLinkChangeBlockReason.ManagedInstallation)
-            return blockReason == StoreLinkChangeBlockReason.None;
-
-        var currentProviderId = StoreProviderBadgeHelper.GetProviderId(item);
-        await ShowInfoDialog(
-            owner,
-            string.Format(
-                T(
-                    "Store.Link.UninstallFirstFormat",
-                    "Uninstall the current {0} installation before switching this item to {1}. The library item, media and metadata remain available after uninstallation."),
-                StoreProviderBadgeHelper.GetToolTip(currentProviderId) ?? currentProviderId,
-                targetDisplayName));
-        return false;
-    }
-
-    private Dictionary<string, int> BuildStoreUsageCountExcludingItem(
-        string providerId,
-        MediaItem excludedItem)
-    {
-        var usageByGameId = BuildStoreUsageCountByGameId(providerId);
-        if (!StoreGameIdentityHelper.TryGetIdentity(
-                excludedItem,
-                out var itemProviderId,
-                out var gameId) ||
-            !string.Equals(itemProviderId, providerId, StringComparison.OrdinalIgnoreCase) ||
-            !usageByGameId.TryGetValue(gameId, out var count))
-        {
-            return usageByGameId;
-        }
-
-        if (count > 1)
-            usageByGameId[gameId] = count - 1;
-        else
-            usageByGameId.Remove(gameId);
-
-        return usageByGameId;
-    }
-
     private static string? FindAdoptableLegacyGogInstallRoot(MediaItem item, string storeGameId)
     {
         var launchPath = item.GetPrimaryLaunchPath();
@@ -322,132 +277,4 @@ public partial class MainWindowViewModel
         return null;
     }
 
-    private bool IsInstallDirectoryUsedByAnotherItem(string installRoot, MediaItem linkedItem)
-    {
-        var fullRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(installRoot));
-        foreach (var root in RootItems)
-        {
-            if (IsInstallDirectoryUsedByAnotherItemRecursive(root, fullRoot, linkedItem))
-                return true;
-        }
-
-        return false;
-    }
-
-    private bool IsPrefixUsedByAnotherItem(string? prefixPath, MediaItem linkedItem)
-    {
-        if (string.IsNullOrWhiteSpace(prefixPath))
-            return false;
-
-        string fullPrefixPath;
-        try
-        {
-            fullPrefixPath = ResolvePrefixOwnershipRoot(prefixPath);
-        }
-        catch
-        {
-            return false;
-        }
-
-        foreach (var root in RootItems)
-        {
-            if (IsPrefixUsedByAnotherItemRecursive(root, fullPrefixPath, linkedItem))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool IsPrefixUsedByAnotherItemRecursive(
-        MediaNode node,
-        string fullPrefixPath,
-        MediaItem linkedItem)
-    {
-        foreach (var candidate in node.Items)
-        {
-            if (ReferenceEquals(candidate, linkedItem) || string.IsNullOrWhiteSpace(candidate.PrefixPath))
-                continue;
-
-            try
-            {
-                var candidatePrefixPath = ResolvePrefixOwnershipRoot(candidate.PrefixPath);
-                if (FileSystemPathIdentity.Equals(candidatePrefixPath, fullPrefixPath))
-                    return true;
-            }
-            catch
-            {
-                // Invalid prefix paths cannot establish shared ownership.
-            }
-        }
-
-        return node.Children.Any(child =>
-            IsPrefixUsedByAnotherItemRecursive(child, fullPrefixPath, linkedItem));
-    }
-
-    private static string ResolvePrefixOwnershipRoot(string prefixPath)
-    {
-        var resolvedPath = PrefixPathHelper.ResolveAbsolutePrefixPath(prefixPath, AppPaths.LibraryRoot);
-        if (!PrefixPathHelper.IsPfxPath(resolvedPath))
-            return resolvedPath;
-
-        return Directory.GetParent(resolvedPath)?.FullName ?? resolvedPath;
-    }
-
-    private static bool IsInstallDirectoryUsedByAnotherItemRecursive(
-        MediaNode node,
-        string fullRoot,
-        MediaItem linkedItem)
-    {
-        foreach (var candidate in node.Items)
-        {
-            if (ReferenceEquals(candidate, linkedItem))
-                continue;
-
-            if (candidate.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPath, out var storedInstallPath) &&
-                GogInstallPathHelper.TryResolveStoredPath(storedInstallPath, out var candidateInstallPath))
-            {
-                try
-                {
-                    if (FileSystemPathIdentity.Equals(
-                            Path.TrimEndingDirectorySeparator(Path.GetFullPath(candidateInstallPath)),
-                            fullRoot))
-                    {
-                        return true;
-                    }
-                }
-                catch
-                {
-                    // Invalid stored paths cannot establish shared ownership.
-                }
-            }
-
-            foreach (var file in candidate.Files)
-            {
-                var filePath = file.Kind == MediaFileKind.LibraryRelative
-                    ? AppPaths.ResolveDataPathInsideRootOrEmpty(file.Path)
-                    : file.Path;
-                if (string.IsNullOrWhiteSpace(filePath))
-                    continue;
-
-                try
-                {
-                    var fullFilePath = Path.GetFullPath(filePath);
-                    var relative = Path.GetRelativePath(fullRoot, fullFilePath);
-                    if (relative != ".." &&
-                        !relative.StartsWith($"..{Path.DirectorySeparatorChar}", FileSystemPathIdentity.Comparison) &&
-                        !Path.IsPathRooted(relative))
-                    {
-                        return true;
-                    }
-                }
-                catch
-                {
-                    // Invalid launch paths cannot establish shared ownership.
-                }
-            }
-        }
-
-        return node.Children.Any(child =>
-            IsInstallDirectoryUsedByAnotherItemRecursive(child, fullRoot, linkedItem));
-    }
 }

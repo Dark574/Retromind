@@ -18,17 +18,12 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
-using Retromind.Models.Stores;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.BigMode;
 using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.SteamAchievements;
-using Retromind.Services.Stores;
-using Retromind.Services.Stores.Abstractions;
-using Retromind.Services.Stores.Epic;
-using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Achievements;
 
 namespace Retromind.ViewModels;
@@ -53,16 +48,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly LauncherService _launcherService;
     private readonly LaunchLogService _launchLogService;
     private readonly StoreImportService _storeService;
-    private readonly IStoreAuthProvider _gogStoreAuthProvider;
-    private readonly IStoreLibraryProvider _gogStoreLibraryProvider;
-    private readonly IStoreAuthProvider _epicStoreAuthProvider;
-    private readonly IStoreLibraryProvider _epicStoreLibraryProvider;
-    private readonly EpicInstallService _epicInstallService;
-    private readonly EpicLaunchService _epicLaunchService;
-    private readonly GogInstallService _gogInstallService;
-    private readonly GogUpdateCheckService _gogUpdateChecks;
-    private readonly GogLaunchDetectionService _gogLaunchDetectionService;
-    private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
+    private readonly DesktopGogWorkflow _gogWorkflow;
+    private readonly DesktopEpicWorkflow _epicWorkflow;
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
@@ -410,12 +397,7 @@ public partial class MainWindowViewModel : ViewModelBase
         LauncherService launcherService,
         LaunchLogService launchLogService,
         StoreImportService storeService,
-        StoreProviderRegistry storeProviderRegistry,
-        GogInstallService gogInstallService,
-        GogLaunchDetectionService gogLaunchDetectionService,
-        GogInstallerWorkflowService gogInstallerWorkflowService,
-        EpicInstallService epicInstallService,
-        EpicLaunchService epicLaunchService,
+        DesktopStoreWorkflowFactory storeWorkflowFactory,
         SettingsService settingsService,
         DesktopSettingsWorkflow settingsWorkflow,
         MetadataService metadataService,
@@ -445,16 +427,6 @@ public partial class MainWindowViewModel : ViewModelBase
         _launcherService = launcherService;
         _launchLogService = launchLogService;
         _storeService = storeService;
-        _gogStoreAuthProvider = storeProviderRegistry.GetRequiredCapability<IStoreAuthProvider>(StoreProviderIds.Gog);
-        _gogStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Gog);
-        _epicStoreAuthProvider = storeProviderRegistry.GetRequiredCapability<IStoreAuthProvider>(StoreProviderIds.Epic);
-        _epicStoreLibraryProvider = storeProviderRegistry.GetRequiredCapability<IStoreLibraryProvider>(StoreProviderIds.Epic);
-        _epicInstallService = epicInstallService;
-        _epicLaunchService = epicLaunchService;
-        _gogInstallService = gogInstallService;
-        _gogUpdateChecks = new GogUpdateCheckService(_gogStoreAuthProvider, _gogInstallService);
-        _gogLaunchDetectionService = gogLaunchDetectionService;
-        _gogInstallerWorkflowService = gogInstallerWorkflowService;
         _settingsService = settingsService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;
@@ -527,6 +499,22 @@ public partial class MainWindowViewModel : ViewModelBase
             () => _libraryLoadFailed,
             _persistence.CancelPendingSettingsSave);
         _fileService.LibraryChanged += _libraryTracker.MarkDirty;
+        (_gogWorkflow, _epicWorkflow) = storeWorkflowFactory.Create(new DesktopStoreWorkspace(
+            _currentSettings,
+            GetWindow: () => CurrentWindow,
+            GetStorageProvider: () => StorageProvider,
+            GetRootItems: () => RootItems,
+            GetMultiSelectionActive: () => IsMultiSelectModeActive,
+            GetOperationInProgress: () => IsLaunchInProgress,
+            SetOperationInProgress: inProgress => IsLaunchInProgress = inProgress,
+            FindParentNode: item => FindParentNode(RootItems, item),
+            FindInheritedEmulator,
+            SaveLibraryAsync: SaveData,
+            MarkLibraryDirty: _libraryTracker.MarkDirty,
+            MarkLibraryDirtyAndSaveSoon: _libraryTracker.MarkDirtyAndSaveSoon,
+            RefreshActions: NotifyPlayAvailabilityChanged,
+            RefreshItemAsync: RefreshItemPresentationAsync,
+            PublishImportAsync: PublishStoreImportAsync));
         
         // Seed layout values early so bindings are stable before LoadData completes.
         _treePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
@@ -653,7 +641,7 @@ public partial class MainWindowViewModel : ViewModelBase
             // Give the first media view time to load before starting background maintenance.
             await AwaitCurrentContentUpdateAsync();
 
-            StartGogUpdateBackgroundLoop();
+            _gogWorkflow.StartGogUpdateBackgroundLoop();
 
             // Heavy startup maintenance runs in the background after first content is visible.
             _startupWarmupCts = new CancellationTokenSource();
@@ -869,9 +857,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public async Task<bool> SaveData()
         => (await SaveDataWithStatusAsync().ConfigureAwait(false)).AllSaved;
 
-    private static string OperationSavePendingMessage() => T(
-        "Persistence.OperationSavePending",
-        "The operation completed, but its changes could not be fully saved. Changes remain in memory; completed work was retained.");
+    private static string OperationSavePendingMessage() => DesktopPersistenceCoordinator.OperationSavePendingMessage();
 
     private Task<(bool AllSaved, bool SettingsSaved)> SaveDataWithStatusAsync()
         => _persistence.SaveAsync();
@@ -986,7 +972,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RetroAchievementsProgress.Dispose();
 
-        _ = _gogUpdateChecks.StopBackgroundChecksAsync();
+        _ = _gogWorkflow.StopBackgroundChecksAsync();
         
         _gamepadService.OnExitBigMode -= _onControllerExitRequested;
         _gamepadService.OnSessionExitRequested -= _onSessionExitRequested;
@@ -1131,8 +1117,8 @@ public partial class MainWindowViewModel : ViewModelBase
             SaveSettingsOnly();
             NotifyPlayAvailabilityChanged();
 
-            if (item != null && CanCheckGogUpdatesForItem(item))
-                _ = CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
+            if (item != null && _gogWorkflow.CanCheckGogUpdatesForItem(item))
+                _ = _gogWorkflow.CheckGogUpdatesForItemCoreAsync(item, force: false, CancellationToken.None);
 
             if (item != null)
                 _desktopContent.RememberNodeSelection(mediaVm.Node.Id, item.Id);
