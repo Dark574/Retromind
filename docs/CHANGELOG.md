@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- keep GOG installers selected for retention in the offline installer archive and clear staging after a successful installation
 - free download staging space after successfully archiving GOG offline installers
 - allow repair notices to be dismissed from the download manager after confirmation, keeping game files and downloads
 - show the title text in the Cinematic theme only when no logo is available, avoiding duplicate titles

@@ -69,6 +69,26 @@ public sealed class DesktopGogWorkflowInstallTests
         Assert.False(viewModel.CreateStartMenuShortcuts);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void InstallDialog_UsesArchiveDefaultAndReturnsPerInstallChoice(bool defaultKeep)
+    {
+        var viewModel = new GogInstallDialogViewModel(
+            "Test Game",
+            "/tmp/test-game",
+            availableRunnerConfigs: null,
+            availablePlatforms: [GogInstallPlatform.Linux],
+            keepOfflineInstallers: defaultKeep);
+
+        Assert.Equal(defaultKeep, viewModel.KeepOfflineInstallers);
+        viewModel.KeepOfflineInstallers = !defaultKeep;
+        viewModel.ConfirmCommand.Execute(null);
+
+        Assert.NotNull(viewModel.Result);
+        Assert.Equal(!defaultKeep, viewModel.Result.KeepOfflineInstallers);
+    }
+
     [Fact]
     public void InstallDialog_SelectsPreferredRunnerInsteadOfFirstRunner()
     {
@@ -186,20 +206,6 @@ public sealed class DesktopGogWorkflowInstallTests
         Assert.NotNull(viewModel.Result);
         Assert.False(viewModel.Result!.CleanInstall);
         Assert.Equal(["1", "2"], viewModel.Result.DlcProductIdsToReinstall);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void DlcInstallRequest_InheritsInstallerCleanupChoice(bool deleteStagingAfterSuccess)
-    {
-        var request = DesktopGogWorkflow.CreateGogDlcInstallRequest(
-            "/tmp/test-game",
-            GogInstallPlatform.Linux,
-            GogWindowsInstallerPreference.AutoPrefer64,
-            deleteStagingAfterSuccess);
-
-        Assert.Equal(deleteStagingAfterSuccess, request.DeleteStagingAfterSuccess);
     }
 
     private static GogDlcInstallationState[] CreateInstalledDlcs() =>

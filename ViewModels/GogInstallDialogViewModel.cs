@@ -36,7 +36,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         bool CreateDesktopShortcut,
         bool CreateStartMenuShortcuts,
         bool CleanInstall,
-        bool DeleteStagingAfterSuccess,
+        bool KeepOfflineInstallers,
         IReadOnlyList<string>? DlcProductIdsToReinstall = null);
 
     [ObservableProperty]
@@ -67,7 +67,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     private bool _cleanInstall = true;
 
     [ObservableProperty]
-    private bool _deleteStagingAfterSuccess = true;
+    private bool _keepOfflineInstallers;
 
     [ObservableProperty]
     private string _validationMessage = string.Empty;
@@ -137,12 +137,9 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
     public string CleanInstallHint => T(
         "Gog.Install.CleanInstallHint",
         "Delete existing files in the target folder before installation.");
-    public string DeleteStagingAfterSuccessLabel => T(
-        "Gog.Install.DeleteStagingAfterSuccessLabel",
-        "Delete staging data after successful installation");
-    public string DeleteStagingAfterSuccessHint => T(
-        "Gog.Install.DeleteStagingAfterSuccessHint",
-        "Removes downloaded installer files after a successful install.");
+    public string KeepOfflineInstallersHint => T(
+        "Gog.Install.KeepOfflineInstallersHint",
+        "Stores the installer for the game and any DLCs reinstalled with it in the configured GOG archive.");
     public string InstallButtonText => T("Button.Install", "Install");
     public string CancelButtonText => T("Button.Cancel", "Cancel");
 
@@ -155,10 +152,12 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
         string? preferredRunnerVersionId = null,
         GogWindowsInstallerPreference? preferredWindowsInstallerPreference = null,
         bool isUpdate = false,
-        IEnumerable<GogDlcInstallationState>? installedDlcsToReinstall = null)
+        IEnumerable<GogDlcInstallationState>? installedDlcsToReinstall = null,
+        bool keepOfflineInstallers = false)
     {
         IsUpdate = isUpdate;
         CleanInstall = !isUpdate;
+        KeepOfflineInstallers = keepOfflineInstallers;
         Title = T("Gog.Install.DialogTitle", "Install GOG game");
         Message = string.Format(
             T("Gog.Install.DialogMessageFormat", "Install \"{0}\""),
@@ -364,7 +363,7 @@ public sealed partial class GogInstallDialogViewModel : ViewModelBase
             CreateDesktopShortcut,
             CreateStartMenuShortcuts,
             !IsUpdate && CleanInstall,
-            DeleteStagingAfterSuccess,
+            KeepOfflineInstallers,
             selectedDlcProductIds);
         window?.Close(true);
     }

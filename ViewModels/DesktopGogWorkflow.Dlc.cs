@@ -70,7 +70,8 @@ internal sealed partial class DesktopGogWorkflow
         Window owner,
         CancellationToken dialogCancellationToken,
         ProcessLogViewModel? existingProgressLog = null,
-        bool deleteStagingAfterSuccess = true)
+        bool deleteStagingAfterSuccess = true,
+        DownloadSettings? downloadSettings = null)
     {
         if (entries.Count == 0)
             return new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
@@ -98,12 +99,8 @@ internal sealed partial class DesktopGogWorkflow
                 T("Gog.Dlc.SignInRequired", "DLC installation or update requires a GOG sign-in."));
         }
 
-        var request = CreateGogDlcInstallRequest(
-            installPath,
-            platform.Value,
-            GetPreferredInstalledWindowsInstallerPreference(item) ??
-                GogWindowsInstallerPreference.AutoPrefer64,
-            deleteStagingAfterSuccess);
+        var windowsInstallerPreference = GetPreferredInstalledWindowsInstallerPreference(item) ??
+            GogWindowsInstallerPreference.AutoPrefer64;
 
         var ownsProgressLog = existingProgressLog == null;
         var progressLogVm = existingProgressLog;
@@ -228,17 +225,17 @@ internal sealed partial class DesktopGogWorkflow
                     new GogInstallerWorkflowRequest(
                         item,
                         baseGameId,
-                        request.InstallPath,
-                        request.Platform,
+                        installPath,
+                        platform.Value,
                         installerPackage,
                         stagingRoot,
-                        request.WindowsInstallerPreference,
-                        request.CreateDesktopShortcut,
-                        request.CreateStartMenuShortcuts,
+                        windowsInstallerPreference,
+                        CreateDesktopShortcut: false,
+                        CreateStartMenuShortcuts: false,
                         CleanInstall: false,
                         UseTemporaryLinuxDestination: false,
                         RequireLinuxPayloadChange: platform == GogInstallPlatform.Linux,
-                        DownloadSettings: Workspace.Settings.Downloads),
+                        DownloadSettings: downloadSettings ?? Workspace.Settings.Downloads),
                     line => AppendProcessLog(progressLogVm, line),
                     ct);
                 if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
@@ -286,7 +283,7 @@ internal sealed partial class DesktopGogWorkflow
                 else
                     installedCount++;
 
-                if (request.DeleteStagingAfterSuccess && !workflowResult.ArchivePending)
+                if (deleteStagingAfterSuccess && !workflowResult.ArchivePending)
                 {
                     GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
                 }
@@ -368,7 +365,7 @@ internal sealed partial class DesktopGogWorkflow
         IReadOnlyList<GogDlcInstallationState> previouslyInstalledDlcs,
         Window owner,
         ProcessLogViewModel progressLogVm,
-        bool deleteStagingAfterSuccess)
+        DownloadSettings downloadSettings)
     {
         var gameId = GogMediaItemStateHelper.TryGetGameId(item);
         var platform = GetPreferredInstalledGogPlatform(item);
@@ -463,7 +460,7 @@ internal sealed partial class DesktopGogWorkflow
                 owner,
                 progressLogVm.Token,
                 progressLogVm,
-                deleteStagingAfterSuccess)
+                downloadSettings: downloadSettings)
             : new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
 
         var updatedCount = plan.Targets.Count(target =>
@@ -524,21 +521,6 @@ internal sealed partial class DesktopGogWorkflow
         });
         item.GogDlcInstallations = states;
     }
-
-    internal static GogInstallDialogViewModel.GogInstallDialogResult CreateGogDlcInstallRequest(
-        string installPath,
-        GogInstallPlatform platform,
-        GogWindowsInstallerPreference windowsInstallerPreference,
-        bool deleteStagingAfterSuccess) =>
-        new(
-            installPath,
-            platform,
-            Runner: null,
-            WindowsInstallerPreference: windowsInstallerPreference,
-            CreateDesktopShortcut: false,
-            CreateStartMenuShortcuts: false,
-            CleanInstall: false,
-            DeleteStagingAfterSuccess: deleteStagingAfterSuccess);
 
     private static GogDlcInstallBatchResult CreateGogDlcInstallError(string message) =>
         new(new HashSet<string>(), message);

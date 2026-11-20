@@ -118,7 +118,8 @@ internal sealed partial class DesktopGogWorkflow
             preferredRunnerId,
             preferredWindowsInstallerPreference,
             isUpdate: operation == GogInstallOperation.Update,
-            installedDlcsToReinstall: installedDlcsToReapply);
+            installedDlcsToReinstall: installedDlcsToReapply,
+            keepOfflineInstallers: Workspace.Settings.Downloads.KeepGogInstallers);
         dialogVm.RequestBrowseInstallPath += async () => await BrowseFolderForGogInstallAsync(owner);
 
         var dialog = new GogInstallDialogView { DataContext = dialogVm };
@@ -127,6 +128,7 @@ internal sealed partial class DesktopGogWorkflow
             return false;
 
         var installRequest = dialogVm.Result;
+        var downloadSettings = Workspace.Settings.Downloads with { KeepGogInstallers = installRequest.KeepOfflineInstallers };
         if (operation == GogInstallOperation.Reinstall &&
             installRequest.CleanInstall &&
             installRequest.DlcProductIdsToReinstall != null)
@@ -252,7 +254,7 @@ internal sealed partial class DesktopGogWorkflow
                     installRequest.CleanInstall,
                     UseTemporaryLinuxDestination: true,
                     RequireLinuxPayloadChange: false,
-                    DownloadSettings: Workspace.Settings.Downloads),
+                    DownloadSettings: downloadSettings),
                 line => AppendProcessLog(progressLogVm, line),
                 progressLogVm.Token,
                 installationStarted);
@@ -388,7 +390,7 @@ internal sealed partial class DesktopGogWorkflow
                 return true; // Physical success; preserve staging while metadata is unsaved.
             }
 
-            if (installRequest.DeleteStagingAfterSuccess && !workflowResult.ArchivePending)
+            if (!workflowResult.ArchivePending)
             {
                 GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
                 if (installationStarted != null)
@@ -405,7 +407,7 @@ internal sealed partial class DesktopGogWorkflow
                     installedDlcsToReapply,
                     owner,
                     progressLogVm,
-                    installRequest.DeleteStagingAfterSuccess);
+                    downloadSettings);
             }
         }
         finally

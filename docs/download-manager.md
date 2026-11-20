@@ -17,8 +17,10 @@ default. Switching to an active mode immediately queues known GOG and Epic base-
 requests a check for missing revisions. The daily window uses local time and may cross midnight.
 Equal start and end times allow downloads throughout the day. A global numeric speed limit applies to GOG HTTP transfers. A value of
 zero allows full speed. The archive path can be absolute or relative to the Retromind data directory.
-A blank path selects `GogOfflineInstallers` below that directory. The option to keep installers also
-applies when launching a GOG installation from the existing store dialogs.
+A blank path selects `GogOfflineInstallers` below that directory. The setting to keep installers is
+the default in the GOG installation dialog. Changing it there applies to that installation and any
+DLCs reinstalled with it. Retromind clears the temporary installer staging after a successful
+installation and keeps it available if the requested archive could not be saved.
 
 ## Runtime and storage
 

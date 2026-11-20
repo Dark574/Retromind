@@ -1753,6 +1753,9 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Downloads.KeepInstallers" xml:space="preserve">
     <value>Keep offline installers after installation</value>
   </data>
+  <data name="Gog.Install.KeepOfflineInstallersHint" xml:space="preserve">
+    <value>Stores the installer for the game and any DLCs reinstalled with it in the configured GOG archive.</value>
+  </data>
   <data name="Downloads.OfflineInstaller" xml:space="preserve">
     <value>Offline installer</value>
   </data>

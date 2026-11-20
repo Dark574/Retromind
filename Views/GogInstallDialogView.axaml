@@ -123,9 +123,9 @@
         </Expander>
 
         <StackPanel Spacing="4">
-            <CheckBox Content="{Binding DeleteStagingAfterSuccessLabel}"
-                      IsChecked="{Binding DeleteStagingAfterSuccess}" />
-            <TextBlock Text="{Binding DeleteStagingAfterSuccessHint}"
+            <CheckBox Content="{x:Static p:DownloadStrings.KeepInstallers}"
+                      IsChecked="{Binding KeepOfflineInstallers}" />
+            <TextBlock Text="{Binding KeepOfflineInstallersHint}"
                        Opacity="0.75"
                        TextWrapping="Wrap" />
         </StackPanel>

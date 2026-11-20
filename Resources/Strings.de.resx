@@ -1755,6 +1755,9 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Downloads.KeepInstallers" xml:space="preserve">
     <value>Offline-Installer nach erfolgreicher Installation behalten</value>
   </data>
+  <data name="Gog.Install.KeepOfflineInstallersHint" xml:space="preserve">
+    <value>Speichert die Installer für das Hauptspiel und die dabei erneut installierten DLCs im eingestellten GOG-Archiv.</value>
+  </data>
   <data name="Downloads.OfflineInstaller" xml:space="preserve">
     <value>Offline-Installer</value>
   </data>

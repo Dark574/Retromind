@@ -10,10 +10,14 @@ namespace Retromind.Tests.Services.Stores.Gog;
 
 public sealed class GogInstallerWorkflowServiceTests
 {
-    [Fact]
-    public async Task RunAsync_ReusesDownloadExecutesInstallerAndWritesDetailedLog()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task RunAsync_ReusesDownloadAndHandlesSelectedArchive(bool keepInstaller, bool archiveBlocked)
     {
         using var temporaryDirectory = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temporaryDirectory.GetPath("Retromind.AppImage")));
         var installPath = temporaryDirectory.CreateDirectory("Library", "Games", "Workflow Game");
         var stagingPath = temporaryDirectory.CreateDirectory(
             "Library",
@@ -35,6 +39,13 @@ public sealed class GogInstallerWorkflowServiceTests
         var item = new MediaItem { Id = "workflow-item", Title = "Workflow Game" };
         var output = new ConcurrentQueue<string>();
         var service = CreateService(temporaryDirectory.RootPath);
+        var settings = new DownloadSettings
+        {
+            KeepGogInstallers = keepInstaller,
+            GogArchiveDirectory = archiveBlocked ? temporaryDirectory.GetPath("blocked-archive") : null
+        };
+        if (settings.GogArchiveDirectory is { } blockedPath)
+            File.WriteAllText(blockedPath, "keep");
 
         var result = await service.RunAsync(
             new GogInstallerWorkflowRequest(
@@ -49,7 +60,8 @@ public sealed class GogInstallerWorkflowServiceTests
                 CreateStartMenuShortcuts: false,
                 CleanInstall: false,
                 UseTemporaryLinuxDestination: true,
-                RequireLinuxPayloadChange: true),
+                RequireLinuxPayloadChange: true,
+                DownloadSettings: settings),
             output.Enqueue);
 
         Assert.True(result.Success, result.ErrorMessage);
@@ -58,6 +70,25 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.True(File.Exists(Path.Combine(stagingPath, "retromind-install.log")));
         Assert.Contains(output, line => line.Contains("Validating 1/1", StringComparison.Ordinal));
         Assert.Contains(output, line => line.StartsWith("Detailed log file:", StringComparison.Ordinal));
+        Assert.Equal(archiveBlocked, result.ArchivePending);
+        if (archiveBlocked)
+        {
+            Assert.True(File.Exists(installerPath));
+            Assert.Equal("keep", File.ReadAllText(settings.GogArchiveDirectory!));
+            return;
+        }
+
+        var archive = GogInstallerArchive.GetPackageDirectory(settings, package);
+        var archivedFile = Path.Combine(archive, Path.GetFileName(installerPath));
+        Assert.Equal(keepInstaller, File.Exists(archivedFile));
+        if (keepInstaller)
+        {
+            Assert.Equal(File.ReadAllText(installerPath), File.ReadAllText(archivedFile));
+            GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(result.DownloadedPackage.StagingDirectory);
+            Assert.False(Directory.Exists(stagingPath));
+            Assert.True(File.Exists(archivedFile));
+            Assert.False(File.Exists(Path.Combine(archive, "retromind-install.log")));
+        }
     }
 
     [Fact]
