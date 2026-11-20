@@ -5,7 +5,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
@@ -23,6 +22,7 @@ using Retromind.Services;
 using Retromind.Services.BigMode;
 using Retromind.Services.Achievements;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.Scrapers;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Gog.Achievements;
 
@@ -51,7 +51,8 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly DesktopGogWorkflow _gogWorkflow;
     private readonly DesktopEpicWorkflow _epicWorkflow;
     private readonly SettingsService _settingsService;
-    private readonly MetadataService _metadataService; 
+    private readonly MetadataService _metadataService;
+    private readonly ScrapedAssetImporter _scrapedAssetImporter;
     private readonly GamepadService _gamepadService;
     private readonly SoundEffectService _soundEffectService;
     private readonly IDocumentService _documentService;
@@ -65,9 +66,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ISteamAchievementsProgressService _steamAchievementsProgressService;
     private readonly IGogAchievementsProgressService _gogAchievementsProgressService;
 
-    // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
-    private readonly HttpClient _httpClient;
-    
     private readonly DesktopContentSession _desktopContent;
     // --- State ---
     private AppSettings _currentSettings;
@@ -401,8 +399,8 @@ public partial class MainWindowViewModel : ViewModelBase
         SettingsService settingsService,
         DesktopSettingsWorkflow settingsWorkflow,
         MetadataService metadataService,
+        ScrapedAssetImporter scrapedAssetImporter,
         SoundEffectService soundEffectService,
-        HttpClient httpClient,
         AppSettings preloadedSettings,
         IDocumentService documentService,
         RetroAchievementsAccountService retroAchievementsAccountService,
@@ -429,8 +427,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _storeService = storeService;
         _settingsService = settingsService;
         _metadataService = metadataService;
+        _scrapedAssetImporter = scrapedAssetImporter;
         _soundEffectService = soundEffectService;
-        _httpClient = httpClient;
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;

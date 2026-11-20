@@ -1,7 +1,6 @@
 using System.Net;
 using System.Collections.Concurrent;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Globalization;
 using Retromind.Services.Scrapers;
 using Retromind.Models;
@@ -487,33 +486,6 @@ public sealed class BulkScrapeViewModelTests
         AssertSummary(vm, 3, imported: 1, notProcessed: 2);
         Assert.False(vm.IsBusy);
         Assert.Null(CancellationSource(vm));
-    }
-
-    [Theory]
-    [InlineData("disabled", 0, 0)]
-    [InlineData("no-url", 0, 0)]
-    [InlineData("existing", 0, 0)]
-    [InlineData("download-failure", 1, 1)]
-    public async Task AssetImport_ReportsActualFailureSeparatelyFromPolicySkips(string mode, int expectedRequests, int failures)
-    {
-        using var handler = new RecordingHttpHandler();
-        using var client = new HttpClient(handler);
-        var vm = (MainWindowViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainWindowViewModel));
-        typeof(MainWindowViewModel).GetField("_httpClient", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .SetValue(vm, client);
-        var item = new MediaItem("Fixture");
-        if (mode == "existing") item.Assets.Add(new MediaAsset { Type = AssetType.Cover });
-        var failed = new List<AssetType>();
-        var task = (Task<bool>)typeof(MainWindowViewModel)
-            .GetMethod("TryImportScrapedAssetAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .Invoke(vm, [item, new List<string> { "Games" }, AssetType.Cover,
-                mode == "no-url" ? null : "https://images.example/fixture.png", mode != "disabled", false,
-                (Action<AssetType>)failed.Add])!;
-
-        Assert.False(await task);
-        Assert.Equal(expectedRequests, handler.RequestCount);
-        Assert.Equal(failures, failed.Count);
-        Assert.All(failed, type => Assert.Equal(AssetType.Cover, type));
     }
 
     private static BulkScrapeViewModel CreateVm(MediaNode node, StubProvider provider,

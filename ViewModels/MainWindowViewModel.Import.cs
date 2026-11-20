@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
@@ -672,7 +670,7 @@ public partial class MainWindowViewModel
             if (ScrapedMetadataApplier.Apply(item, result, manualImportSettings))
                 changed = true;
 
-            var assets = await ApplyScrapedAssetsAsync(
+            var assets = await _scrapedAssetImporter.ImportAsync(
                     item,
                     result,
                     nodePath,
@@ -741,7 +739,7 @@ public partial class MainWindowViewModel
             if (ScrapedMetadataApplier.Apply(item, result, importSettings))
                 changed = true;
 
-            var assets = await ApplyScrapedAssetsAsync(
+            var assets = await _scrapedAssetImporter.ImportAsync(
                     item,
                     result,
                     nodePath,
@@ -776,237 +774,6 @@ public partial class MainWindowViewModel
     {
         _currentSettings.ScraperImport ??= new ScraperImportSettings();
         return _currentSettings.ScraperImport;
-    }
-
-    private async Task<(bool Changed, string? DocumentImportError)> ApplyScrapedAssetsAsync(
-        MediaItem item,
-        ScraperSearchResult result,
-        List<string> nodePath,
-        ScraperImportSettings settings,
-        bool appendAssetsWhenTypeExists,
-        Action<AssetType>? onAssetImportFailed = null)
-    {
-        var changed = false;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Cover, result.CoverUrl, settings.ImportCover, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Wallpaper, result.WallpaperUrl, settings.ImportWallpaper, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Screenshot, result.ScreenshotUrl, settings.ImportScreenshot, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Logo, result.LogoUrl, settings.ImportLogo, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Video, result.VideoUrl, settings.ImportVideo, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-        
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Marquee, result.MarqueeUrl, settings.ImportMarquee, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.Bezel, result.BezelUrl, settings.ImportBezel, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        if (await TryImportScrapedAssetAsync(item, nodePath, AssetType.ControlPanel, result.ControlPanelUrl, settings.ImportControlPanel, appendAssetsWhenTypeExists, onAssetImportFailed))
-            changed = true;
-
-        string? documentImportError = null;
-        if (settings.ImportManuals)
-        {
-            var importer = new ScrapedDocumentImporter(_httpClient, _fileService);
-            foreach (var document in result.Documents)
-            {
-                try
-                {
-                    var existing = await UiThreadHelper.InvokeAsync(() => item.Assets.ToList());
-                    var imported = await importer.ImportAsync(document,
-                        document.GetDisplayLabel(T("ScrapeDialog.Manual", "Manual")), item, nodePath, existing);
-                    if (imported.Asset != null)
-                    {
-                        await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported.Asset));
-                        changed = true;
-                    }
-                    else if (!imported.IsDuplicate)
-                    {
-                        // FileManagementService has already diagnosed the failed publication.
-                        documentImportError ??= T("ScrapeDialog.DocumentSaveFailed", "The document could not be saved.");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    documentImportError ??= DescribeDocumentImportFailure(ex);
-                    try
-                    {
-                        // HTTP exceptions can contain credential-bearing download URLs.
-                        _errorService.Report(new ErrorReport("Scraper.DocumentImportFailed", ErrorSeverity.Warning,
-                            nameof(MainWindowViewModel), "A scraper PDF document could not be downloaded or imported.",
-                            Context: ScrapedDocumentImporter.GetFailureContext(ex)));
-                    }
-                    catch { /* Diagnostics must not interrupt remaining imports or saving. */ }
-                }
-            }
-        }
-
-        return (changed, documentImportError);
-    }
-
-    internal static string DescribeDocumentImportFailure(Exception exception)
-    {
-        return exception switch
-        {
-            ScrapedDocumentDownloadException { Reason: "NotPdf" } =>
-                T("ScrapeDialog.DocumentNotPdf", "The provider returned no valid PDF file."),
-            ScrapedDocumentDownloadException { Reason: "SizeLimitExceeded" } =>
-                T("ScrapeDialog.DocumentTooLarge", "The document exceeds the 100 MiB limit."),
-            ScrapedDocumentDownloadException { Reason: "IncompleteDownload" } =>
-                T("ScrapeDialog.DocumentIncomplete", "The document download is incomplete."),
-            HttpRequestException { StatusCode: { } status } =>
-                string.Format(T("ScrapeDialog.DocumentHttpFailedFormat", "The server returned HTTP {0}."), (int)status),
-            _ => T("ScrapeDialog.DocumentDownloadFailed", "The document could not be downloaded or processed.")
-        };
-    }
-
-    private async Task<bool> TryImportScrapedAssetAsync(
-        MediaItem item,
-        List<string> nodePath,
-        AssetType type,
-        string? url,
-        bool isEnabled,
-        bool appendAssetsWhenTypeExists,
-        Action<AssetType>? onAssetImportFailed = null)
-    {
-        if (!isEnabled || string.IsNullOrWhiteSpace(url))
-            return false;
-
-        var hasExisting = item.Assets.Any(a => a.Type == type);
-        if (hasExisting && !appendAssetsWhenTypeExists)
-            return false;
-
-        var imported = await DownloadAndSetAsset(url, item, nodePath, type);
-        if (!imported) onAssetImportFailed?.Invoke(type);
-        return imported;
-    }
-
-    private static string GetScrapedAssetExtension(string url, AssetType type)
-    {
-        var path = Uri.TryCreate(url, UriKind.Absolute, out var uri)
-            ? uri.AbsolutePath
-            : url.Split('?', '#')[0];
-
-        var extension = Path.GetExtension(path).ToLowerInvariant();
-
-        if (type != AssetType.Video)
-            return string.IsNullOrWhiteSpace(extension) ? ".jpg" : extension;
-
-        return extension switch
-        {
-            ".mp4" or
-            ".mkv" or
-            ".avi" or
-            ".mov" or
-            ".wmv" or
-            ".webm" or
-            ".m4v" or
-            ".mpg" or
-            ".mpeg" => extension,
-
-            _ => ".mp4"
-        };
-    }
-    
-    private async Task DownloadScrapedVideoAsync(
-        string url,
-        string destinationPath)
-    {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-
-        using var response = await _httpClient.GetAsync(
-            url,
-            HttpCompletionOption.ResponseHeadersRead,
-            timeout.Token);
-
-        response.EnsureSuccessStatusCode();
-
-        await using var source = await response.Content.ReadAsStreamAsync(timeout.Token);
-        await using var destination = new FileStream(
-            destinationPath,
-            FileMode.Create,
-            FileAccess.Write,
-            FileShare.None,
-            bufferSize: 81920,
-            options: FileOptions.Asynchronous | FileOptions.SequentialScan);
-
-        await source.CopyToAsync(destination, timeout.Token);
-    }
-
-    private async Task<bool> DownloadAndSetAsset(string url, MediaItem item, List<string> nodePath, AssetType type)
-    {
-        string? tempPathWithExt = null;
-        try
-        {
-            var tempFile = Path.GetTempFileName();
-            var ext = GetScrapedAssetExtension(url, type);
-            tempPathWithExt = Path.ChangeExtension(tempFile, ext);
-            
-            if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
-            File.Move(tempFile, tempPathWithExt);
-
-            bool success = false;
-
-            if (type == AssetType.Video)
-            {
-                await DownloadScrapedVideoAsync(url, tempPathWithExt);
-                success = true;
-            }
-            else if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt))
-            {
-                success = true;
-            }
-            else
-            {
-                try
-                {
-                    // Use DI-managed HttpClient (configured in App: timeout + user-agent)
-                    var data = await _httpClient.GetByteArrayAsync(url);
-                    await File.WriteAllBytesAsync(tempPathWithExt, data);
-                    success = true;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Download Failed: {ex.Message}");
-                }
-            }
-
-            if (success)
-            {
-                var imported = await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
-                if (imported != null)
-                {
-                    await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported));
-                    return true;
-                }
-            }
-        }
-        catch (Exception ex) 
-        { 
-            Debug.WriteLine($"Critical Download Error: {ex.Message}"); 
-        }
-        finally
-        {
-            try
-            {
-                if (!string.IsNullOrEmpty(tempPathWithExt) && File.Exists(tempPathWithExt))
-                    File.Delete(tempPathWithExt);
-            }
-            catch
-            {
-                // best effort cleanup
-            }
-        }
-
-        return false;
     }
 
     private EmulatorConfig? FindInheritedEmulator(MediaItem item)

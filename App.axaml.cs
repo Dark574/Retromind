@@ -15,6 +15,7 @@ using Retromind.Services;
 using Retromind.Services.Achievements;
 using Retromind.Services.GameIdentification;
 using Retromind.Services.RetroAchievements;
+using Retromind.Services.Scrapers;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores;
 using Retromind.Services.Stores.Abstractions;
@@ -401,6 +402,7 @@ public partial class App : Application
         services.AddSingleton<IGameFileFingerprintService, GameFileFingerprintService>();
 
         services.AddSingleton<MetadataService>();
+        services.AddSingleton<ScrapedAssetImporter>();
         services.AddSingleton<IDocumentService, DocumentService>();
 
         // --- ViewModels ---

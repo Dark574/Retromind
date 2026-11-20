@@ -969,7 +969,9 @@ the report never mutates JSON or deletes files.
 ## Import and metadata flow
 - `ImportService`: recursive local file import with multi-disc grouping/labeling
 - `ScrapedMetadataApplier` applies the field selection and existing-data policy shared by manual and bulk
-  scraping. Callers still own asset downloads, dialogs, and persistence.
+  scraping.
+- `ScrapedAssetImporter` downloads and imports the selected artwork, videos, and PDF manuals for both
+  flows. The view model passes the import policy and handles dialogs, bulk outcomes, and persistence.
 - `MultiDiscFileNameHelper`: shared recognition for separated `Disk`, `Disc`, `CD`, `Side`, `Part`, and
   `Scen` filename forms; `LauncherService` can consume generated playlists for grouped media
 - game-system assignments use stable provider-neutral identifiers, are inherited from node to item, and remain
@@ -1337,7 +1339,7 @@ only one terminal outcome. Its immutable `BulkScrapeRunSummary` exposes `Total`,
 - Empty, unsafe and ambiguous search results all count as `NoSafeMatch`, without technical failure.
 - The main-window callback uses the existing metadata/asset change flags. It distinguishes intentionally
   skipped artwork from a failed attempted download/publication through an optional failure callback on the
-  existing asset helper. PDF and artwork failures make the item failed even if other changes were applied;
+  `ScrapedAssetImporter`. PDF and artwork failures make the item failed even if other changes were applied;
   those changes remain dirty/saveable. Existing manual-import behavior and asset policies remain unchanged.
 - `NotProcessed` includes unstarted and interrupted work, including the quota-triggering item. A callback
   already in progress can finish after cancellation and retains its explicit completed outcome. A global

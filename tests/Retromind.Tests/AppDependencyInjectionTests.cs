@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Scrapers;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Gog.Playtime;
 using Retromind.Services.Stores.Gog.Comet;
@@ -32,6 +33,8 @@ public sealed class AppDependencyInjectionTests
         Assert.IsType<AudioService>(provider.GetRequiredService<AudioService>());
         Assert.IsType<WinetricksService>(provider.GetRequiredService<WinetricksService>());
         Assert.IsType<FileManagementService>(provider.GetRequiredService<FileManagementService>());
+        var scraperAssets = provider.GetRequiredService<ScrapedAssetImporter>();
+        Assert.Same(scraperAssets, provider.GetRequiredService<ScrapedAssetImporter>());
         var playlists = provider.GetRequiredService<LaunchPlaylistService>();
         Assert.Same(playlists, provider.GetRequiredService<LaunchPlaylistService>());
         var item = new MediaItem("Invalid discs")

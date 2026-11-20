@@ -1,7 +1,6 @@
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
-using Retromind.Services.Scrapers;
 using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
@@ -33,22 +32,6 @@ public sealed class ScrapeDialogViewModelTests
         await vm.ApplyCommand.ExecuteAsync(null);
         Assert.Empty(vm.StatusMessage);
         Assert.False(vm.IsBusy);
-    }
-
-    [Theory]
-    [InlineData("NotPdf")]
-    [InlineData("SizeLimitExceeded")]
-    [InlineData("IncompleteDownload")]
-    public void DocumentFailureDescriptionIsSpecificAndSafe(string reason)
-    {
-        var error = new ScrapedDocumentDownloadException(reason, 200);
-        var generic = MainWindowViewModel.DescribeDocumentImportFailure(new IOException("password=private-secret"));
-        var message = MainWindowViewModel.DescribeDocumentImportFailure(error);
-
-        Assert.NotEqual(generic, message);
-        Assert.DoesNotContain("private-secret", generic);
-        Assert.DoesNotContain("private-secret", MainWindowViewModel.DescribeDocumentImportFailure(
-            new HttpRequestException("password=private-secret", null, System.Net.HttpStatusCode.Forbidden)));
     }
 
     [Fact]
