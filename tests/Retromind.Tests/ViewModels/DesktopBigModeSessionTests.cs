@@ -147,6 +147,7 @@ public sealed class DesktopBigModeSessionTests
 
     private static BigModeNavigationFixture CreateNavigation()
     {
+        ManagedCursorFactory.EnsureRegistered();
         var fixture = new BigModeNavigationFixture([new MediaNode("Category") { Items = [new MediaItem("Game")] }]);
         fixture.Set("_gamepadService", new GamepadService(fixture.Settings, errorService: new RecordingErrorService()));
         return fixture;
