@@ -16,8 +16,6 @@ using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
 using Retromind.Services.BigMode;
-using Retromind.Services.Achievements;
-using Retromind.Services.RetroAchievements;
 using Retromind.Services.Stores;
 using Retromind.Services.Stores.Epic;
 using Retromind.Services.Stores.Gog;
@@ -1687,65 +1685,14 @@ public partial class MainWindowViewModel
         if (CurrentWindow is not { } owner) return;
 
         var portableHomeWasEnabled = _currentSettings.UsePortableHomeInAppImage;
-        var settingsVm = new SettingsViewModel(
-            _currentSettings,
-            _settingsService,
-            _retroAchievementsAccountService,
-            _steamAchievementsAccountService,
-            _steamAccountDiscoveryService,
-            _runnerVersionService,
-            RootItems,
+        var (settingsVm, dialog) = await _settingsWorkflow.CreateDialogAsync(
+            () => RootItems,
             _gamepadService,
-            _scraperCredentialService);
-        if (initialTabIndex.HasValue)
-            settingsVm.SelectedSettingsTabIndex = initialTabIndex.Value;
+            initialTabIndex,
+            message => ShowConfirmDialog(owner, message),
+            _libraryTracker.MarkDirty,
+            SaveData);
 
-        await settingsVm.InitializeRetroAchievementsAsync();
-        await settingsVm.InitializeSteamAchievementsAsync();
-        settingsVm.RequestRunnerVersionRemovalConfirmation += runner =>
-        {
-            var message = runner.SourceType == RunnerVersionSourceType.ManagedDownload
-                ? string.Format(
-                    Strings.ResourceManager.GetString("Settings_RunnerVersionRemoveManagedConfirmFormat", Strings.Culture)
-                    ?? "Remove {0} and permanently delete its downloaded files?",
-                    runner.Name)
-                : string.Format(
-                    Strings.ResourceManager.GetString("Settings_RunnerVersionRemoveExternalConfirmFormat", Strings.Culture)
-                    ?? "Remove {0} from Retromind? Its external files will be kept.",
-                    runner.Name);
-
-            return ShowConfirmDialog(owner, message);
-        };
-        settingsVm.RequestRunnerVersionReplacementConfirmation += (source, replacement) =>
-        {
-            var format = Strings.ResourceManager.GetString(
-                             "Settings_RunnerVersionReplaceConfirmFormat",
-                             Strings.Culture)
-                         ?? "Replace all game assignments and emulator defaults from {0} with {1}?\n\n{0} remains installed and registered.";
-
-            return ShowConfirmDialog(owner, string.Format(format, source.Name, replacement.Name));
-        };
-        settingsVm.RequestGeProtonReinstallConfirmation += releaseTag =>
-        {
-            var format = Strings.ResourceManager.GetString(
-                             "Settings_GeProtonReinstallConfirmFormat",
-                             Strings.Culture)
-                         ?? "Download {0} again and replace the existing installation?";
-            return ShowConfirmDialog(owner, string.Format(format, releaseTag));
-        };
-        settingsVm.RequestRunnerVersionAssignmentPersistence += async () =>
-        {
-            if (settingsVm.LibraryModified)
-                _libraryTracker.MarkDirty();
-
-            return await SaveData();
-        };
-        var dialog = new SettingsView
-        {
-            DataContext = settingsVm
-        };
-
-        settingsVm.RequestClose += () => { dialog.Close(); };
         settingsVm.RequestOpenHelpGuides += OpenHelpGuides;
         settingsVm.RequestSortPreviewRefresh += UpdateContent;
         settingsVm.RequestOpenMetadataBackups += async () =>
@@ -1757,16 +1704,7 @@ public partial class MainWindowViewModel
             dialog.Close();
             UiThreadHelper.Post(owner.Close, DispatcherPriority.Background);
         };
-        settingsVm.RequestOpenLibraryHealth += async () =>
-        {
-            var healthDialog = new LibraryHealthView
-            {
-                DataContext = new LibraryHealthViewModel(_libraryHealthService, RootItems)
-            };
-            await healthDialog.ShowDialog(dialog);
-        };
-        dialog.Closed += (_, _) => settingsVm.Dispose();
-    
+
         // Allow the settings dialog to request a one-time portable migration
         settingsVm.RequestPortableMigration += async () =>
         {
@@ -1783,59 +1721,20 @@ public partial class MainWindowViewModel
         };
 
         await dialog.ShowDialog(owner);
-
-        // A metadata restore deliberately replaced the persisted files and requested
-        // application shutdown. Never let the settings-dialog continuation save the
-        // preceding in-memory settings over that restored state.
-        if (_metadataBackups.RequiresRestart)
-            return;
-
-        if (settingsVm.LibraryModified)
-            _libraryTracker.MarkDirty();
-
-        if (settingsVm.IsSaved)
-        {
-            OnPropertyChanged(nameof(ShowStoreBadges));
-            _metadataService.ClearProviderCache();
-            NotifyNodeCommandsCanExecuteChanged();
-            var saveResult = await SaveDataWithStatusAsync();
-            if (saveResult.SettingsSaved)
+        await _settingsWorkflow.CompleteAsync(
+            settingsVm,
+            portableHomeWasEnabled,
+            _metadataBackups.RequiresRestart,
+            _libraryTracker.MarkDirty,
+            SaveDataWithStatusAsync,
+            settingsAccepted: () =>
             {
-                settingsVm.CompleteAchievementSecretChanges();
-                settingsVm.CompleteScraperCredentialChanges();
-
-                var portableHomeIsEnabled = _currentSettings.UsePortableHomeInAppImage;
-                await RetroAchievementsGameCatalogService.MigrateCacheLocationAsync(
-                    portableHomeWasEnabled,
-                    portableHomeIsEnabled);
-                await StoreAchievementCachePathProvider.MigrateCacheLocationAsync(
-                    portableHomeWasEnabled,
-                    portableHomeIsEnabled);
-                var cacheLocationChanged =
-                    _retroAchievementsCachePathProvider.UsePortableHome(portableHomeIsEnabled);
-                cacheLocationChanged |=
-                    _storeAchievementCachePathProvider.UsePortableHome(portableHomeIsEnabled);
-                await RetroAchievementsProgress.SelectItemAsync(
-                    GetCurrentSelectedItem(),
-                    forceRefresh: cacheLocationChanged);
-            }
-            else
-            {
-                var achievementSecretsRestored = await settingsVm.RollbackAchievementChangesAsync();
-                var scraperSecretsRestored = await settingsVm.RollbackScraperCredentialChangesAsync();
-                if (!achievementSecretsRestored || !scraperSecretsRestored)
-                {
-                    Debug.WriteLine(
-                        "[Settings] Secret values could not be fully restored after the settings save failed.");
-                }
-            }
-        }
-        else if (settingsVm.LibraryModified)
-        {
-            // Confirmed runner removal can alter item-level runner overrides even
-            // when the remaining dialog edits are discarded.
-            await SaveData();
-        }
+                OnPropertyChanged(nameof(ShowStoreBadges));
+                _metadataService.ClearProviderCache();
+                NotifyNodeCommandsCanExecuteChanged();
+            },
+            refreshAchievements: forceRefresh =>
+                RetroAchievementsProgress.SelectItemAsync(GetCurrentSelectedItem(), forceRefresh: forceRefresh));
     }
 
     /// <summary>

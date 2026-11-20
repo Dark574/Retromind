@@ -45,7 +45,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly AudioService _audioService;
     private readonly MediaDataService _dataService;
     private readonly MetadataBackupService _metadataBackupService;
-    private readonly LibraryHealthService _libraryHealthService;
+    private readonly DesktopSettingsWorkflow _settingsWorkflow;
     private readonly IErrorService _errorService;
     private readonly FileManagementService _fileService;
     private readonly WinetricksService _winetricksService;
@@ -64,23 +64,17 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly GogLaunchDetectionService _gogLaunchDetectionService;
     private readonly GogInstallerWorkflowService _gogInstallerWorkflowService;
     private readonly SettingsService _settingsService;
-    private readonly ScraperCredentialService _scraperCredentialService;
-    private readonly RunnerVersionService _runnerVersionService;
     private readonly MetadataService _metadataService; 
     private readonly GamepadService _gamepadService;
     private readonly SoundEffectService _soundEffectService;
     private readonly IDocumentService _documentService;
     private readonly LibraryChangeTracker _libraryTracker;
     private readonly RetroAchievementsAccountService _retroAchievementsAccountService;
-    private readonly RetroAchievementsCachePathProvider _retroAchievementsCachePathProvider;
-    private readonly StoreAchievementCachePathProvider _storeAchievementCachePathProvider;
     private readonly IStoreAchievementImageCacheService _storeAchievementImageCacheService;
     private readonly IRetroAchievementsGameIdentificationService _retroAchievementsGameIdentificationService;
     private readonly RetroAchievementsBulkIdentificationService _retroAchievementsBulkIdentificationService;
     private readonly IRetroAchievementsProgressService _retroAchievementsProgressService;
     private readonly IRetroAchievementsBadgeService _retroAchievementsBadgeService;
-    private readonly SteamAchievementsAccountService _steamAchievementsAccountService;
-    private readonly SteamAccountDiscoveryService _steamAccountDiscoveryService;
     private readonly ISteamAchievementsProgressService _steamAchievementsProgressService;
     private readonly IGogAchievementsProgressService _gogAchievementsProgressService;
 
@@ -428,32 +422,26 @@ public partial class MainWindowViewModel : ViewModelBase
         EpicInstallService epicInstallService,
         EpicLaunchService epicLaunchService,
         SettingsService settingsService,
-        RunnerVersionService runnerVersionService,
+        DesktopSettingsWorkflow settingsWorkflow,
         MetadataService metadataService,
         SoundEffectService soundEffectService,
         HttpClient httpClient,
         AppSettings preloadedSettings,
         IDocumentService documentService,
         RetroAchievementsAccountService retroAchievementsAccountService,
-        RetroAchievementsCachePathProvider retroAchievementsCachePathProvider,
-        StoreAchievementCachePathProvider storeAchievementCachePathProvider,
         IStoreAchievementImageCacheService storeAchievementImageCacheService,
         IRetroAchievementsGameIdentificationService retroAchievementsGameIdentificationService,
         RetroAchievementsBulkIdentificationService retroAchievementsBulkIdentificationService,
         IRetroAchievementsProgressService retroAchievementsProgressService,
         IRetroAchievementsBadgeService retroAchievementsBadgeService,
-        SteamAchievementsAccountService steamAchievementsAccountService,
-        SteamAccountDiscoveryService steamAccountDiscoveryService,
         ISteamAchievementsProgressService steamAchievementsProgressService,
         IGogAchievementsProgressService gogAchievementsProgressService,
-        ScraperCredentialService scraperCredentialService,
-        IErrorService errorService,
-        LibraryHealthService? libraryHealthService = null)
+        IErrorService errorService)
     {
         _audioService = audioService;
         _dataService = dataService;
         _metadataBackupService = metadataBackupService;
-        _libraryHealthService = libraryHealthService ?? new LibraryHealthService();
+        _settingsWorkflow = settingsWorkflow;
         _errorService = errorService;
         _desktopContent = new DesktopContentSession(_errorService);
         _fileService = fileService;
@@ -473,23 +461,17 @@ public partial class MainWindowViewModel : ViewModelBase
         _gogLaunchDetectionService = gogLaunchDetectionService;
         _gogInstallerWorkflowService = gogInstallerWorkflowService;
         _settingsService = settingsService;
-        _scraperCredentialService = scraperCredentialService;
-        _runnerVersionService = runnerVersionService;
         _metadataService = metadataService;
         _soundEffectService = soundEffectService;
         _httpClient = httpClient;
         _currentSettings = preloadedSettings;
         _documentService = documentService;
         _retroAchievementsAccountService = retroAchievementsAccountService;
-        _retroAchievementsCachePathProvider = retroAchievementsCachePathProvider;
-        _storeAchievementCachePathProvider = storeAchievementCachePathProvider;
         _storeAchievementImageCacheService = storeAchievementImageCacheService;
         _retroAchievementsGameIdentificationService = retroAchievementsGameIdentificationService;
         _retroAchievementsBulkIdentificationService = retroAchievementsBulkIdentificationService;
         _retroAchievementsProgressService = retroAchievementsProgressService;
         _retroAchievementsBadgeService = retroAchievementsBadgeService;
-        _steamAchievementsAccountService = steamAchievementsAccountService;
-        _steamAccountDiscoveryService = steamAccountDiscoveryService;
         _steamAchievementsProgressService = steamAchievementsProgressService;
         _gogAchievementsProgressService = gogAchievementsProgressService;
         RetroAchievementsProgress = new RetroAchievementsProgressViewModel(

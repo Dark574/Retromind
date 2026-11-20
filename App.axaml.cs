@@ -404,6 +404,7 @@ public partial class App : Application
         services.AddSingleton<IDocumentService, DocumentService>();
 
         // --- ViewModels ---
+        services.AddSingleton<DesktopSettingsWorkflow>();
         // MainWindowViewModel is the long-lived app coordinator -> singleton is safer.
         services.AddSingleton<MainWindowViewModel>();
     }

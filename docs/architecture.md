@@ -104,6 +104,9 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
   window discards it
 - title sorting remains a live preview while the dialog is open and is restored if the dialog closes
   without saving
+- `DesktopSettingsWorkflow` builds the settings dialog and handles its runner confirmations, save result,
+  credential completion or rollback, and achievement-cache migration. The main window connects actions that
+  affect the desktop, such as the sort preview and closing after a metadata restore.
 
 ### Explicit save results and callers
 
