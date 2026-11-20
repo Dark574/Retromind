@@ -44,6 +44,85 @@ public sealed class DesktopMetadataBackupCoordinatorTests
         }
     }
 
+    [Fact]
+    public async Task LibraryOnlyRestore_PersistsLiveSettingsWhileDebouncedSaveIsPending()
+    {
+        using var state = new BackupState();
+        var current = await state.SaveCurrentMetadataAsync();
+        var backup = await state.CreateRestoreSourceAsync();
+        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var capturedSettings = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var persistence = new DesktopPersistenceCoordinator(
+            state.Tracker, state.SettingsService, () => false, () =>
+            {
+                captureStarted.SetResult();
+                return capturedSettings.Task;
+            },
+            new RecordingErrorService(), _ => Task.FromResult(false));
+        var coordinator = state.CreateCoordinator(persistence.CancelPendingSettingsSave);
+
+        state.Settings.ItemWidth = 222;
+        var pendingSave = persistence.ScheduleSettingsSave();
+        try
+        {
+            await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(111, (await state.SettingsService.LoadAsync()).ItemWidth);
+
+            await UiThreadHelper.InvokeAsync(() => coordinator.RestoreAsync(backup, MetadataRestoreMode.LibraryOnly));
+        }
+        finally
+        {
+            // A delayed older snapshot must not win over the restore's current settings write.
+            capturedSettings.TrySetResult(current.SettingsJson);
+            await pendingSave.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        Assert.Equal("Restored library", Assert.Single(await state.Library.LoadAsync()).Name);
+        Assert.Equal(222, (await new SettingsService().LoadAsync()).ItemWidth);
+        Assert.True(coordinator.RequiresRestart);
+    }
+
+    [Fact]
+    public async Task LibraryOnlyRestore_SettingsWriteFailureLeavesLibraryIntact()
+    {
+        using var state = new BackupState();
+        state.Settings.BackupBeforeRestore = false;
+        var current = await state.SaveCurrentMetadataAsync();
+        var backup = await state.CreateRestoreSourceAsync();
+        state.Settings.ItemWidth = 222;
+        var blockedPath = state.Temp.CreateDirectory("app_settings.json.tmp");
+
+        var error = await Record.ExceptionAsync(() => UiThreadHelper.InvokeAsync(
+            () => state.Coordinator.RestoreAsync(backup, MetadataRestoreMode.LibraryOnly)));
+
+        Assert.True(error is IOException or UnauthorizedAccessException);
+        Assert.Equal(current.LibraryJson, await File.ReadAllTextAsync(state.Temp.GetPath("retromind_tree.json")));
+        Assert.Equal(111, (await state.SettingsService.LoadAsync()).ItemWidth);
+        Assert.False(state.Coordinator.RequiresRestart);
+        Assert.True(state.Tracker.IsTracking);
+
+        Directory.Delete(blockedPath);
+        await state.SettingsService.SaveAsync(state.Settings);
+        Assert.Equal(222, (await state.SettingsService.LoadAsync()).ItemWidth);
+    }
+
+    [Fact]
+    public async Task LibraryOnlyRestore_SkipsProtectedSettingsAfterLoadFailure()
+    {
+        using var state = new BackupState();
+        var backup = await state.CreateRestoreSourceAsync();
+        var protectedPath = state.Temp.CreateDirectory("app_settings.json");
+        await Assert.ThrowsAsync<SettingsLoadException>(() => state.SettingsService.LoadAsync());
+
+        await UiThreadHelper.InvokeAsync(
+            () => state.Coordinator.RestoreAsync(backup, MetadataRestoreMode.LibraryOnly));
+
+        Assert.Equal("Restored library", Assert.Single(await state.Library.LoadAsync()).Name);
+        Assert.True(Directory.Exists(protectedPath));
+        Assert.True(state.SettingsService.HasLoadFailure);
+        Assert.True(state.Coordinator.RequiresRestart);
+    }
+
     [Theory]
     [InlineData("[null]", "{}")]
     [InlineData("[]", "{\"SavedSearchTerms\":null}")]
@@ -113,10 +192,11 @@ public sealed class DesktopMetadataBackupCoordinatorTests
             Backups = new MetadataBackupService(Temp.RootPath);
             Tracker = new LibraryChangeTracker(Library, (_, _) => { });
             Tracker.Initialize(Roots);
-            Coordinator = new DesktopMetadataBackupCoordinator(
-                Backups, Library, SettingsService, Tracker, Settings, () => Roots, () => false,
-                () => SettingsSaveCancelled = true);
+            Coordinator = CreateCoordinator(() => SettingsSaveCancelled = true);
         }
+
+        public DesktopMetadataBackupCoordinator CreateCoordinator(Action cancelPendingSettingsSave) =>
+            new(Backups, Library, SettingsService, Tracker, Settings, () => Roots, () => false, cancelPendingSettingsSave);
 
         public async Task<MetadataBackupContent> SaveCurrentMetadataAsync()
         {

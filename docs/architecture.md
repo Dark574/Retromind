@@ -298,6 +298,9 @@ keyring writers are coordinated across multiple Retromind processes.
 - a settings restore scope drains active writes and rejects all regular settings saves before capturing
   the pre-restore state, including direct runner-registration saves. Restore and rollback writes remain
   available; failure releases the block, while success retains it until the application restarts
+- library-only restore commits the current settings while regular saves are blocked and before writing
+  the library. A failed settings write aborts the restore. Settings files protected after a load failure
+  are skipped so the library can still be recovered independently.
 - restore defaults to the library only; the optional full mode also restores `app_settings.json`, including
   emulator/runner configuration and the encrypted parental-control password, while item protection flags are
   always restored because they belong to the library model

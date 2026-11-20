@@ -76,6 +76,13 @@ public class SettingsService
         private SettingsService? _owner = owner;
         private bool _completed;
 
+        internal Task SaveCurrentSettingsAsync(string json)
+        {
+            var service = _owner;
+            ObjectDisposedException.ThrowIf(service == null, this);
+            return service.SaveJsonCoreAsync(json, service.ThrowIfLoadFailed);
+        }
+
         public void Complete()
         {
             ObjectDisposedException.ThrowIf(_owner == null, this);
@@ -274,8 +281,7 @@ public class SettingsService
     /// </summary>
     public async Task SaveJsonAsync(string json, CancellationToken cancellationToken = default)
     {
-        if (json == null) throw new ArgumentNullException(nameof(json));
-        await SaveJsonCoreAsync(json, enforceSaveState: true, cancellationToken).ConfigureAwait(false);
+        await SaveJsonCoreAsync(json, ThrowIfRegularSaveDisallowed, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -285,7 +291,7 @@ public class SettingsService
     public async Task RestoreJsonAsync(string json)
     {
         ValidateSerializedSettings(json);
-        await SaveJsonCoreAsync(json, enforceSaveState: false).ConfigureAwait(false);
+        await SaveJsonCoreAsync(json, ensureSaveAllowed: null).ConfigureAwait(false);
         Interlocked.Exchange(ref _loadFailure, null);
     }
 
@@ -378,19 +384,18 @@ public class SettingsService
 
     private async Task SaveJsonCoreAsync(
         string json,
-        bool enforceSaveState,
+        Action? ensureSaveAllowed,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(json);
         cancellationToken.ThrowIfCancellationRequested();
-        if (enforceSaveState)
-            ThrowIfRegularSaveDisallowed();
+        ensureSaveAllowed?.Invoke();
 
         await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (enforceSaveState)
-                ThrowIfRegularSaveDisallowed();
+            ensureSaveAllowed?.Invoke();
 
             // Once writing begins, finish the atomic transaction without cancellation.
             // A restore must acquire this same gate before it can block subsequent saves.
@@ -421,7 +426,7 @@ public class SettingsService
             // Cancellation and restore-blocked saves have not modified any files.
             throw;
         }
-        catch (SettingsLoadException) when (enforceSaveState)
+        catch (SettingsLoadException)
         {
             throw;
         }

@@ -65,9 +65,12 @@ internal sealed class DesktopMetadataBackupCoordinator
     {
         var librarySnapshot = await UiThreadHelper.InvokeAsync(() => _dataService.CreateSnapshot(_getRootItems()));
         var libraryJson = await Task.Run(() => _dataService.Serialize(librarySnapshot));
-        var settingsJson = await UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_settings));
+        var settingsJson = await CaptureCurrentSettingsAsync();
         return new MetadataBackupContent(libraryJson, settingsJson);
     }
+
+    private Task<string> CaptureCurrentSettingsAsync() =>
+        UiThreadHelper.InvokeAsync(() => _settingsService.Serialize(_settings));
 
     internal async Task RestoreAsync(
         MetadataBackupInfo backup,
@@ -92,6 +95,10 @@ internal sealed class DesktopMetadataBackupCoordinator
             if (ShouldCreateAutomaticBackup(MetadataBackupReason.BeforeRestore))
                 await _backupService.CreateBackupAsync(current, MetadataBackupReason.BeforeRestore);
         }
+
+        // A library-only restore closes the app without the usual settings flush.
+        if (restoreMode == MetadataRestoreMode.LibraryOnly && !_settingsService.HasLoadFailure)
+            await settingsRestore.SaveCurrentSettingsAsync(await CaptureCurrentSettingsAsync());
 
         // Drain the library sequencer before replacing its persisted data as well.
         if (!_libraryLoadFailed())

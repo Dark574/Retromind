@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Fixed
 - show the title text in the Cinematic theme only when no logo is available, avoiding duplicate titles
 - no preview loading of images for videos/music/manuals in Media Editor
+- keep recent settings changes when restoring only the library from a metadata backup
 
 ---
 
