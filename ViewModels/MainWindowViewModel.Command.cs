@@ -482,7 +482,7 @@ public partial class MainWindowViewModel
 
     private void EnterBigModeCore()
     {
-        if (_libraryLoadFailed)
+        if (_libraryLoadFailed || _bigModeSession.IsOpen)
             return;
 
         Debug.WriteLine("[CoreApp] EnterBigMode starting.");
@@ -500,23 +500,7 @@ public partial class MainWindowViewModel
         if (SelectedNode == null)
             SelectedNode = FindFirstVisibleNode();
 
-        // Switch main window to fullscreen while BigMode is active.
-        var window = CurrentWindow;
-        if (window != null)
-        {
-            _previousWindowState = window.WindowState;
-            if (window.WindowState != WindowState.FullScreen)
-            {
-                window.WindowState = WindowState.FullScreen;
-            }
-        }
-        
-        // BigMode starts on its virtual root. That level has its own presentation
-        // setting and must not borrow the selected top-level node's theme.
-        var initialThemePath = GetEffectiveThemePath(null);
-        var initialTheme = ThemeLoader.LoadTheme(initialThemePath);
-
-        var bigVm = new BigModeViewModel(
+        _bigModeSession.Open(initialTheme => new BigModeViewModel(
             RootItems,
             _currentSettings,
             initialTheme,
@@ -529,113 +513,14 @@ public partial class MainWindowViewModel
             IsParentalFilterActive,
             startOnHome,
             _gogAchievementsProgressService,
-            _storeAchievementImageCacheService);
-        _activeBigModeViewModel = bigVm;
-
-        var host = new BigModeHostView
-        {
-            DataContext = bigVm,
-            Focusable = true,
-            Opacity = 0,
-            IsHitTestVisible = false
-        };
-
-        // Only a tracked session has a reliable game-end boundary. Restoring
-        // focus after an untracked protocol launch could steal it from a game
-        // which is still starting through Steam or Heroic.
-        bigVm.RequestPlay += item => PlayMediaFromBigModeAsync(item, bigVm, host);
-        bigVm.RequestApplicationExit += () =>
-            UiThreadHelper.InvokeAsync(() => CurrentWindow?.Close());
-
-        // Attach the host while hidden so fullscreen sizing, virtualized carousel
-        // realization and initial artwork loading can settle without a visible rebuild.
-        FullScreenContent = host;
-        host.SetThemeContent(initialTheme.View, initialTheme);
-        host.RevealAfterInitialLayout();
-
-        var themeSwitcher = new BigModeThemeSwitcher(
-            bigVm, host, initialThemePath, GetEffectiveThemePath,
-            ThemeLoader.LoadTheme, bigVm.PrepareForThemeSwapAsync);
-        themeSwitcher.Refresh();
-
-        // Close wiring: exit BigMode deterministically + cleanup handlers + sync selection back.
-        bigVm.RequestClose += async () =>
-        {
-            await UiThreadHelper.InvokeAsync(async () =>
-            {
-                try
-                {
-                    if (ReferenceEquals(_activeBigModeViewModel, bigVm))
-                        _activeBigModeViewModel = null;
-
-                    themeSwitcher.Dispose();
-
-                    // Capture BigMode selection before the visual tree is torn down.
-                    bigVm.SaveState();
-
-                    // Ensure VLC playback (preview + background video) is fully stopped
-                    // before tearing down the visual tree and returning to the core UI.
-                    await bigVm.PrepareForThemeSwapAsync();
-                    
-                    FullScreenContent = null;
-
-                    // Restore the previous window state after leaving BigMode.
-                    var window = CurrentWindow;
-                    if (window != null &&
-                        window.WindowState == WindowState.FullScreen &&
-                        _previousWindowState != WindowState.FullScreen)
-                    {
-                        window.WindowState = _previousWindowState;
-                    }
-                    
-                    bigVm.Dispose();
-                    await SyncSelectionFromBigModeAsync();
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[CoreApp] BigMode close handling failed: {ex}");
-                }
-            });
-        };
-
-        // Cache refresh hook (optional, safe).
-        bigVm.InvalidatePreviewCaches(stopCurrentPreview: false);
-    }
-
-    private async Task PlayMediaFromBigModeAsync(
-        MediaItem item,
-        BigModeViewModel bigVm,
-        BigModeHostView host)
-    {
-        var result = await PlayMediaAsync(item);
-        if (result?.WasSessionTracked == true)
-            await RestoreBigModeAfterLaunchAsync(bigVm, host);
-    }
-
-    private async Task RestoreBigModeAfterLaunchAsync(BigModeViewModel bigVm, BigModeHostView host)
-    {
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            if (!ReferenceEquals(_activeBigModeViewModel, bigVm) ||
-                !ReferenceEquals(FullScreenContent, host) ||
-                CurrentWindow is not { } window)
-            {
-                return;
-            }
-
-            if (window.WindowState != WindowState.FullScreen)
-                window.WindowState = WindowState.FullScreen;
-
-            window.Activate();
-            host.Focus();
-        }, DispatcherPriority.Input);
+            _storeAchievementImageCacheService));
     }
     
     private bool _synchronizingSelectionFromBigMode;
 
     private void UpdateBigModeStateFromCoreSelection(MediaNode node, MediaItem? selectedItem)
     {
-        if (IsLibraryLoading || _synchronizingSelectionFromBigMode || _activeBigModeViewModel != null) return;
+        if (IsLibraryLoading || _synchronizingSelectionFromBigMode || _bigModeSession.ActiveViewModel != null) return;
         BigModeNavigationPersistence.RecordDesktopSelection(_currentSettings, node, selectedItem);
 
         SaveSettingsOnly();
@@ -915,53 +800,6 @@ public partial class MainWindowViewModel
         }
     }
 
-    /// <summary>
-    /// Resolves the effective theme file path for a navigation context. A null
-    /// context represents the virtual library root and uses its dedicated setting.
-    /// Every real node uses only its own ThemePath; themes are never inherited.
-    /// Missing or invalid assignments fall back to Navigator, then the legacy Default theme.
-    /// </summary>
-    private string GetEffectiveThemePath(MediaNode? startNode) =>
-        ResolveEffectiveThemePath(
-            startNode,
-            _currentSettings.RootBigModeThemePath,
-            AppPaths.ThemesRoot);
-
-    internal static string ResolveEffectiveThemePath(
-        MediaNode? node,
-        string? rootThemePath,
-        string themesRoot)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(themesRoot);
-
-        var assignedThemePath = node == null ? rootThemePath : node.ThemePath;
-        if (ThemePathResolver.TryResolveThemeFilePath(
-                themesRoot,
-                assignedThemePath,
-                out var assignedFullPath))
-        {
-            return assignedFullPath;
-        }
-
-        if (!string.IsNullOrWhiteSpace(assignedThemePath))
-            Debug.WriteLine($"[Theme] Assigned theme path is invalid or unavailable: '{assignedThemePath}'.");
-
-        if (!ThemePathResolver.TryResolveThemeFilePath(
-                themesRoot,
-                ThemeDiscovery.DefaultThemePath,
-                out var fallbackThemePath) &&
-            !ThemePathResolver.TryResolveThemeFilePath(
-                themesRoot,
-                ThemeDiscovery.LegacyDefaultThemePath,
-                out fallbackThemePath))
-        {
-            fallbackThemePath = Path.GetFullPath(
-                Path.Combine(themesRoot, ThemeDiscovery.DefaultThemePath));
-        }
-        Debug.WriteLine($"[Theme] No valid local theme assigned, using fallback: {fallbackThemePath}");
-        return fallbackThemePath;
-    }
-
     private Task TestPlayMediaAsync(MediaItem? item)
         => PlayMediaAsync(item, recordStatistics: false);
 
@@ -1171,7 +1009,7 @@ public partial class MainWindowViewModel
                 launchResult.Outcome == LaunchOutcome.Started &&
                 launchResult.WasSessionTracked)
             {
-                var activeBigMode = _activeBigModeViewModel;
+                var activeBigMode = _bigModeSession.ActiveViewModel;
                 if (activeBigMode != null && ReferenceEquals(activeBigMode.SelectedItem, item))
                 {
                     activeBigMode.RefreshAchievementsAfterTrackedSession(item);

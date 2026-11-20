@@ -6,7 +6,7 @@ using Retromind.ViewModels;
 
 namespace Retromind.Tests.ViewModels;
 
-public sealed class MainWindowViewModelThemeTests
+public sealed class DesktopBigModeThemeTests
 {
     [Fact]
     public void NewNode_UsesDefaultNormalAndSystemThemes()
@@ -30,7 +30,7 @@ public sealed class MainWindowViewModelThemeTests
             ThemePath = null
         };
 
-        var resolved = MainWindowViewModel.ResolveEffectiveThemePath(
+        var resolved = DesktopBigModeSession.ResolveEffectiveThemePath(
             node,
             "Arcade/theme.axaml",
             temp.RootPath);
@@ -52,7 +52,7 @@ public sealed class MainWindowViewModelThemeTests
             ThemePath = assigned
         };
 
-        var resolved = MainWindowViewModel.ResolveEffectiveThemePath(
+        var resolved = DesktopBigModeSession.ResolveEffectiveThemePath(
             node,
             "Arcade/theme.axaml",
             temp.RootPath);
@@ -72,7 +72,7 @@ public sealed class MainWindowViewModelThemeTests
             ThemePath = "Arcade/theme.axaml"
         };
 
-        var resolved = MainWindowViewModel.ResolveEffectiveThemePath(
+        var resolved = DesktopBigModeSession.ResolveEffectiveThemePath(
             node: node,
             rootThemePath: null,
             themesRoot: temp.RootPath);
@@ -87,7 +87,7 @@ public sealed class MainWindowViewModelThemeTests
         temp.CreateFile(ThemeDiscovery.DefaultThemePath, string.Empty);
         var prismTheme = temp.CreateFile("Prism/theme.axaml", string.Empty);
 
-        var resolved = MainWindowViewModel.ResolveEffectiveThemePath(
+        var resolved = DesktopBigModeSession.ResolveEffectiveThemePath(
             node: null,
             rootThemePath: "Prism/theme.axaml",
             themesRoot: temp.RootPath);
@@ -107,7 +107,7 @@ public sealed class MainWindowViewModelThemeTests
         var expected = temp.CreateFile(assigned, string.Empty);
         var node = root ? null : new MediaNode("Existing") { ThemePath = assigned };
 
-        Assert.Equal(Path.GetFullPath(expected), MainWindowViewModel.ResolveEffectiveThemePath(
+        Assert.Equal(Path.GetFullPath(expected), DesktopBigModeSession.ResolveEffectiveThemePath(
             node, root ? assigned : "Arcade/theme.axaml", temp.RootPath));
         if (node != null) Assert.Equal(assigned, node.ThemePath);
     }
@@ -121,7 +121,7 @@ public sealed class MainWindowViewModelThemeTests
         var legacy = temp.CreateFile("Default/theme.axaml", string.Empty);
         var node = root ? null : new MediaNode("New category");
 
-        Assert.Equal(Path.GetFullPath(legacy), MainWindowViewModel.ResolveEffectiveThemePath(
+        Assert.Equal(Path.GetFullPath(legacy), DesktopBigModeSession.ResolveEffectiveThemePath(
             node, new AppSettings().RootBigModeThemePath, temp.RootPath));
         if (node != null) Assert.Equal("Navigator/theme.axaml", node.ThemePath);
     }
@@ -132,7 +132,7 @@ public sealed class MainWindowViewModelThemeTests
         using var temp = new TemporaryDirectory();
         var node = new MediaNode("Existing") { ThemePath = "Missing/theme.axaml" };
 
-        Assert.Equal(temp.GetPath("Navigator/theme.axaml"), MainWindowViewModel.ResolveEffectiveThemePath(
+        Assert.Equal(temp.GetPath("Navigator/theme.axaml"), DesktopBigModeSession.ResolveEffectiveThemePath(
             node, "Arcade/theme.axaml", temp.RootPath));
         Assert.Equal("Missing/theme.axaml", node.ThemePath);
         Assert.False(File.Exists(temp.GetPath("Navigator/theme.axaml")));

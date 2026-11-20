@@ -55,7 +55,7 @@ public partial class MainWindowViewModel
     {
         OnPropertyChanged(nameof(HasParentalPassword));
         OnPropertyChanged(nameof(IsParentalFilterActive));
-        _activeBigModeViewModel?.SetParentalFilterActive(IsParentalFilterActive);
+        _bigModeSession.ActiveViewModel?.SetParentalFilterActive(IsParentalFilterActive);
         OnPropertyChanged(nameof(ParentalLockButtonText));
         OnPropertyChanged(nameof(ParentalLockToolTip));
         OnPropertyChanged(nameof(ParentalProtectButtonToolTip));

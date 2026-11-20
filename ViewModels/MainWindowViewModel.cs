@@ -117,9 +117,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ShowSettingsLoadError))]
     private string? _settingsLoadErrorMessage;
 
-    // Holds the currently loaded theme view. If null, standard desktop mode is shown.
-    [ObservableProperty]
-    private object? _fullScreenContent;
+    public object? FullScreenContent => _bigModeSession.Content;
     
     // Prevents overlapping launches (double-click + Start button + Play Random).
     [ObservableProperty]
@@ -157,7 +155,7 @@ public partial class MainWindowViewModel : ViewModelBase
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     private int _pendingBigModeEntry;
-    private BigModeViewModel? _activeBigModeViewModel;
+    private readonly DesktopBigModeSession _bigModeSession;
 
     // ensure Cleanup() is executed at most once (Exit + Closing can both fire)
     private int _cleanupOnce;
@@ -168,9 +166,6 @@ public partial class MainWindowViewModel : ViewModelBase
     // Helper to access the current window for dialogs
     private Window? CurrentWindow => (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
 
-    // Remember the window state before entering BigMode so we can restore it afterwards.
-    private WindowState _previousWindowState = WindowState.Maximized;
-    
     public ObservableCollection<MediaNode> RootItems
     {
         get => _rootItems;
@@ -546,6 +541,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
         // Gamepad service (hot-plug + configurable action routing)
         _gamepadService = new GamepadService(_currentSettings, errorService: _errorService);
+        _bigModeSession = new DesktopBigModeSession(
+            _currentSettings, () => CurrentWindow, item => PlayMediaAsync(item), SyncSelectionFromBigModeAsync);
+        _bigModeSession.ContentChanged += () => OnPropertyChanged(nameof(FullScreenContent));
         _gamepadService.StartMonitoring();
     
         // Route the configured exit action globally: only act if BigMode is actually active.
@@ -555,18 +553,7 @@ public partial class MainWindowViewModel : ViewModelBase
             UiThreadHelper.Post(() =>
             {
                 _lastControllerExitHandledUtc = DateTime.UtcNow;
-
-                if (FullScreenContent == null) return;
-
-                // If BigMode is active, request closing it.
-                if (FullScreenContent is BigModeViewModel directVm)
-                {
-                    directVm.ForceExitCommand.Execute(null);
-                }
-                else if (FullScreenContent is Avalonia.Controls.Control { DataContext: BigModeViewModel vm })
-                {
-                    vm.ForceExitCommand.Execute(null);
-                }
+                _bigModeSession.ActiveViewModel?.ForceExitCommand.Execute(null);
             });
         };
         _gamepadService.OnExitBigMode += _onControllerExitRequested;

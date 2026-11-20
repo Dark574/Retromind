@@ -53,6 +53,10 @@ Main window is a layered shell:
 
 `MainWindowViewModel` is the core orchestrator:
 - owns tree/content selection, command wiring, persistence triggers, and lifecycle cleanup
+- delegates the BigMode overlay lifecycle to `DesktopBigModeSession`. The session manages the host,
+  theme switcher, and window state, and waits for the preview stop before detaching the host. It
+  restores focus after a tracked launch if the same session is still active. The main window
+  decides when the desktop library is ready and restores the desktop selection after BigMode closes.
 - delegates the center view lifecycle to `DesktopContentSession`, which owns the active node or search
   view, its event subscriptions, and cancelable media load requests. Opening search, changing nodes, or
   disposing the session prevents an old request from publishing over the current view
