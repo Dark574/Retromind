@@ -7,6 +7,11 @@ Linux offline installer for the archive. Use **Start now** to override the curre
 window for one job. Use **Install** to approve an update that is pending. The existing store
 dialogs handle first-time installations and separate DLC maintenance.
 
+**Pause all downloads** suspends active transfers and holds new jobs in the queue while
+Retromind is open. Closing the download manager window keeps the pause in effect. **Resume download
+queue** restores normal scheduling and keeps individually paused jobs paused. An installation
+already in progress, including a combined Epic download and update, runs to completion.
+
 The **Download manager** tab in Settings offers three automatic update modes. **Disabled** is the
 default. Switching to an active mode immediately queues known GOG and Epic base-game updates and
 requests a check for missing revisions. The daily window uses local time and may cross midnight.

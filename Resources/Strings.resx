@@ -1672,6 +1672,15 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Downloads.Resume" xml:space="preserve">
     <value>Resume</value>
   </data>
+  <data name="Downloads.PauseQueue" xml:space="preserve">
+    <value>Pause all downloads</value>
+  </data>
+  <data name="Downloads.ResumeQueue" xml:space="preserve">
+    <value>Resume download queue</value>
+  </data>
+  <data name="Downloads.QueuePauseHint" xml:space="preserve">
+    <value>Installations already in progress finish even when the queue is paused.</value>
+  </data>
   <data name="Downloads.Cancel" xml:space="preserve">
     <value>Cancel</value>
   </data>

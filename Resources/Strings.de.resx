@@ -1674,6 +1674,15 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Downloads.Resume" xml:space="preserve">
     <value>Fortsetzen</value>
   </data>
+  <data name="Downloads.PauseQueue" xml:space="preserve">
+    <value>Alle Downloads pausieren</value>
+  </data>
+  <data name="Downloads.ResumeQueue" xml:space="preserve">
+    <value>Download-Warteschlange fortsetzen</value>
+  </data>
+  <data name="Downloads.QueuePauseHint" xml:space="preserve">
+    <value>Bereits laufende Installationen werden auch bei pausierter Warteschlange abgeschlossen.</value>
+  </data>
   <data name="Downloads.Cancel" xml:space="preserve">
     <value>Abbrechen</value>
   </data>

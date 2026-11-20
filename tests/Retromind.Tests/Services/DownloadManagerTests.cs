@@ -153,6 +153,133 @@ public sealed class DownloadManagerTests
         manager.Release();
     }
 
+    [Fact]
+    public async Task PauseQueue_InterruptsTransferAndHoldsNewJobsUntilResumed()
+    {
+        using var temp = new TemporaryDirectory();
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var interrupted = Signal();
+        var allowUnwind = Signal();
+        var requeued = Signal();
+        var lastJobStarted = Signal();
+        var starts = new List<string>();
+        manager.Start(new DownloadSettings { AutomaticUpdates = AutomaticUpdateMode.DownloadOnly }, async (work, ct) =>
+        {
+            var itemId = work.Job.ItemId;
+            starts.Add(itemId);
+            if (starts.Count == 1)
+            {
+                entered.SetResult();
+                try
+                {
+                    await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+                }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    interrupted.SetResult();
+                    await allowUnwind.Task;
+                    throw;
+                }
+            }
+            if (itemId == "new")
+                lastJobStarted.SetResult();
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+
+        try
+        {
+            Assert.True(manager.Enqueue("transfer", DownloadStore.Gog, DownloadKind.Update));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var activeId = Assert.Single(manager.Snapshot()).Job.Id;
+            manager.Changed += () =>
+            {
+                if (manager.Snapshot().Any(row => row.Job.Id == activeId && row.Job.State == DownloadState.Queued))
+                    requeued.TrySetResult();
+            };
+
+            Assert.True(manager.Enqueue("individual", DownloadStore.Gog, DownloadKind.Update));
+            var individual = manager.Snapshot().Single(row => row.Job.ItemId == "individual").Job;
+            Assert.True(manager.Change(individual.Id, DownloadAction.Pause));
+
+            manager.ToggleQueuePause();
+            Assert.True(manager.IsQueuePaused);
+            await interrupted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(manager.Enqueue("new", DownloadStore.Epic, DownloadKind.Update, automatic: true));
+            var pending = manager.Snapshot().Single(row => row.Job.ItemId == "new").Job;
+            Assert.False(manager.Change(pending.Id, DownloadAction.Start));
+
+            allowUnwind.SetResult();
+            await requeued.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal([DownloadState.Queued, DownloadState.Paused, DownloadState.Queued],
+                manager.Snapshot().Select(row => row.Job.State));
+
+            manager.ToggleQueuePause();
+            Assert.False(manager.IsQueuePaused);
+            await lastJobStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            allowUnwind.TrySetResult();
+            await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            manager.Release();
+        }
+
+        Assert.Equal(["transfer", "transfer", "new"], starts);
+        Assert.Equal(DownloadState.Paused, manager.Snapshot().Single(row => row.Job.ItemId == "individual").Job.State);
+    }
+
+    [Fact]
+    public async Task PauseQueue_LetsCriticalInstallationFinishAndHoldsNextJob()
+    {
+        using var temp = new TemporaryDirectory();
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var finish = Signal();
+        var completed = Signal();
+        var next = Signal();
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot().Any(row => row.Job.ItemId == "epic" && row.Job.State == DownloadState.Completed))
+                completed.TrySetResult();
+        };
+        manager.Start(new DownloadSettings { AutomaticUpdates = AutomaticUpdateMode.DownloadAndInstall }, async (work, ct) =>
+        {
+            if (work.Job.ItemId == "epic")
+            {
+                Assert.True(work.BeginInstallation());
+                entered.SetResult();
+                await finish.Task.WaitAsync(ct);
+                ct.ThrowIfCancellationRequested();
+            }
+            else
+                next.SetResult();
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+
+        try
+        {
+            Assert.True(manager.Enqueue("epic", DownloadStore.Epic, DownloadKind.Update, automatic: true));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(manager.Enqueue("next", DownloadStore.Gog, DownloadKind.Update));
+
+            manager.ToggleQueuePause();
+            Assert.True(manager.IsInstalling);
+            finish.SetResult();
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(DownloadState.Queued, manager.Snapshot().Single(row => row.Job.ItemId == "next").Job.State);
+
+            manager.ToggleQueuePause();
+            await next.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            finish.TrySetResult();
+            await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            manager.Release();
+        }
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

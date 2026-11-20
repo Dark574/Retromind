@@ -11,6 +11,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 
 ### Added
 - queue GOG and Epic updates in the desktop download manager, set daily download hours and a GOG speed limit, and archive GOG offline installers for later use
+- pause and resume the entire download queue while Retromind is open
 
 ### Changed
 

@@ -24,6 +24,7 @@ public sealed class DownloadManagerService
     private ExecuteDownloadAsync? _execute;
     private Task _worker = Task.CompletedTask;
     private ActiveJob? _active;
+    private bool _queuePaused;
     private bool _stopping;
     private bool _loaded;
     private bool _persistenceFailed;
@@ -41,6 +42,7 @@ public sealed class DownloadManagerService
     internal event Action? Changed;
     internal bool PersistenceFailed { get { lock (_gate) return _persistenceFailed; } }
     internal bool IsInstalling { get { lock (_gate) return _active?.Installing == true; } }
+    internal bool IsQueuePaused { get { lock (_gate) return _queuePaused; } }
     internal (DownloadState? Activity, bool NeedsRepair) GetQueueStatus()
     {
         lock (_gate)
@@ -110,6 +112,21 @@ public sealed class DownloadManagerService
     private static bool IsWaitingForAutomaticEpicInstallation(DownloadJob job) =>
         job.Automatic && job.State == DownloadState.InstallationPending && job.Reason == DownloadReason.EpicCombinedUpdate;
 
+    internal void ToggleQueuePause()
+    {
+        lock (_gate)
+        {
+            if (!_loaded || _stopping || _persistenceFailed)
+                return;
+
+            _queuePaused = !_queuePaused;
+            if (_queuePaused && _active is { Installing: false, InterruptedJob: null } active)
+                active.InterruptedJob = active.Job with { State = DownloadState.Queued, Reason = DownloadReason.None };
+
+            Notify();
+        }
+    }
+
     internal bool Enqueue(string itemId, DownloadStore store, DownloadKind kind, string revision = "",
         bool automatic = false, string? platform = null, string? storeGameId = null)
     {
@@ -149,7 +166,7 @@ public sealed class DownloadManagerService
     {
         lock (_gate)
         {
-            if (_stopping || _persistenceFailed)
+            if (_stopping || _persistenceFailed || _queuePaused && action == DownloadAction.Start)
                 return false;
             var index = _jobs.FindIndex(job => job.Id == id);
             if (index < 0)
@@ -253,13 +270,13 @@ public sealed class DownloadManagerService
                     if (_stopping || _persistenceFailed)
                         return;
                     settings = _settings;
-                    (next, wait) = SelectJob(settings);
+                    (next, wait) = _queuePaused ? (null, null) : SelectJob(settings);
                     if (next != null)
                     {
                         Update(next with { State = DownloadState.Downloading, Reason = DownloadReason.None });
                         if (_persistenceFailed)
                             return;
-                        _active = new ActiveJob(next.Id);
+                        _active = new ActiveJob(next);
                     }
                 }
 
@@ -329,7 +346,7 @@ public sealed class DownloadManagerService
                 if (!active.Installing)
                 {
                     var state = active.InterruptedJob?.State;
-                    if (state == null && (_stopping || _persistenceFailed || job.Automatic &&
+                    if (state == null && (_queuePaused || _stopping || _persistenceFailed || job.Automatic &&
                         _settings.AutomaticUpdates == AutomaticUpdateMode.Disabled))
                         state = DownloadState.Queued;
                     if (state == null && !job.OverrideWindow && !job.PayloadReady && !IsWindowOpen(_settings))
@@ -393,7 +410,7 @@ public sealed class DownloadManagerService
     {
         lock (_gate)
         {
-            if (_stopping || _persistenceFailed || active.InterruptedJob != null || token.IsCancellationRequested ||
+            if (_queuePaused || _stopping || _persistenceFailed || active.InterruptedJob != null || token.IsCancellationRequested ||
                 job.Automatic && _settings.AutomaticUpdates != AutomaticUpdateMode.DownloadAndInstall ||
                 job.Store == DownloadStore.Epic && !job.OverrideWindow && !IsWindowOpen(_settings))
                 return false;
@@ -538,9 +555,10 @@ public sealed class DownloadManagerService
         _ => job
     };
 
-    private sealed class ActiveJob(Guid id)
+    private sealed class ActiveJob(DownloadJob job)
     {
-        internal Guid Id { get; } = id;
+        internal DownloadJob Job { get; } = job;
+        internal Guid Id => Job.Id;
         internal bool Installing { get; set; }
         internal DownloadJob? InterruptedJob { get; set; }
         internal DateTimeOffset LastNotification { get; set; } = DateTimeOffset.MinValue;

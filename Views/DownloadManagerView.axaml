@@ -12,15 +12,19 @@
         CanMinimize="False"
         CanMaximize="False">
     <Grid Margin="14" RowDefinitions="Auto,*,Auto" RowSpacing="10">
-        <StackPanel Grid.Row="0" IsVisible="{Binding HasSelectedGame}" Spacing="6">
-            <TextBlock Text="{Binding SelectedGameTitle}" FontWeight="SemiBold" />
-            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
-                <Button Content="{x:Static p:DownloadStrings.AddUpdate}" Command="{Binding AddUpdate}" />
-                <Button Content="{x:Static p:DownloadStrings.AddWindows}" Command="{Binding AddWindowsInstaller}" />
-                <Button Content="{x:Static p:DownloadStrings.AddLinux}" Command="{Binding AddLinuxInstaller}" />
-                <CheckBox Content="{x:Static p:DownloadStrings.Exclude}" IsChecked="{Binding Excluded}" />
-            </WrapPanel>
-        </StackPanel>
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel IsVisible="{Binding HasSelectedGame}" Spacing="6">
+                <TextBlock Text="{Binding SelectedGameTitle}" FontWeight="SemiBold" />
+                <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
+                    <Button Content="{x:Static p:DownloadStrings.AddUpdate}" Command="{Binding AddUpdate}" />
+                    <Button Content="{x:Static p:DownloadStrings.AddWindows}" Command="{Binding AddWindowsInstaller}" />
+                    <Button Content="{x:Static p:DownloadStrings.AddLinux}" Command="{Binding AddLinuxInstaller}" />
+                    <CheckBox Content="{x:Static p:DownloadStrings.Exclude}" IsChecked="{Binding Excluded}" />
+                </WrapPanel>
+            </StackPanel>
+            <Button Grid.Column="1" VerticalAlignment="Bottom" Content="{Binding QueuePauseLabel}"
+                    Command="{Binding ToggleQueuePause}" ToolTip.Tip="{x:Static p:DownloadStrings.QueuePauseHint}" />
+        </Grid>
 
         <Grid Grid.Row="1">
             <ListBox ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}">

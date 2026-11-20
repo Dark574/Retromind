@@ -40,6 +40,7 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
             () => _selectedStore() == DownloadStore.Gog && !QueueUnavailable);
         AddLinuxInstaller = new RelayCommand(() => Enqueue(DownloadKind.OfflineInstaller, "linux"),
             () => _selectedStore() == DownloadStore.Gog && !QueueUnavailable);
+        ToggleQueuePause = new RelayCommand(_manager.ToggleQueuePause, () => !QueueUnavailable);
         Start = Create(DownloadAction.Start, DownloadState.Queued, DownloadState.WaitingForWindow, DownloadState.WaitingForSpace,
             DownloadState.WaitingForGame, DownloadState.Paused);
         Pause = Create(DownloadAction.Pause, DownloadState.Queued, DownloadState.WaitingForWindow,
@@ -65,6 +66,9 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
     public ObservableCollection<Entry> Entries { get; } = [];
     public bool IsEmpty => Entries.Count == 0 && !QueueUnavailable;
     public bool QueueUnavailable => _manager.PersistenceFailed;
+    public string QueuePauseLabel => _manager.IsQueuePaused
+        ? Retromind.Resources.DownloadStrings.ResumeQueue
+        : Retromind.Resources.DownloadStrings.PauseQueue;
     public bool HasSelectedGame => _game != null && _selectedStore() != null;
     public string? SelectedGameTitle => _game?.Title;
     public bool Excluded
@@ -90,6 +94,7 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
     public IRelayCommand AddUpdate { get; }
     public IRelayCommand AddWindowsInstaller { get; }
     public IRelayCommand AddLinuxInstaller { get; }
+    public IRelayCommand ToggleQueuePause { get; }
     public IRelayCommand Start { get; }
     public IRelayCommand Pause { get; }
     public IRelayCommand Resume { get; }
@@ -122,7 +127,8 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
 
     private IRelayCommand Create(DownloadAction action, params DownloadState[] allowed) =>
         new RelayCommand(() => { if (Selected is { } selected) _manager.Change(selected.Job.Id, action); },
-            () => !QueueUnavailable && Selected is { } selected && allowed.Contains(selected.Job.State));
+            () => !QueueUnavailable && (action != DownloadAction.Start || !_manager.IsQueuePaused) &&
+                  Selected is { } selected && allowed.Contains(selected.Job.State));
 
     private void Enqueue(DownloadKind kind, string? platform = null)
     {
@@ -178,6 +184,7 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
 
         OnPropertyChanged(nameof(IsEmpty));
         OnPropertyChanged(nameof(QueueUnavailable));
+        OnPropertyChanged(nameof(QueuePauseLabel));
         Selected = Entries.FirstOrDefault(entry => entry.Job.Id == selectedId) ?? Entries.FirstOrDefault();
         RefreshCommands();
     }
@@ -185,7 +192,7 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
     private void RefreshCommands()
     {
         foreach (var command in new[] { Start, Pause, Resume, Cancel, Retry, Earlier, Later, Install, Repair, Remove,
-                     AddUpdate, AddWindowsInstaller, AddLinuxInstaller })
+                     AddUpdate, AddWindowsInstaller, AddLinuxInstaller, ToggleQueuePause })
             command.NotifyCanExecuteChanged();
     }
 
