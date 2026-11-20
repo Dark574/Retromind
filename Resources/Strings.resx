@@ -1330,6 +1330,8 @@ Existing library files will not be overwritten. Close Retromind and check retrom
 
 Existing library files will not be overwritten during this session. Close Retromind and check the application log and library files.</value>
     </data>
+    <data name="Desktop.MediaViewLoadError" xml:space="preserve"><value>The media view for this category could not be loaded.</value></data>
+    <data name="Desktop.MediaViewRetry" xml:space="preserve"><value>Retry</value></data>
     <data name="Persistence.SettingsLoadFailed" xml:space="preserve">
         <value>Retromind could not load the application settings. The primary file and its backup are unreadable or invalid.
 

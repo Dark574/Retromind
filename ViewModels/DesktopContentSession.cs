@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services;
 
 namespace Retromind.ViewModels;
 
@@ -18,10 +19,11 @@ internal sealed class DesktopContentSession : IDisposable
         MediaNode node, ObservableCollection<MediaNode> roots, bool filterProtected, CancellationToken token);
 
     private readonly BuildProjection _buildProjection;
+    private readonly IErrorService _errorService;
     private readonly Dictionary<string, string> _selectedItemsByNode = new(StringComparer.Ordinal);
     private readonly HashSet<string> _nodesWithClearedSelection = new(StringComparer.Ordinal);
     private CancellationTokenSource? _loadCancellation;
-    private TaskCompletionSource? _loadCompletion;
+    private TaskCompletionSource<bool>? _loadCompletion;
     private string _searchText = string.Empty;
     private bool _onlyFavorites;
     private IReadOnlyCollection<string>? _searchScope;
@@ -30,16 +32,19 @@ internal sealed class DesktopContentSession : IDisposable
     private string? _pendingSearchItemId;
     private bool _disposed;
 
-    internal DesktopContentSession(BuildProjection? buildProjection = null)
+    internal DesktopContentSession(IErrorService errorService, BuildProjection? buildProjection = null)
     {
+        _errorService = errorService;
         _buildProjection = buildProjection ?? DesktopMediaProjectionBuilder.BuildAsync;
     }
 
     internal MediaAreaViewModel? MediaArea { get; private set; }
     internal SearchAreaViewModel? SearchArea { get; private set; }
     internal bool OnlyFavorites => SearchArea?.OnlyFavorites ?? MediaArea?.OnlyFavorites ?? _onlyFavorites;
+    internal bool HasMediaLoadError { get; private set; }
 
     internal event Action<object?>? ContentChanged;
+    internal event Action? MediaLoadErrorChanged;
     internal event Action<MediaItem>? PlayRequested;
     internal event PropertyChangedEventHandler? MediaPropertyChanged;
     internal event PropertyChangedEventHandler? SearchPropertyChanged;
@@ -67,17 +72,19 @@ internal sealed class DesktopContentSession : IDisposable
 
         _loadCancellation = new CancellationTokenSource();
         var token = _loadCancellation.Token;
-        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         _loadCompletion = completion;
 
         return Task.Run(async () =>
         {
+            var phase = "BuildProjection";
             try
             {
                 token.ThrowIfCancellationRequested();
                 var (items, plan) = await _buildProjection(node, roots, filterProtected, token).ConfigureAwait(false);
                 token.ThrowIfCancellationRequested();
 
+                phase = "PublishMediaView";
                 await UiThreadHelper.InvokeAsync(() =>
                 {
                     if (!IsCurrent(completion, token) || getCurrentOptions(node) is not { } options)
@@ -112,29 +119,54 @@ internal sealed class DesktopContentSession : IDisposable
                         return;
 
                     ContentChanged?.Invoke(media);
-                    completion.TrySetResult();
+                    completion.TrySetResult(true);
                 }).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
                 completion.TrySetCanceled();
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"[UpdateContent] Background task failed: {ex}");
-                completion.TrySetResult();
+                try
+                {
+                    var published = await UiThreadHelper.InvokeAsync(() =>
+                    {
+                        if (!IsCurrent(completion, token))
+                            return false;
+
+                        DetachMedia();
+                        ContentChanged?.Invoke(null);
+                        if (!IsCurrent(completion, token))
+                            return false;
+
+                        SetMediaLoadError(true);
+                        return true;
+                    }).ConfigureAwait(false);
+
+                    if (published)
+                        ReportMediaLoadFailure(node, phase, ex);
+                }
+                catch (Exception outputException)
+                {
+                    Debug.WriteLine($"[UpdateContent] Could not surface media load failure: {outputException.GetType().Name}");
+                }
+                finally
+                {
+                    completion.TrySetResult(false);
+                }
             }
         });
     }
 
-    internal async Task AwaitMediaLoadAsync()
+    internal async Task<bool> AwaitMediaLoadAsync()
     {
         if (_loadCompletion?.Task is not { } task)
-            return;
+            return false;
 
         try
         {
-            await task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            return await task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         }
         catch (TimeoutException)
         {
@@ -143,6 +175,8 @@ internal sealed class DesktopContentSession : IDisposable
         catch (OperationCanceledException)
         {
         }
+
+        return false;
     }
 
     internal void OpenSearch(string? returnNodeId, Func<SearchAreaViewModel> createSearch)
@@ -258,7 +292,25 @@ internal sealed class DesktopContentSession : IDisposable
             _selectedItemsByNode.Remove(node.Id);
     }
 
-    private bool IsCurrent(TaskCompletionSource completion, CancellationToken token) =>
+    private void ReportMediaLoadFailure(MediaNode node, string phase, Exception exception)
+    {
+        var context = new Dictionary<string, string>
+        {
+            ["Phase"] = phase,
+            ["ExceptionType"] = exception.GetType().Name
+        };
+        if (Guid.TryParse(node.Id, out var nodeId))
+            context["NodeId"] = nodeId.ToString();
+
+        _errorService.Report(new ErrorReport(
+            "Desktop.MediaViewLoadFailed",
+            ErrorSeverity.Error,
+            nameof(DesktopContentSession),
+            "The desktop media view could not be loaded.",
+            Context: context));
+    }
+
+    private bool IsCurrent(TaskCompletionSource<bool> completion, CancellationToken token) =>
         ReferenceEquals(_loadCompletion, completion) && !token.IsCancellationRequested;
 
     private void CancelMediaLoad()
@@ -268,6 +320,16 @@ internal sealed class DesktopContentSession : IDisposable
         _loadCancellation = null;
         _loadCompletion?.TrySetCanceled();
         _loadCompletion = null;
+        SetMediaLoadError(false);
+    }
+
+    private void SetMediaLoadError(bool value)
+    {
+        if (HasMediaLoadError == value)
+            return;
+
+        HasMediaLoadError = value;
+        MediaLoadErrorChanged?.Invoke();
     }
 
     private void OnPlayRequested(MediaItem item) => PlayRequested?.Invoke(item);

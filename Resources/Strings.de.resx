@@ -1328,6 +1328,8 @@ Die vorhandenen Bibliotheksdateien werden nicht überschrieben. Beende Retromind
 
 Vorhandene Bibliotheksdateien werden in dieser Sitzung nicht überschrieben. Beende Retromind und prüfe das Anwendungsprotokoll sowie die Bibliotheksdateien.</value>
     </data>
+    <data name="Desktop.MediaViewLoadError" xml:space="preserve"><value>Die Medienansicht für diese Kategorie konnte nicht geladen werden.</value></data>
+    <data name="Desktop.MediaViewRetry" xml:space="preserve"><value>Erneut versuchen</value></data>
     <data name="Persistence.SettingsLoadFailed" xml:space="preserve">
         <value>Retromind konnte die Anwendungseinstellungen nicht laden. Die Primärdatei und das Backup sind nicht lesbar oder ungültig.
 

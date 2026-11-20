@@ -74,6 +74,7 @@ public partial class MainWindowViewModel
     public IAsyncRelayCommand OpenSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenSetupSettingsCommand { get; private set; } = null!;
     public IAsyncRelayCommand OpenStatisticsCommand { get; private set; } = null!;
+    public IRelayCommand RetryMediaViewCommand { get; private set; } = null!;
     public IRelayCommand OpenHelpGuidesCommand { get; private set; } = null!;
     public IRelayCommand CloseGettingStartedCommand { get; private set; } = null!;
     public IAsyncRelayCommand CreateFirstCategoryCommand { get; private set; } = null!;
@@ -173,6 +174,7 @@ public partial class MainWindowViewModel
         OpenSettingsCommand = new AsyncRelayCommand(OpenSettingsAsync);
         OpenSetupSettingsCommand = new AsyncRelayCommand(OpenSetupSettingsAsync);
         OpenStatisticsCommand = new AsyncRelayCommand(OpenStatisticsAsync);
+        RetryMediaViewCommand = new RelayCommand(UpdateContent, () => ShowMediaViewLoadError);
         OpenHelpGuidesCommand = new RelayCommand(OpenHelpGuides);
         CloseGettingStartedCommand = new RelayCommand(CloseGettingStarted);
         CreateFirstCategoryCommand = new AsyncRelayCommand(CreateFirstCategoryAsync);
@@ -329,10 +331,12 @@ public partial class MainWindowViewModel
 
         // The branch above always starts exactly one refresh: either explicitly
         // for the current node or through the SelectedNode setter.
-        await AwaitCurrentContentUpdateAsync();
+        if (!await AwaitCurrentContentUpdateAsync())
+            return;
+
         await UiThreadHelper.InvokeAsync(() =>
         {
-            if (SelectedNodeContent is not MediaAreaViewModel mediaViewModel)
+            if (!ReferenceEquals(SelectedNode, targetNode) || _desktopContent.MediaArea is not { } mediaViewModel)
                 return;
 
             var target = mediaViewModel.Node.Items.FirstOrDefault(candidate => candidate.Id == item.Id);
@@ -692,7 +696,8 @@ public partial class MainWindowViewModel
             });
 
             // 3) Wait until the grid (SelectedNodeContent) is actually there.
-            await AwaitCurrentContentUpdateAsync();
+            if (!await AwaitCurrentContentUpdateAsync())
+                return;
 
             // 4) Select item in the grid if we have a concrete item id.
             // Do not rely on LastBigModeWasItemView alone; some themes can end up desyncing it.
@@ -701,7 +706,8 @@ public partial class MainWindowViewModel
 
             await UiThreadHelper.InvokeAsync(() =>
             {
-                if (SelectedNodeContent is not MediaAreaViewModel mediaVm) return;
+                if (!ReferenceEquals(SelectedNode, node) || _desktopContent.MediaArea is not { } mediaVm)
+                    return;
 
                 var item = mediaVm.Node?.Items?.FirstOrDefault(i => i.Id == desiredItemId);
                 if (item != null)

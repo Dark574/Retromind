@@ -56,6 +56,9 @@ Main window is a layered shell:
 - delegates the center view lifecycle to `DesktopContentSession`, which owns the active node or search
   view, its event subscriptions, and cancelable media load requests. Opening search, changing nodes, or
   disposing the session prevents an old request from publishing over the current view
+- a current media view failure clears the old content and enables retry in the center pane. The session
+  reports `Desktop.MediaViewLoadFailed` once per failed attempt with the loading phase, exception type,
+  and category ID when it is a GUID. The media view result is independent of library load and save state.
 - uses `DesktopMediaProjectionBuilder` to snapshot library collections on the UI thread, collect and sort
   items, and plan artwork and music selection. The session applies the plan on the UI thread only after checking
   that the request is still current and the main window still has its node selected

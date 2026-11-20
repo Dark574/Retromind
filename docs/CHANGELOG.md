@@ -18,6 +18,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - no preview loading of images for videos/music/manuals in Media Editor
 - keep recent settings changes when restoring only the library from a metadata backup
 - skip invalid scraped ratings that could prevent the library from saving
+- show a retry option when a category's media view fails to load
 
 ---
 

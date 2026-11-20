@@ -87,7 +87,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // shared HttpClient from DI (timeouts + user-agent, avoids socket churn)
     private readonly HttpClient _httpClient;
     
-    private readonly DesktopContentSession _desktopContent = new();
+    private readonly DesktopContentSession _desktopContent;
     // --- State ---
     private AppSettings _currentSettings;
 
@@ -250,9 +250,14 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    public bool ShowLibraryLoadingHint => IsLibraryLoading && SelectedNodeContent is null;
+    public bool ShowLibraryLoadingHint => IsLibraryLoading && SelectedNodeContent is null && !ShowMediaViewLoadError;
     public bool ShowLibraryLoadError =>
         !IsLibraryLoading && !string.IsNullOrWhiteSpace(LibraryLoadErrorMessage);
+    public bool ShowMediaViewLoadError => _desktopContent.HasMediaLoadError;
+    public string MediaViewLoadErrorMessage => T(
+        "Desktop.MediaViewLoadError",
+        "The media view for this category could not be loaded.");
+    public string RetryMediaViewText => T("Desktop.MediaViewRetry", "Retry");
     public bool ShowSettingsLoadError => !string.IsNullOrWhiteSpace(SettingsLoadErrorMessage);
     public bool ShowStoreBadges => _currentSettings.ShowStoreBadges;
 
@@ -450,6 +455,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _metadataBackupService = metadataBackupService;
         _libraryHealthService = libraryHealthService ?? new LibraryHealthService();
         _errorService = errorService;
+        _desktopContent = new DesktopContentSession(_errorService);
         _fileService = fileService;
         _winetricksService = winetricksService;
         _importService = importService;
@@ -588,6 +594,12 @@ public partial class MainWindowViewModel : ViewModelBase
         
         InitializeCommands();
         _desktopContent.ContentChanged += content => SelectedNodeContent = content;
+        _desktopContent.MediaLoadErrorChanged += () =>
+        {
+            OnPropertyChanged(nameof(ShowMediaViewLoadError));
+            OnPropertyChanged(nameof(ShowLibraryLoadingHint));
+            RetryMediaViewCommand.NotifyCanExecuteChanged();
+        };
         _desktopContent.PlayRequested += OnDesktopPlayRequested;
         _desktopContent.MediaPropertyChanged += OnMediaAreaPropertyChanged;
         _desktopContent.SearchPropertyChanged += OnSearchAreaPropertyChanged;
@@ -669,8 +681,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 SelectedNode = firstVisible;
             }
 
-            // Wait for the first selected node content to be built so the main view
-            // appears quickly and predictably before background warmup starts.
+            // Give the first media view time to load before starting background maintenance.
             await AwaitCurrentContentUpdateAsync();
 
             StartGogUpdateBackgroundLoop();
@@ -880,7 +891,7 @@ public partial class MainWindowViewModel : ViewModelBase
         await AwaitCurrentContentUpdateAsync().ConfigureAwait(false);
     }
 
-    private Task AwaitCurrentContentUpdateAsync() => _desktopContent.AwaitMediaLoadAsync();
+    private Task<bool> AwaitCurrentContentUpdateAsync() => _desktopContent.AwaitMediaLoadAsync();
 
     /// <summary>
     /// Confirms a clean tracked library and a current settings write. Protected/skipped stores,
