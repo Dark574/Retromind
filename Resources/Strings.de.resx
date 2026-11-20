@@ -1695,6 +1695,9 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Downloads.Remove" xml:space="preserve">
     <value>Aus Liste entfernen</value>
   </data>
+  <data name="Downloads.DiscardRepairConfirmationFormat" xml:space="preserve">
+    <value>Reparaturhinweis für „{0}“ verwerfen? Die Installation kann weiterhin unvollständig sein. Spieldateien und Downloads bleiben erhalten.</value>
+  </data>
   <data name="Downloads.ExitBusy" xml:space="preserve">
     <value>Eine Store-Installation oder Wartung läuft. Warte auf den Abschluss, bevor du Retromind schließt oder ein Backup wiederherstellst. Danach kannst du Retromind sicher schließen.</value>
   </data>

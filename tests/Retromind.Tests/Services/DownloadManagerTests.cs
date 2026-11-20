@@ -1,6 +1,7 @@
 using Retromind.Models;
 using Retromind.Services.Downloads;
 using Retromind.Tests.TestInfrastructure;
+using Retromind.ViewModels;
 
 namespace Retromind.Tests.Services;
 
@@ -55,6 +56,57 @@ public sealed class DownloadManagerTests
         Assert.Collection(manager.Snapshot().Select(row => row.Job),
             job => AssertInstallReady(job, oldCancellation.Id, DownloadReason.ManualGogInstallation, payloadReady: true),
             job => Assert.Equal(DownloadState.Cancelled, job.State));
+    }
+
+    [Fact]
+    public async Task RepairNotice_RequiresConfirmationAndCanBeDismissedPermanently()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var repair = Job("missing-game", DownloadState.RepairRequired);
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([repair]);
+        }
+
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException("A repair must require user action."));
+        try
+        {
+            Assert.False(manager.Change(repair.Id, DownloadAction.Remove));
+            AvaloniaTestDispatcher.EnsureStarted();
+            await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                var confirm = false;
+                var prompts = 0;
+                var viewModelTitle = ViewModelBase.T("Downloads.UnavailableGame", "Unavailable game");
+                using var viewModel = new DownloadManagerViewModel(manager, _ => null, null, () => null,
+                    _ => false, (_, _) => { }, message =>
+                    {
+                        Assert.Contains(viewModelTitle, message);
+                        prompts++;
+                        return Task.FromResult(confirm);
+                    });
+                Assert.True(viewModel.Remove.CanExecute(null));
+                await viewModel.Remove.ExecuteAsync(null);
+                Assert.Equal(repair.Id, Assert.Single(manager.Snapshot()).Job.Id);
+
+                confirm = true;
+                await viewModel.Remove.ExecuteAsync(null);
+                Assert.Empty(manager.Snapshot());
+                Assert.Equal(2, prompts);
+                Assert.False(manager.GetQueueStatus().NeedsRepair);
+            });
+        }
+        finally
+        {
+            await manager.StopAsync();
+            manager.Release();
+        }
+
+        using var restored = new DownloadQueueStore(path);
+        Assert.Empty(restored.Load());
     }
 
     [Fact]

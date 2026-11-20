@@ -1693,6 +1693,9 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Downloads.Remove" xml:space="preserve">
     <value>Remove from list</value>
   </data>
+  <data name="Downloads.DiscardRepairConfirmationFormat" xml:space="preserve">
+    <value>Dismiss the repair notice for ‘{0}’? The installation may still be incomplete. Game files and downloads will be kept.</value>
+  </data>
   <data name="Downloads.ExitBusy" xml:space="preserve">
     <value>A store installation or maintenance operation is in progress. Let it finish before closing Retromind or restoring a backup. You can leave Retromind open and close it safely when the operation ends.</value>
   </data>

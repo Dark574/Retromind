@@ -56,6 +56,32 @@ internal static class GogInstallerArchive
         }
     }
 
+    internal static void DeleteArchivedQueuedFilesBestEffort(GogInstallerPackage package,
+        GogDownloadedInstallerPackage downloaded)
+    {
+        var staging = GetStagingDirectory(package);
+        if (!string.Equals(staging, downloaded.StagingDirectory, StringComparison.Ordinal))
+            return;
+
+        try
+        {
+            EnsureSafeDirectory(staging);
+            foreach (var file in downloaded.DownloadedFiles)
+            {
+                if (!string.Equals(staging, Path.GetDirectoryName(file), StringComparison.Ordinal))
+                    continue;
+                EnsureSafeFile(file);
+                File.Delete(file);
+            }
+            if (!Directory.EnumerateFileSystemEntries(staging).Any())
+                Directory.Delete(staging);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The archive has been published. Any remaining staging files can be left in place.
+        }
+    }
+
     internal static string GetRevision(GogInstallerPackage package) =>
         GetRevision(package.Version, GogInstallerFingerprint.BuildSignature(package));
 

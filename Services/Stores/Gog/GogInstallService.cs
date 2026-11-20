@@ -563,13 +563,34 @@ public sealed class GogInstallService
         IProgress<GogInstallerDownloadProgress>? progress,
         DownloadRateLimiter? rateLimiter,
         string? cachedPackageDirectory,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? archiveDirectory = null)
     {
         await _transfer.WaitAsync(ct).ConfigureAwait(false);
         try
         {
+            // Queue staging can be removed after publication while a manual install waits for the transfer lock.
+            if (Directory.Exists(archiveDirectory))
+                cachedPackageDirectory = archiveDirectory;
+            else if (!Directory.Exists(cachedPackageDirectory))
+                cachedPackageDirectory = null;
             return await DownloadInstallerPackageCoreAsync(package, stagingDirectory, progress,
                 rateLimiter, cachedPackageDirectory, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _transfer.Release();
+        }
+    }
+
+    internal async Task ArchiveQueuedPackageAsync(GogInstallerPackage package, string archiveDirectory,
+        GogDownloadedInstallerPackage downloaded, CancellationToken ct)
+    {
+        await _transfer.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            await GogInstallerArchive.PublishAsync(archiveDirectory, downloaded, ct).ConfigureAwait(false);
+            GogInstallerArchive.DeleteArchivedQueuedFilesBestEffort(package, downloaded);
         }
         finally
         {

@@ -107,14 +107,11 @@ public sealed class GogInstallerWorkflowService
         try
         {
             var queuedStaging = GogInstallerArchive.GetStagingDirectory(package);
-            string? cache = Directory.Exists(queuedStaging) ? queuedStaging : null;
             string? archive = null;
             try
             {
                 archive = GogInstallerArchive.GetPackageDirectory(settings, package);
                 GogInstallerArchive.EnsureSeparateFromInstallation(archive, request.InstallPath);
-                if (Directory.Exists(archive))
-                    cache = archive;
             }
             catch (IOException)
             {
@@ -125,7 +122,8 @@ public sealed class GogInstallerWorkflowService
                 ? new DownloadRateLimiter(settings.BytesPerSecond, TimeProvider.System)
                 : null;
             downloadedPackage = await _installService.DownloadInstallerPackageAsync(
-                    package, request.StagingDirectory, CreateDownloadProgress(appendLog), limiter, cache, cancellationToken)
+                    package, request.StagingDirectory, CreateDownloadProgress(appendLog), limiter, queuedStaging,
+                    cancellationToken, archiveDirectory: archive)
                 .ConfigureAwait(false);
 
             if (settings.KeepGogInstallers)

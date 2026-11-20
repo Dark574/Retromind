@@ -25,11 +25,12 @@ internal sealed partial class DesktopDownloadWorkflow
 
         var titles = AllItems().GroupBy(item => item.Id, StringComparer.Ordinal)
             .ToDictionary(group => group.Key, group => group.First().Title, StringComparer.Ordinal);
+        var dialog = new DownloadManagerView();
         var viewModel = new DownloadManagerViewModel(manager,
             id => titles.GetValueOrDefault(id) ?? AllItems().FirstOrDefault(item => item.Id == id)?.Title,
             selected, () => selected == null || workspace.FindParentNode(selected) == null ? null : StoreFor(selected),
-            IsExcluded, SetExcluded);
-        var dialog = new DownloadManagerView { DataContext = viewModel };
+            IsExcluded, SetExcluded, message => DesktopDialogs.ShowConfirmAsync(dialog, message));
+        dialog.DataContext = viewModel;
         _downloadWindow = dialog;
         dialog.Closed += (_, _) =>
         {

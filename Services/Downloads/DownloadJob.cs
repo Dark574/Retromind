@@ -28,7 +28,7 @@ internal sealed record DownloadJob(
 
 internal readonly record struct DownloadProgress(long Bytes, long? Total, double? BytesPerSecond = null, double? Fraction = null);
 internal readonly record struct DownloadOutcome(DownloadState State, DownloadReason Reason = DownloadReason.None, bool PayloadReady = false);
-internal enum DownloadAction { Start, Pause, Resume, Cancel, Retry, Earlier, Later, Install, Repair, Remove }
+internal enum DownloadAction { Start, Pause, Resume, Cancel, Retry, Earlier, Later, Install, Repair, Remove, DiscardRepair }
 
 internal sealed record DownloadExecution(
     DownloadJob Job, DownloadSettings Settings, bool MayInstall,

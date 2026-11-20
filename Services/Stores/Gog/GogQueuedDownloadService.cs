@@ -66,7 +66,7 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
             var downloaded = await installer.DownloadInstallerPackageAsync(package,
                 staging, new TransferProgress(request.Progress), limiter, null, ct).ConfigureAwait(false);
             if (archive != null)
-                await GogInstallerArchive.PublishAsync(archive, downloaded, ct).ConfigureAwait(false);
+                await installer.ArchiveQueuedPackageAsync(package, archive, downloaded, ct).ConfigureAwait(false);
         }
         catch (GogInsufficientDiskSpaceException)
         {

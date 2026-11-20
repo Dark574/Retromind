@@ -30,11 +30,14 @@ with queued installation, covering game sessions that Retromind can still track.
 library item and store game IDs, provider, operation, a hashed update revision and queue state. The store resolves
 authorization and download URLs at execution. Restart returns an interrupted transfer to the queue.
 An interrupted critical installation becomes **Repair required**. The repair action uses Legendary's
-repair pipeline for Epic or opens the existing GOG reinstall workflow.
+repair pipeline for Epic or opens the existing GOG reinstall workflow. **Remove from list** asks for
+confirmation before dismissing a repair notice and preserves the game files and downloads.
 
 GOG resumable files are staged below `State/Downloads/Gog`. The archive uses a separate directory
 per product, platform and version fingerprint. The same GOG package validator checks reused files.
 Archive publication creates a sibling temporary directory and moves it into place on completion.
+After a queued package is published, its completed installer files are removed from queue staging.
+Later installation reuses the archive through a writable staging directory for the installer and its logs.
 Existing archived packages are preserved. The archive destination is checked against symlinks,
 managed staging, the library and the current installation. The existing GOG disk-space assessment
 accounts for staged bytes. An archive or installation on another filesystem gets a separate check.

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -24,7 +25,8 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
     private Entry? _selected;
 
     internal DownloadManagerViewModel(DownloadManagerService manager, Func<string, string?> title, MediaItem? game,
-        Func<DownloadStore?> selectedStore, Func<MediaItem, bool> isExcluded, Action<MediaItem, bool> setExcluded)
+        Func<DownloadStore?> selectedStore, Func<MediaItem, bool> isExcluded, Action<MediaItem, bool> setExcluded,
+        Func<string, Task<bool>> confirmDiscardRepair)
     {
         _manager = manager;
         _title = title;
@@ -53,7 +55,9 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
             DownloadState.WaitingForGame, DownloadState.WaitingForSpace);
         Later = Create(DownloadAction.Later, DownloadState.Queued, DownloadState.Paused, DownloadState.WaitingForWindow,
             DownloadState.WaitingForGame, DownloadState.WaitingForSpace);
-        Remove = Create(DownloadAction.Remove, DownloadState.Completed, DownloadState.Cancelled);
+        Remove = new AsyncRelayCommand(() => RemoveAsync(confirmDiscardRepair),
+            () => !QueueUnavailable && Selected?.Job.State is
+                DownloadState.Completed or DownloadState.Cancelled or DownloadState.RepairRequired);
         _manager.Changed += OnQueueChanged;
         Refresh();
     }
@@ -95,7 +99,26 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
     public IRelayCommand Later { get; }
     public IRelayCommand Install { get; }
     public IRelayCommand Repair { get; }
-    public IRelayCommand Remove { get; }
+    public IAsyncRelayCommand Remove { get; }
+
+    private async Task RemoveAsync(Func<string, Task<bool>> confirmDiscardRepair)
+    {
+        if (Selected is not { } selected)
+            return;
+
+        var id = selected.Job.Id;
+        if (selected.Job.State == DownloadState.RepairRequired)
+        {
+            var format = T("Downloads.DiscardRepairConfirmationFormat",
+                "Dismiss the repair notice for ‘{0}’? The installation may still be incomplete. Game files and downloads will be kept.");
+            var message = string.Format(CultureInfo.CurrentCulture, format, selected.Title);
+            if (await confirmDiscardRepair(message))
+                _manager.Change(id, DownloadAction.DiscardRepair);
+            return;
+        }
+
+        _manager.Change(id, DownloadAction.Remove);
+    }
 
     private IRelayCommand Create(DownloadAction action, params DownloadState[] allowed) =>
         new RelayCommand(() => { if (Selected is { } selected) _manager.Change(selected.Job.Id, action); },

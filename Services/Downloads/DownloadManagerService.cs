@@ -179,6 +179,7 @@ public sealed class DownloadManagerService
                     (next[index + 1], next[index]) = (next[index], next[index + 1]);
                     break;
                 case DownloadAction.Remove when IsHistory(job.State):
+                case DownloadAction.DiscardRepair when job.State == DownloadState.RepairRequired:
                     next.RemoveAt(index);
                     break;
                 case DownloadAction.Pause when IsWaiting(job.State):

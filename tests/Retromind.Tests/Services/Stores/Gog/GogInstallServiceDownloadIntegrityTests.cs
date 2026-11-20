@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Security.Cryptography;
 using System.Text;
+using Retromind.Models;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Security;
@@ -46,6 +47,48 @@ public sealed class GogInstallServiceDownloadIntegrityTests
         Assert.True(parsed);
         Assert.Equal(12345, checksum.TotalSize);
         Assert.Equal(md5.ToUpperInvariant(), checksum.Md5);
+    }
+
+    [Fact]
+    public async Task ArchiveQueuedPackage_ReleasesOnlyArchivedFilesAndLaterInstallReusesArchive()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var payload = Encoding.UTF8.GetBytes("verified installer payload");
+        var package = CreatePackage(catalogSize: payload.Length);
+        var staging = GogInstallerArchive.GetStagingDirectory(package);
+        var archive = GogInstallerArchive.GetPackageDirectory(new DownloadSettings { GogArchiveDirectory = "Offline" }, package);
+        var networkDownloads = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri == ChecksumUri)
+                return ChecksumResponse(payload);
+
+            networkDownloads++;
+            return BytesResponse(payload);
+        }));
+        var service = CreateService(client);
+        var downloaded = await service.DownloadInstallerPackageAsync(package, staging);
+        var unrelated = Path.Combine(staging, "unrelated.part");
+        await File.WriteAllTextAsync(unrelated, "keep");
+
+        await service.ArchiveQueuedPackageAsync(package, archive, downloaded, CancellationToken.None);
+
+        Assert.False(File.Exists(downloaded.EntryFilePath));
+        Assert.Equal("keep", await File.ReadAllTextAsync(unrelated));
+        var archivedFile = Path.Combine(archive, Path.GetFileName(downloaded.EntryFilePath));
+        Assert.Equal(payload, await File.ReadAllBytesAsync(archivedFile));
+
+        var working = await service.DownloadInstallerPackageAsync(package, temp.GetPath("install-staging"),
+            null, null, staging, CancellationToken.None, archiveDirectory: archive);
+        Assert.Equal(1, networkDownloads);
+        Assert.Equal(payload, await File.ReadAllBytesAsync(working.EntryFilePath));
+
+        await File.WriteAllBytesAsync(downloaded.EntryFilePath, payload);
+        await Assert.ThrowsAsync<IOException>(() =>
+            service.ArchiveQueuedPackageAsync(package, archive, downloaded, CancellationToken.None));
+        Assert.Equal(payload, await File.ReadAllBytesAsync(downloaded.EntryFilePath));
+        Assert.Equal(payload, await File.ReadAllBytesAsync(archivedFile));
     }
 
     [Fact]
