@@ -29,7 +29,7 @@ public partial class MainWindowViewModel
     {
         foreach (var item in node.Items)
         {
-            if (CreateInstalledGogSnapshot(item) != null)
+            if (CreateInstalledGogSnapshot(item) is { } snapshot && _gogUpdateChecks.IsAutomaticCheckDue(snapshot))
                 buffer.Add(item);
         }
 
@@ -121,19 +121,10 @@ public partial class MainWindowViewModel
         if (!platform.HasValue)
             return null;
 
-        item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstalledVersion, out var installedVersion);
-        item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstalledInstallerSignature, out var installedSignature);
-
-        DateTimeOffset? lastCheckedUtc = null;
-        if (item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, out var rawLastChecked) &&
-            DateTimeOffset.TryParse(
-                rawLastChecked,
-                CultureInfo.InvariantCulture,
-                DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal,
-                out var parsedLastChecked))
-        {
-            lastCheckedUtc = parsedLastChecked;
-        }
+        var fields = item.CustomFields;
+        fields.TryGetValue(CustomFieldKeyHelper.StoreInstalledVersion, out var installedVersion);
+        fields.TryGetValue(CustomFieldKeyHelper.StoreInstalledInstallerSignature, out var installedSignature);
+        fields.TryGetValue(CustomFieldKeyHelper.StoreUpdateLastStatus, out var lastStatus);
 
         return new GogInstalledSnapshot(
             item.Id,
@@ -151,8 +142,17 @@ public partial class MainWindowViewModel
                     InstalledInstallerSignature = state.InstalledInstallerSignature
                 })
                 .ToArray() ?? Array.Empty<GogDlcInstallationState>(),
-            lastCheckedUtc);
+            ReadGogUpdateTimestamp(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc),
+            ReadGogUpdateTimestamp(fields, CustomFieldKeyHelper.StoreUpdateRetryAfterUtc),
+            lastStatus);
     }
+
+    private static DateTimeOffset? ReadGogUpdateTimestamp(IReadOnlyDictionary<string, string> fields, string key) =>
+        fields.TryGetValue(key, out var value) &&
+        DateTimeOffset.TryParse(value, CultureInfo.InvariantCulture,
+            DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var timestamp)
+            ? timestamp
+            : null;
 
     private async Task ApplyGogUpdateCheckMetadataAsync(MediaItem item, GogUpdateMetadata metadata)
     {
@@ -162,8 +162,13 @@ public partial class MainWindowViewModel
             var hasChanged = false;
 
             hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, metadata.Status);
-            hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc,
-                metadata.CheckedUtc.ToString("O", CultureInfo.InvariantCulture));
+            if (metadata.CheckedUtc is { } checkedUtc)
+                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc,
+                    checkedUtc.ToString("O", CultureInfo.InvariantCulture));
+
+            hasChanged |= metadata.RetryAfterUtc is { } retryAfter
+                ? SetField(fields, CustomFieldKeyHelper.StoreUpdateRetryAfterUtc, retryAfter.ToString("O", CultureInfo.InvariantCulture))
+                : fields.Remove(CustomFieldKeyHelper.StoreUpdateRetryAfterUtc);
 
             if (metadata.UpdateAvailable is { } available)
                 hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, available ? "true" : "false");
@@ -216,6 +221,7 @@ public partial class MainWindowViewModel
         SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, "false");
         SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, "up_to_date");
         SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+        fields.Remove(CustomFieldKeyHelper.StoreUpdateRetryAfterUtc);
         item.CustomFields = fields;
     }
 }

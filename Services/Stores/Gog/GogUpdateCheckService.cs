@@ -27,13 +27,24 @@ internal sealed record GogInstalledSnapshot(
     string? InstalledVersion,
     string? InstalledSignature,
     IReadOnlyList<GogDlcInstallationState> InstalledDlcs,
-    DateTimeOffset? LastCheckedUtc);
+    DateTimeOffset? LastCheckedUtc,
+    DateTimeOffset? RetryAfterUtc = null,
+    string? LastStatus = null);
 
-internal sealed record GogUpdateMetadata(string Status, bool? UpdateAvailable, DateTimeOffset CheckedUtc);
+internal sealed record GogUpdateMetadata(
+    string Status, bool? UpdateAvailable, DateTimeOffset? CheckedUtc, DateTimeOffset? RetryAfterUtc = null);
 
 internal sealed class GogUpdateCheckService
 {
-    private static readonly TimeSpan SweepInterval = TimeSpan.FromHours(24);
+    private const string AuthMissingStatus = "auth_missing";
+    private const string InstallerUnknownStatus = "unknown";
+    private const string ErrorStatus = "error";
+
+    private static readonly TimeSpan CheckInterval = TimeSpan.FromHours(24);
+    private static readonly TimeSpan BackgroundSweepInterval = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan FailedCheckRetryInterval = TimeSpan.FromMinutes(15);
+    private static readonly TimeSpan MissingAuthRetryInterval = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan UnknownInstallerRetryInterval = TimeSpan.FromHours(1);
     private static readonly TimeSpan AuthCacheTtl = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan PerItemDelay = TimeSpan.FromSeconds(2);
 
@@ -43,10 +54,10 @@ internal sealed class GogUpdateCheckService
     private readonly TimeProvider _timeProvider;
     private readonly object _inFlightLock = new();
     private readonly HashSet<string> _checksInFlight = new(StringComparer.Ordinal);
-    private readonly SemaphoreSlim _sweepSemaphore = new(1, 1);
     private readonly SemaphoreSlim _authSemaphore = new(1, 1);
+    private readonly object _loopLock = new();
     private CancellationTokenSource? _loopCts;
-    private Task? _loopTask;
+    private Task _loopTask = Task.CompletedTask;
     private DateTimeOffset _authCacheValidUntilUtc = DateTimeOffset.MinValue;
     private bool _authAvailableCached;
 
@@ -71,21 +82,43 @@ internal sealed class GogUpdateCheckService
         Func<Task<IReadOnlyList<MediaItem>>> getCandidates,
         Func<MediaItem, CancellationToken, Task<GogUpdateResult>> checkCandidate)
     {
-        if (_loopTask is { IsCompleted: false })
-            return;
+        lock (_loopLock)
+        {
+            if (_loopCts is { IsCancellationRequested: false })
+                return;
 
-        StopBackgroundChecks();
-        _loopCts = new CancellationTokenSource();
-        var token = _loopCts.Token;
-        _loopTask = Task.Run(() => RunBackgroundLoopAsync(getCandidates, checkCandidate, token));
+            var previousLoop = _loopTask;
+            var cancellation = new CancellationTokenSource();
+            _loopCts = cancellation;
+            _loopTask = Task.Run(async () =>
+            {
+                try
+                {
+                    await previousLoop.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+                    await RunBackgroundLoopAsync(getCandidates, checkCandidate, cancellation.Token)
+                        .ConfigureAwait(false);
+                }
+                finally
+                {
+                    lock (_loopLock)
+                    {
+                        if (ReferenceEquals(_loopCts, cancellation))
+                            _loopCts = null;
+                        cancellation.Dispose();
+                    }
+                }
+            });
+        }
     }
 
-    internal void StopBackgroundChecks()
+    internal Task StopBackgroundChecksAsync()
     {
-        _loopCts?.Cancel();
-        _loopCts?.Dispose();
-        _loopCts = null;
-        _loopTask = null;
+        lock (_loopLock)
+        {
+            var stoppedLoop = _loopTask;
+            _loopCts?.Cancel();
+            return stoppedLoop;
+        }
     }
 
     private async Task RunBackgroundLoopAsync(
@@ -99,7 +132,7 @@ internal sealed class GogUpdateCheckService
             {
                 await RunSweepAsync(getCandidates, checkCandidate, ct).ConfigureAwait(false);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 break;
             }
@@ -110,7 +143,7 @@ internal sealed class GogUpdateCheckService
 
             try
             {
-                await Task.Delay(SweepInterval, _timeProvider, ct).ConfigureAwait(false);
+                await Task.Delay(BackgroundSweepInterval, _timeProvider, ct).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -124,28 +157,37 @@ internal sealed class GogUpdateCheckService
         Func<MediaItem, CancellationToken, Task<GogUpdateResult>> checkCandidate,
         CancellationToken ct)
     {
-        if (!await _sweepSemaphore.WaitAsync(0, ct).ConfigureAwait(false))
-            return;
-
-        try
+        var candidates = await getCandidates().ConfigureAwait(false);
+        foreach (var item in candidates)
         {
-            var candidates = await getCandidates().ConfigureAwait(false);
-            foreach (var item in candidates)
+            ct.ThrowIfCancellationRequested();
+            var result = await checkCandidate(item, ct).ConfigureAwait(false);
+            if (result is GogUpdateResult.UpToDate or GogUpdateResult.UpdateAvailable
+                or GogUpdateResult.NoBaseline or GogUpdateResult.Failed)
             {
-                ct.ThrowIfCancellationRequested();
-                var result = await checkCandidate(item, ct).ConfigureAwait(false);
-                if (result is GogUpdateResult.UpToDate or GogUpdateResult.UpdateAvailable
-                    or GogUpdateResult.NoBaseline or GogUpdateResult.Failed)
-                {
-                    await Task.Delay(PerItemDelay, _timeProvider, ct).ConfigureAwait(false);
-                }
+                await Task.Delay(PerItemDelay, _timeProvider, ct).ConfigureAwait(false);
             }
         }
-        finally
-        {
-            _sweepSemaphore.Release();
-        }
     }
+
+    internal bool IsAutomaticCheckDue(GogInstalledSnapshot snapshot)
+    {
+        var now = _timeProvider.GetUtcNow();
+        if (snapshot.RetryAfterUtc is { } retryAfter)
+            return now >= retryAfter;
+
+        // Older records used LastCheckedUtc for failures as well.
+        return snapshot.LastCheckedUtc is not { } lastChecked ||
+               now - lastChecked >= GetCheckInterval(snapshot.LastStatus);
+    }
+
+    private static TimeSpan GetCheckInterval(string? status) => status switch
+    {
+        AuthMissingStatus => MissingAuthRetryInterval,
+        InstallerUnknownStatus => UnknownInstallerRetryInterval,
+        ErrorStatus => FailedCheckRetryInterval,
+        _ => CheckInterval
+    };
 
     internal async Task<GogUpdateResult> CheckAsync(
         GogInstalledSnapshot? snapshot,
@@ -157,11 +199,8 @@ internal sealed class GogUpdateCheckService
         if (snapshot == null)
             return GogUpdateResult.NotApplicable;
 
-        if (!force && snapshot.LastCheckedUtc is { } lastChecked &&
-            _timeProvider.GetUtcNow() - lastChecked < SweepInterval)
-        {
+        if (!force && !IsAutomaticCheckDue(snapshot))
             return GogUpdateResult.NotDue;
-        }
 
         lock (_inFlightLock)
         {
@@ -169,16 +208,23 @@ internal sealed class GogUpdateCheckService
                 return GogUpdateResult.InFlight;
         }
 
-        Task PublishAsync(string status, bool? available = null) =>
-            publishMetadata(new GogUpdateMetadata(status, available, _timeProvider.GetUtcNow()));
+        Task PublishAsync(GogUpdateMetadata metadata)
+        {
+            ct.ThrowIfCancellationRequested();
+            return publishMetadata(metadata);
+        }
+
+        async Task<GogUpdateResult> PublishRetryAsync(GogUpdateResult result, string status)
+        {
+            var retryAfter = _timeProvider.GetUtcNow() + GetCheckInterval(status);
+            await PublishAsync(new GogUpdateMetadata(status, null, null, retryAfter)).ConfigureAwait(false);
+            return result;
+        }
 
         try
         {
             if (!await EnsureAuthAsync(forceRefresh: false, ct).ConfigureAwait(false))
-            {
-                await PublishAsync("auth_missing").ConfigureAwait(false);
-                return GogUpdateResult.NoAuth;
-            }
+                return await PublishRetryAsync(GogUpdateResult.NoAuth, AuthMissingStatus).ConfigureAwait(false);
 
             GogInstallerPackage? remotePackage;
             try
@@ -189,17 +235,14 @@ internal sealed class GogUpdateCheckService
             catch (Exception ex) when (GogInstallService.IsLikelyAuthenticationIssue(ex))
             {
                 if (!await EnsureAuthAsync(forceRefresh: true, ct).ConfigureAwait(false))
-                    return GogUpdateResult.NoAuth;
+                    return await PublishRetryAsync(GogUpdateResult.NoAuth, AuthMissingStatus).ConfigureAwait(false);
 
                 remotePackage = await _resolveInstallerPackage(snapshot.StoreGameId, snapshot.Platform, ct)
                     .ConfigureAwait(false);
             }
 
             if (remotePackage == null)
-            {
-                await PublishAsync("unknown").ConfigureAwait(false);
-                return GogUpdateResult.Failed;
-            }
+                return await PublishRetryAsync(GogUpdateResult.Failed, InstallerUnknownStatus).ConfigureAwait(false);
 
             await RefreshDlcAvailabilityAsync(snapshot, publishDlcAvailability, ct).ConfigureAwait(false);
 
@@ -209,7 +252,8 @@ internal sealed class GogUpdateCheckService
             var hasSignature = !string.IsNullOrWhiteSpace(snapshot.InstalledSignature);
             if (!hasVersion && !hasSignature)
             {
-                await PublishAsync("unknown", false).ConfigureAwait(false);
+                await PublishAsync(new GogUpdateMetadata("no_baseline", false, _timeProvider.GetUtcNow()))
+                    .ConfigureAwait(false);
                 return GogUpdateResult.NoBaseline;
             }
 
@@ -220,18 +264,18 @@ internal sealed class GogUpdateCheckService
                 snapshot.InstalledSignature, remoteSignature, StringComparison.OrdinalIgnoreCase);
             var available = versionChanged || signatureChanged;
 
-            await PublishAsync(available ? "available" : "up_to_date", available).ConfigureAwait(false);
+            await PublishAsync(new GogUpdateMetadata(
+                available ? "available" : "up_to_date", available, _timeProvider.GetUtcNow())).ConfigureAwait(false);
             return available ? GogUpdateResult.UpdateAvailable : GogUpdateResult.UpToDate;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"[GOG] Update check failed for item '{snapshot.ItemId}': {ex.Message}");
-            await PublishAsync("error").ConfigureAwait(false);
-            return GogUpdateResult.Failed;
+            return await PublishRetryAsync(GogUpdateResult.Failed, ErrorStatus).ConfigureAwait(false);
         }
         finally
         {
@@ -243,6 +287,7 @@ internal sealed class GogUpdateCheckService
     private async Task RefreshDlcAvailabilityAsync(
         GogInstalledSnapshot snapshot, Func<bool, Task> publishDlcAvailability, CancellationToken ct)
     {
+        ct.ThrowIfCancellationRequested();
         if (snapshot.InstalledDlcs.Count == 0)
         {
             await publishDlcAvailability(false).ConfigureAwait(false);
@@ -252,10 +297,11 @@ internal sealed class GogUpdateCheckService
         try
         {
             var catalog = await _getOwnedDlcCatalog(snapshot.StoreGameId, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
             var available = GogDlcUpdateComparer.HasUpdate(snapshot.InstalledDlcs, catalog, snapshot.Platform);
             await publishDlcAvailability(available).ConfigureAwait(false);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
             throw;
         }
@@ -282,7 +328,7 @@ internal sealed class GogUpdateCheckService
                 if (!authenticated)
                     authenticated = await _authProvider.TryRefreshSessionAsync(ct).ConfigureAwait(false);
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
             {
                 Debug.WriteLine($"[GOG] Silent auth check for updates failed: {ex.Message}");
                 authenticated = false;

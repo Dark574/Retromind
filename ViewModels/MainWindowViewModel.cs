@@ -1017,7 +1017,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RetroAchievementsProgress.Dispose();
 
-        _gogUpdateChecks.StopBackgroundChecks();
+        _ = _gogUpdateChecks.StopBackgroundChecksAsync();
         
         _gamepadService.OnExitBigMode -= _onControllerExitRequested;
         _gamepadService.OnSessionExitRequested -= _onSessionExitRequested;

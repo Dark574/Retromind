@@ -477,7 +477,8 @@ public sealed class GogInstallService
             CustomFieldKeyHelper.StoreInstalledVersion,
             CustomFieldKeyHelper.StoreInstalledInstallerSignature,
             CustomFieldKeyHelper.StoreUpdateLastStatus,
-            CustomFieldKeyHelper.StoreUpdateLastCheckedUtc
+            CustomFieldKeyHelper.StoreUpdateLastCheckedUtc,
+            CustomFieldKeyHelper.StoreUpdateRetryAfterUtc
         };
 
         // Reassign the dictionary to trigger INotifyPropertyChanged.

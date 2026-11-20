@@ -65,7 +65,7 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
 - Performance/UX:
   - owned-games fetch is cached in-memory for a short TTL to avoid repeated full pagination on consecutive imports
   - long-running GOG import/picker preparation shows wait cursor feedback
-  - background update sweep runs throttled (24h interval, per-item delays) with auth-state caching and in-flight guards
+  - background update checks use per-item due times and pacing with auth-state caching and in-flight guards
 - Optional GOG Galaxy services:
   - completed, directly tracked sessions of linked GOG games are submitted to the gameplay API in whole minutes
   - sub-minute, canceled, delegated, and test launches are not submitted
@@ -117,10 +117,13 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - closing the log window during an operation triggers cancellation
     - staging data (including partial `.part` downloads) is preserved after cancellation for seamless resume
 - Update check/install wiring:
-  - automatic non-interactive update checks on selection, respecting the persisted 24-hour check interval
-  - automatic full-library sweep over due installed GOG titles every 24h
+  - automatic non-interactive checks on selection and a five-minute sweep for due installed GOG titles
+  - completed checks have a 24-hour interval. The next attempt is due after 15 minutes for a failed installer
+    request, 30 minutes without a usable session, or one hour if the installer could not be found
   - Secret Service authentication checks are serialized and executable availability probing never opens the wallet
-  - update availability flag persisted in custom fields (`Store.UpdateAvailable`, `Store.LastUpdateCheckUtc`, `Store.LastUpdateCheckStatus`)
+  - `Store.UpdateAvailable` retains the last known result. `Store.LastUpdateCheckUtc` records the last
+    completed check, while `Store.LastUpdateCheckStatus` and `Store.UpdateRetryAfterUtc` track the latest
+    outcome and any pending retry
   - a cover indicator is shown in the media grid and global search when an update is available
   - update actions in the item context menu and media editor run the existing installer flow
   - after a successful main-game update, every DLC previously installed through Retromind is reapplied with
@@ -351,7 +354,7 @@ because skipping its installer would not remove the existing payload.
   - `Install` (not installed)
   - `Play` (installed, regardless of update state)
 - A detected update enables the dedicated update actions and the cover indicator.
-- Automatic checks run on item selection and via background full sweep (24h interval).
+- Automatic checks run on item selection and through a background sweep that checks which items are due every five minutes.
 
 ### 6) Edge cases to handle
 

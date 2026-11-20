@@ -1108,6 +1108,10 @@ the report never mutates JSON or deletes files.
   compares installed snapshots with the remote base-game and DLC packages. The main window captures snapshots,
   applies results on the UI thread, marks the library dirty, and owns the manual result dialog. Catalog failures
   leave the last known DLC update state intact; the installer fingerprint format is shared with installation.
+  The background sweep looks for due checks every five minutes. Completed checks are due after 24 hours.
+  A failed installer request, unavailable session, or missing installer sets a separate retry deadline of
+  15 minutes, 30 minutes, or one hour respectively. Older records use their status and existing timestamp
+  to determine the next check. Each new background loop waits for the previous loop to finish unwinding.
 - Epic's native provider boundary uses the Legendary CLI as an isolated backend. Executable discovery prefers the
   Retromind-managed copy before AppImage and host installations, arguments are passed without a shell, and each
   process receives a dedicated `LEGENDARY_CONFIG_PATH` below `Tools/Legendary/Data`. Legendary's account state,
