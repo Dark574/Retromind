@@ -227,10 +227,10 @@ internal static class ScrapedMetadataApplier
         Action<double> applyValue,
         ScraperExistingDataMode mode)
     {
-        if (!incomingValue.HasValue)
+        if (incomingValue is not { } rating || !double.IsFinite(rating))
             return false;
 
-        var incoming = Math.Clamp(incomingValue.Value, 0d, 100d);
+        var incoming = Math.Clamp(rating, 0d, 100d);
         var hasCurrent = currentValue > 0d;
         if (!hasCurrent)
         {

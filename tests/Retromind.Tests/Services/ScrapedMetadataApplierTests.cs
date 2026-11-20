@@ -54,6 +54,22 @@ public sealed class ScrapedMetadataApplierTests
     }
 
     [Theory]
+    [InlineData(double.NaN, 0d, ScraperExistingDataMode.OnlyMissing)]
+    [InlineData(double.NaN, 75d, ScraperExistingDataMode.OverwriteAlways)]
+    [InlineData(double.PositiveInfinity, 75d, ScraperExistingDataMode.OverwriteAlways)]
+    [InlineData(double.NegativeInfinity, 75d, ScraperExistingDataMode.OverwriteAlways)]
+    public void Apply_IgnoresNonFiniteRatings(
+        double incomingRating, double currentRating, ScraperExistingDataMode mode)
+    {
+        var item = new MediaItem { Rating = currentRating };
+        var result = new ScraperSearchResult { Rating = incomingRating };
+        var settings = new ScraperImportSettings { ExistingDataMode = mode, ImportSource = false };
+
+        Assert.False(ScrapedMetadataApplier.Apply(item, result, settings));
+        Assert.Equal(currentRating, item.Rating);
+    }
+
+    [Theory]
     [InlineData(ScraperExistingDataMode.OnlyMissing, "Original")]
     [InlineData(ScraperExistingDataMode.OverwriteAlways, "Updated")]
     public void Apply_MergesCustomFieldsWithoutClearingUnrelatedValues(
