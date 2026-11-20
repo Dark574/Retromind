@@ -412,6 +412,24 @@ internal sealed partial class LegendaryCliClient
             !string.Equals(installed.Version, available.Version, StringComparison.Ordinal));
     }
 
+    internal async Task<IReadOnlyDictionary<string, LegendaryUpdateStatus>> GetUpdateStatusesAsync(CancellationToken ct)
+    {
+        var installedGames = await GetInstalledGamesAsync(checkForUpdates: true, ct).ConfigureAwait(false);
+        var catalog = (await GetGamesAsync(ct).ConfigureAwait(false)).ToDictionary(game => game.AppName, StringComparer.Ordinal);
+        var statuses = new Dictionary<string, LegendaryUpdateStatus>(StringComparer.Ordinal);
+        foreach (var installed in installedGames)
+        {
+            if (!installed.IsDlc && !string.IsNullOrWhiteSpace(installed.Version) &&
+                catalog.TryGetValue(installed.AppName, out var game) && !string.IsNullOrWhiteSpace(game.Version))
+            {
+                statuses[installed.AppName] = new LegendaryUpdateStatus(installed.Version, game.Version,
+                    !string.Equals(installed.Version, game.Version, StringComparison.Ordinal));
+            }
+        }
+
+        return statuses;
+    }
+
     private async Task<IReadOnlyList<LegendaryInstalledGame>> GetInstalledGamesAsync(
         bool checkForUpdates,
         CancellationToken ct)
@@ -470,7 +488,8 @@ internal sealed partial class LegendaryCliClient
         string installPath,
         Action<string>? outputReceived = null,
         CancellationToken ct = default,
-        bool repair = false)
+        bool repair = false,
+        bool updateOnly = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(appName);
         ArgumentException.ThrowIfNullOrWhiteSpace(installPath);
@@ -482,12 +501,21 @@ internal sealed partial class LegendaryCliClient
         if (string.IsNullOrWhiteSpace(basePath) || string.IsNullOrWhiteSpace(gameFolder))
             throw new ArgumentException("The Legendary install path must point to a game directory.", nameof(installPath));
 
-        await RemoveStaleInstallRegistrationAsync(
-                normalizedAppName,
-                fullInstallPath,
-                outputReceived,
-                ct)
-            .ConfigureAwait(false);
+        if (updateOnly)
+        {
+            var registered = (await GetInstalledGamesAsync(ct).ConfigureAwait(false)).FirstOrDefault(
+                game => game.AppName == normalizedAppName && !game.IsDlc);
+            if (registered == null ||
+                !string.Equals(registered.Platform, "Windows", StringComparison.OrdinalIgnoreCase) ||
+                !FileSystemPathIdentity.Equals(Path.TrimEndingDirectorySeparator(Path.GetFullPath(registered.InstallPath)), fullInstallPath))
+                throw new LegendaryCliException("The managed game no longer matches its Legendary installation.");
+        }
+        else
+        {
+            await RemoveStaleInstallRegistrationAsync(
+                    normalizedAppName, fullInstallPath, outputReceived, ct)
+                .ConfigureAwait(false);
+        }
 
         Directory.CreateDirectory(basePath);
         var installArguments = new List<string>
@@ -506,6 +534,8 @@ internal sealed partial class LegendaryCliClient
         };
         if (repair)
             installArguments.Add("--repair");
+        if (updateOnly)
+            installArguments.Add("--update-only");
 
         await ExecuteAsync(
                 new LegendaryCliCommand(

@@ -463,6 +463,36 @@ public sealed class LegendaryCliClientTests
             command => Assert.Equal(["list-installed", "--json"], command.Arguments));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task InstallAsync_UpdateOnlyNeverReplacesAnUnmatchedRegistration(bool samePath)
+    {
+        using var temp = new TempDirectory();
+        var installPath = Path.Combine(temp.RootPath, "Game");
+        var registeredPath = samePath ? installPath : Path.Combine(temp.RootPath, "Different");
+        var registration = $$"""
+            [{"app_name":"Game","install_path":{{JsonSerializer.Serialize(registeredPath)}},"version":"1","platform":"Windows"}]
+            """;
+        var runner = new FakeProcessRunner(
+            new LegendaryCliResult(0, registration, ""),
+            new LegendaryCliResult(0, "", ""),
+            new LegendaryCliResult(0, registration.Replace("\"1\"", "\"2\""), ""));
+        var client = new LegendaryCliClient(runner);
+
+        if (!samePath)
+        {
+            await Assert.ThrowsAsync<LegendaryCliException>(() => client.InstallAsync("Game", installPath, updateOnly: true));
+            Assert.Equal(["list-installed", "--json"], Assert.Single(runner.Commands).Arguments);
+            return;
+        }
+
+        var installed = await client.InstallAsync("Game", installPath, updateOnly: true);
+
+        Assert.Equal("2", installed.Version);
+        Assert.Contains("--update-only", runner.Commands[1].Arguments);
+    }
+
     [Fact]
     public async Task InstallAsync_AcceptsEquivalentPathWithTrailingDirectorySeparator()
     {

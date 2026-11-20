@@ -12,6 +12,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Linq;
+using Retromind.Services.Downloads;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services.Stores.Gog.Auth;
@@ -81,7 +82,10 @@ public sealed record GogInstallerDownloadProgress(
     long BytesDownloadedCurrentFile,
     long? BytesTotalCurrentFile,
     long BytesDownloadedOverall,
-    long? BytesTotalOverall);
+    long? BytesTotalOverall)
+{
+    internal long NetworkBytesOverall { get; init; }
+}
 
 public sealed record GogPlayTaskInfo(
     string Path,
@@ -101,6 +105,7 @@ public sealed class GogInstallService
     private readonly HttpClient _downloadHttpClient;
     private readonly long _maxInstallerFileDownloadBytes;
     private readonly int _maxChecksumMetadataBytes;
+    private readonly SemaphoreSlim _transfer = new(1, 1);
 
     public GogInstallService(
         GogAuthService authService,
@@ -545,11 +550,40 @@ public sealed class GogInstallService
         }
     }
 
-    public async Task<GogDownloadedInstallerPackage> DownloadInstallerPackageAsync(
+    public Task<GogDownloadedInstallerPackage> DownloadInstallerPackageAsync(
         GogInstallerPackage package,
         string stagingDirectory,
         IProgress<GogInstallerDownloadProgress>? progress = null,
-        CancellationToken ct = default)
+        CancellationToken ct = default) =>
+        DownloadInstallerPackageAsync(package, stagingDirectory, progress, null, null, ct);
+
+    internal async Task<GogDownloadedInstallerPackage> DownloadInstallerPackageAsync(
+        GogInstallerPackage package,
+        string stagingDirectory,
+        IProgress<GogInstallerDownloadProgress>? progress,
+        DownloadRateLimiter? rateLimiter,
+        string? cachedPackageDirectory,
+        CancellationToken ct)
+    {
+        await _transfer.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await DownloadInstallerPackageCoreAsync(package, stagingDirectory, progress,
+                rateLimiter, cachedPackageDirectory, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _transfer.Release();
+        }
+    }
+
+    private async Task<GogDownloadedInstallerPackage> DownloadInstallerPackageCoreAsync(
+        GogInstallerPackage package,
+        string stagingDirectory,
+        IProgress<GogInstallerDownloadProgress>? progress,
+        DownloadRateLimiter? rateLimiter,
+        string? cachedPackageDirectory,
+        CancellationToken ct)
     {
         if (package == null)
             throw new ArgumentNullException(nameof(package));
@@ -557,10 +591,13 @@ public sealed class GogInstallService
         if (string.IsNullOrWhiteSpace(stagingDirectory))
             throw new ArgumentException("Staging directory is required.", nameof(stagingDirectory));
 
+        GogInstallerArchive.EnsureSafeDirectory(stagingDirectory);
+        var fileNames = GogInstallerArchive.GetSafeFileNames(package);
         Directory.CreateDirectory(stagingDirectory);
 
         var downloadedFiles = new List<string>(package.Files.Count);
         var perFileDownloaded = new long[package.Files.Count];
+        var transferredBytes = 0L;
         var hasKnownOverallTotal = package.Files.Count > 0 && package.Files.All(f => f.Size.HasValue && f.Size.Value > 0);
         long? overallTotalBytes = hasKnownOverallTotal
             ? package.Files.Sum(f => f.Size!.Value)
@@ -571,7 +608,7 @@ public sealed class GogInstallService
             ct.ThrowIfCancellationRequested();
 
             var file = package.Files[index];
-            var safeName = GogInstallerStagingPathHelper.SanitizeFileName(file.FileName);
+            var safeName = fileNames[index];
             var targetPath = Path.Combine(stagingDirectory, safeName);
             await DownloadFileWithResumeAsync(
                 file,
@@ -588,8 +625,14 @@ public sealed class GogInstallService
                         perFileDownloaded[index],
                         file.Size,
                         overallDownloadedBytes,
-                        overallTotalBytes));
+                        overallTotalBytes)
+                    {
+                        NetworkBytesOverall = transferredBytes
+                    });
                 },
+                bytes => transferredBytes = StoreDiskSpaceHelper.SaturatingAdd(transferredBytes, bytes),
+                rateLimiter,
+                cachedPackageDirectory == null ? null : Path.Combine(cachedPackageDirectory, safeName),
                 ct).ConfigureAwait(false);
             downloadedFiles.Add(targetPath);
         }
@@ -720,8 +763,13 @@ public sealed class GogInstallService
         GogInstallerDownloadFile file,
         string targetPath,
         Action<long>? reportProgress,
+        Action<int> countNetworkBytes,
+        DownloadRateLimiter? rateLimiter,
+        string? cachedFile,
         CancellationToken ct)
     {
+        GogInstallerArchive.EnsureSafeFile(targetPath);
+        GogInstallerArchive.EnsureSafeFile(targetPath + ".part");
         var hasChecksumReference = !string.IsNullOrWhiteSpace(file.ChecksumUrl);
         var checksum = await TryGetDownloadChecksumAsync(file.ChecksumUrl, ct).ConfigureAwait(false);
         var catalogSize = file.Size is > 0 ? file.Size : null;
@@ -744,6 +792,20 @@ public sealed class GogInstallService
             }
 
             File.Delete(targetPath);
+        }
+
+        if (cachedFile != null && (expectedSize.HasValue || expectedMd5 != null) &&
+            (!hasChecksumReference || checksum != null))
+        {
+            GogInstallerArchive.EnsureSafeFile(cachedFile);
+            if (await IsDownloadedFileValidAsync(cachedFile, expectedSize, expectedMd5, ct).ConfigureAwait(false))
+            {
+                var length = new FileInfo(cachedFile).Length;
+                GogInstallSpaceService.EnsureDownloadCanFit(targetPath, length);
+                await GogInstallerArchive.CopyFileAsync(cachedFile, targetPath, ct).ConfigureAwait(false);
+                reportProgress?.Invoke(length);
+                return;
+            }
         }
 
         var partPath = targetPath + ".part";
@@ -851,7 +913,12 @@ public sealed class GogInstallService
                     responseLength,
                     maximumTotalBytes,
                     file.FileName);
-                GogInstallSpaceService.EnsureDownloadCanFit(targetPath, responseLength);
+                var plannedLength = responseLength ?? (expectedSize.HasValue
+                    ? Math.Max(0, expectedSize.Value - responseStart)
+                    : (long?)null);
+                const long spaceRecheckInterval = 8 * 1024 * 1024;
+                GogInstallSpaceService.EnsureDownloadCanFit(targetPath, plannedLength ?? spaceRecheckInterval);
+                var bytesUntilSpaceCheck = spaceRecheckInterval;
 
                 await using var source = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
                 bytesWritten = responseStart;
@@ -881,8 +948,20 @@ public sealed class GogInstallService
                             maximumTotalBytes);
                     }
 
+                    if (!plannedLength.HasValue)
+                    {
+                        bytesUntilSpaceCheck -= bytesRead;
+                        if (bytesUntilSpaceCheck <= 0)
+                        {
+                            GogInstallSpaceService.EnsureDownloadCanFit(targetPath, spaceRecheckInterval);
+                            bytesUntilSpaceCheck = spaceRecheckInterval;
+                        }
+                    }
+                    if (rateLimiter != null)
+                        await rateLimiter.WaitAsync(bytesRead, ct).ConfigureAwait(false);
                     await destination.WriteAsync(buffer.AsMemory(0, bytesRead), ct).ConfigureAwait(false);
                     bytesWritten += bytesRead;
+                    countNetworkBytes(bytesRead);
                     reportProgress?.Invoke(bytesWritten);
                 }
             }
@@ -1118,6 +1197,29 @@ public sealed class GogInstallService
             XmlResolver = null,
             MaxCharactersInDocument = MaxChecksumMetadataBytes
         };
+
+    internal async Task<bool> ValidateArchivedPackageAsync(
+        GogInstallerPackage package, string directory, CancellationToken ct)
+    {
+        if (!Directory.Exists(directory))
+            return false;
+        GogInstallerArchive.EnsureSafeDirectory(directory);
+        var names = GogInstallerArchive.GetSafeFileNames(package);
+        for (var index = 0; index < names.Length; index++)
+        {
+            var path = Path.Combine(directory, names[index]);
+            GogInstallerArchive.EnsureSafeFile(path);
+            var file = package.Files[index];
+            var checksum = await TryGetDownloadChecksumAsync(file.ChecksumUrl, ct).ConfigureAwait(false);
+            if ((!string.IsNullOrWhiteSpace(file.ChecksumUrl) && checksum == null) ||
+                checksum == null && file.Size is not > 0 ||
+                !await IsDownloadedFileValidAsync(path, checksum?.TotalSize ?? file.Size, checksum?.Md5, ct)
+                    .ConfigureAwait(false))
+                return false;
+        }
+
+        return true;
+    }
 
     private static async Task<bool> IsDownloadedFileValidAsync(
         string path,

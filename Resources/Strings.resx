@@ -1642,4 +1642,193 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
     <data name="NodeAssets.RecoveryRequired" xml:space="preserve"><value>Manual recovery is required. Preserve files at: {0}</value></data>
     <data name="NodeAssets.MoveRecoveryRequired" xml:space="preserve"><value>Category move failed. Manual recovery is required. Preserve files at (relative to the data directory): {0}</value></data>
     <data name="SearchScope.BuildFailed" xml:space="preserve"><value>The search categories could not be loaded. Your previous selection has been preserved. Close this dialog and check the diagnostic log.</value></data>
+  <data name="Downloads.Title" xml:space="preserve">
+    <value>Download manager</value>
+  </data>
+  <data name="Downloads.AddUpdate" xml:space="preserve">
+    <value>Queue update</value>
+  </data>
+  <data name="Downloads.AddWindows" xml:space="preserve">
+    <value>Queue GOG installer (Windows)</value>
+  </data>
+  <data name="Downloads.AddLinux" xml:space="preserve">
+    <value>Queue GOG installer (Linux)</value>
+  </data>
+  <data name="Downloads.Exclude" xml:space="preserve">
+    <value>Exclude from automatic updates</value>
+  </data>
+  <data name="Downloads.Empty" xml:space="preserve">
+    <value>The download queue is empty.</value>
+  </data>
+  <data name="Downloads.Unavailable" xml:space="preserve">
+    <value>The download queue could not be accessed. Restart Retromind after checking the State directory.</value>
+  </data>
+  <data name="Downloads.Start" xml:space="preserve">
+    <value>Start now</value>
+  </data>
+  <data name="Downloads.Pause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="Downloads.Resume" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="Downloads.Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="Downloads.Retry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="Downloads.Install" xml:space="preserve">
+    <value>Install</value>
+  </data>
+  <data name="Downloads.Repair" xml:space="preserve">
+    <value>Repair</value>
+  </data>
+  <data name="Downloads.Earlier" xml:space="preserve">
+    <value>Move up</value>
+  </data>
+  <data name="Downloads.Later" xml:space="preserve">
+    <value>Move down</value>
+  </data>
+  <data name="Downloads.Remove" xml:space="preserve">
+    <value>Remove from list</value>
+  </data>
+  <data name="Downloads.ExitBusy" xml:space="preserve">
+    <value>A store installation or maintenance operation is in progress. Let it finish before closing Retromind or restoring a backup. You can leave Retromind open and close it safely when the operation ends.</value>
+  </data>
+  <data name="Downloads.Mode" xml:space="preserve">
+    <value>Automatic game updates</value>
+  </data>
+  <data name="Downloads.ModeDisabled" xml:space="preserve">
+    <value>Disabled</value>
+  </data>
+  <data name="Downloads.ModeDownloadOnly" xml:space="preserve">
+    <value>Download only</value>
+  </data>
+  <data name="Downloads.ModeInstall" xml:space="preserve">
+    <value>Download and install when safe</value>
+  </data>
+  <data name="Downloads.Window" xml:space="preserve">
+    <value>Only download within a daily time window</value>
+  </data>
+  <data name="Downloads.WindowFrom" xml:space="preserve">
+    <value>Start (local time)</value>
+  </data>
+  <data name="Downloads.WindowTo" xml:space="preserve">
+    <value>End (local time)</value>
+  </data>
+  <data name="Downloads.WindowHint" xml:space="preserve">
+    <value>The window may cross midnight. Equal times allow downloads all day. Start now overrides the window for one job.</value>
+  </data>
+  <data name="Downloads.Speed" xml:space="preserve">
+    <value>Download speed in MB/s (0 = unlimited)</value>
+  </data>
+  <data name="Downloads.EpicHint" xml:space="preserve">
+    <value>Epic uses Legendary to write game files as it downloads. In download-only mode, Epic updates wait for manual approval. A combined update runs to completion. Legendary has no reliable speed limit in MB/s.</value>
+  </data>
+  <data name="Downloads.GogHint" xml:space="preserve">
+    <value>GOG offline installers can require interaction. Downloaded GOG updates wait for manual installation.</value>
+  </data>
+  <data name="Downloads.Archive" xml:space="preserve">
+    <value>GOG offline installer archive</value>
+  </data>
+  <data name="Downloads.ArchiveHintFormat" xml:space="preserve">
+    <value>Leave this field blank to use {0} as the archive folder.</value>
+  </data>
+  <data name="Downloads.Browse" xml:space="preserve">
+    <value>Browse…</value>
+  </data>
+  <data name="Downloads.KeepInstallers" xml:space="preserve">
+    <value>Keep offline installers after installation</value>
+  </data>
+  <data name="Downloads.OfflineInstaller" xml:space="preserve">
+    <value>Offline installer</value>
+  </data>
+  <data name="Downloads.Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Downloads.UnavailableGame" xml:space="preserve">
+    <value>Unavailable game</value>
+  </data>
+  <data name="Downloads.State.Queued" xml:space="preserve">
+    <value>Queued</value>
+  </data>
+  <data name="Downloads.State.WaitingForWindow" xml:space="preserve">
+    <value>Waiting for download window</value>
+  </data>
+  <data name="Downloads.State.WaitingForSpace" xml:space="preserve">
+    <value>Waiting for free space</value>
+  </data>
+  <data name="Downloads.State.WaitingForGame" xml:space="preserve">
+    <value>Waiting for game or store operation</value>
+  </data>
+  <data name="Downloads.State.Downloading" xml:space="preserve">
+    <value>Preparing or downloading</value>
+  </data>
+  <data name="Downloads.State.Paused" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="Downloads.State.InstallationPending" xml:space="preserve">
+    <value>Installation pending</value>
+  </data>
+  <data name="Downloads.State.Installing" xml:space="preserve">
+    <value>Installing</value>
+  </data>
+  <data name="Downloads.State.Completed" xml:space="preserve">
+    <value>Completed</value>
+  </data>
+  <data name="Downloads.State.Failed" xml:space="preserve">
+    <value>Failed</value>
+  </data>
+  <data name="Downloads.State.Cancelled" xml:space="preserve">
+    <value>Cancelled</value>
+  </data>
+  <data name="Downloads.State.RepairRequired" xml:space="preserve">
+    <value>Repair required</value>
+  </data>
+  <data name="Downloads.Reason.DownloadSpace" xml:space="preserve">
+    <value>Free space on the download or archive filesystem is insufficient or could not be checked.</value>
+  </data>
+  <data name="Downloads.Reason.InstallationSpace" xml:space="preserve">
+    <value>Free space for the installation is insufficient or could not be checked.</value>
+  </data>
+  <data name="Downloads.Reason.GameActive" xml:space="preserve">
+    <value>Close the running game or finish the current store operation.</value>
+  </data>
+  <data name="Downloads.Reason.SignIn" xml:space="preserve">
+    <value>Sign in to the store and retry.</value>
+  </data>
+  <data name="Downloads.Reason.GameUnavailable" xml:space="preserve">
+    <value>This library item is no longer available.</value>
+  </data>
+  <data name="Downloads.Reason.UnsafeDirectory" xml:space="preserve">
+    <value>The game directory could not be matched to a safe Retromind-managed installation.</value>
+  </data>
+  <data name="Downloads.Reason.InstallerUnavailable" xml:space="preserve">
+    <value>The store did not provide a usable installer or update.</value>
+  </data>
+  <data name="Downloads.Reason.Excluded" xml:space="preserve">
+    <value>Automatic updates are excluded for this title.</value>
+  </data>
+  <data name="Downloads.Reason.ManualGogInstallation" xml:space="preserve">
+    <value>The GOG installer is ready. Select Install to review and start installation.</value>
+  </data>
+  <data name="Downloads.Reason.EpicCombinedUpdate" xml:space="preserve">
+    <value>Legendary downloads and updates game files together. Select Install to approve the combined operation.</value>
+  </data>
+  <data name="Downloads.Reason.InstallInterrupted" xml:space="preserve">
+    <value>The installation may be incomplete. Use Repair before starting the game.</value>
+  </data>
+  <data name="Downloads.Reason.OperationFailed" xml:space="preserve">
+    <value>The operation failed. Check the error log or retry the job.</value>
+  </data>
+  <data name="Downloads.Reason.SavePending" xml:space="preserve">
+    <value>The update completed, but Retromind could not save its library metadata.</value>
+  </data>
+  <data name="Downloads.Reason.ArchiveUnavailable" xml:space="preserve">
+    <value>The installer archive could not be opened or contains a conflicting package.</value>
+  </data>
+  <data name="Downloads.RecoveryAvailable" xml:space="preserve">
+    <value>A game installation may need repair. Open the download manager.</value>
+  </data>
 </root>

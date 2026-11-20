@@ -26,12 +26,14 @@ internal sealed partial class DesktopGogWorkflow
     internal async Task<bool> InstallGogItemAsync(
         MediaItem item,
         Window? ownerOverride = null,
-        GogInstallOperation operation = GogInstallOperation.Install)
+        GogInstallOperation operation = GogInstallOperation.Install,
+        Action? installationStarted = null)
     {
         var owner = ownerOverride ?? CurrentWindow;
         if (owner == null)
             return false;
 
+        using var foregroundOperation = TrackForegroundOperation();
         var installedDlcsToReapply = operation != GogInstallOperation.Install
             ? item.GogDlcInstallations?
                 .Where(static state => !string.IsNullOrWhiteSpace(state.ProductId))
@@ -231,7 +233,8 @@ internal sealed partial class DesktopGogWorkflow
         await UiThreadHelper.InvokeAsync(() => progressLogView.Show(owner));
 
         // Enable cancel button for the download and install phases
-        progressLogVm.EnableCancel();
+        if (installationStarted == null)
+            progressLogVm.EnableCancel();
 
         try
         {
@@ -248,9 +251,11 @@ internal sealed partial class DesktopGogWorkflow
                     installRequest.CreateStartMenuShortcuts,
                     installRequest.CleanInstall,
                     UseTemporaryLinuxDestination: true,
-                    RequireLinuxPayloadChange: false),
+                    RequireLinuxPayloadChange: false,
+                    DownloadSettings: Workspace.Settings.Downloads),
                 line => AppendProcessLog(progressLogVm, line),
-                progressLogVm.Token);
+                progressLogVm.Token,
+                installationStarted);
             if (!workflowResult.Success)
             {
                 if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
@@ -383,9 +388,11 @@ internal sealed partial class DesktopGogWorkflow
                 return true; // Physical success; preserve staging while metadata is unsaved.
             }
 
-            if (installRequest.DeleteStagingAfterSuccess)
+            if (installRequest.DeleteStagingAfterSuccess && !workflowResult.ArchivePending)
             {
                 GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
+                if (installationStarted != null)
+                    GogInstallerArchive.DeleteQueuedStagingBestEffort(selectedInstallerPackage);
                 AppendProcessLog(progressLogVm, "Staging data deleted after successful installation.");
             }
 
@@ -607,7 +614,7 @@ internal sealed partial class DesktopGogWorkflow
         return Path.Combine(AppPaths.LibraryRoot, "Games", "GOG", safeTitle);
     }
 
-    private static GogInstallPlatform? GetPreferredInstalledGogPlatform(MediaItem item)
+    internal static GogInstallPlatform? GetPreferredInstalledGogPlatform(MediaItem item)
     {
         if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreInstallPlatform, out var raw) ||
             string.IsNullOrWhiteSpace(raw))

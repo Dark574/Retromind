@@ -148,6 +148,25 @@ internal static class GogInstallSpaceService
         return reusableBytes;
     }
 
+    internal static bool CanFitAdditionalCopy(string staging, string destination, GogInstallSpaceAssessment assessment)
+    {
+        var downloadPath = StoreDiskSpaceHelper.GetNearestExistingPath(staging);
+        var destinationPath = StoreDiskSpaceHelper.GetNearestExistingPath(destination);
+        if (!StoreDiskSpaceHelper.TryGetFileSystem(destinationPath, out var destinationRoot, out var available))
+            return false;
+        var sharedFileSystem = StoreDiskSpaceHelper.TryGetFileSystem(downloadPath, out var downloadRoot, out _) &&
+                               FileSystemPathIdentity.Equals(destinationRoot, downloadRoot);
+        return CanFitAdditionalCopy(assessment, available, sharedFileSystem);
+    }
+
+    internal static bool CanFitAdditionalCopy(GogInstallSpaceAssessment assessment, long availableBytes, bool sharedFileSystem)
+    {
+        var bytes = assessment.InstallerBytes.GetValueOrDefault();
+        if (sharedFileSystem)
+            bytes = SaturatingAdd(bytes, assessment.RemainingDownloadBytes.GetValueOrDefault());
+        return availableBytes >= SaturatingAdd(bytes, FreeSpaceReserveBytes);
+    }
+
     internal static void EnsureDownloadCanFit(string targetPath, long? remainingResponseBytes)
     {
         if (remainingResponseBytes is not > 0)

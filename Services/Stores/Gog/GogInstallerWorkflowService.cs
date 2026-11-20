@@ -8,6 +8,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.Downloads;
 
 namespace Retromind.Services.Stores.Gog;
 
@@ -32,13 +33,15 @@ internal sealed record GogInstallerWorkflowRequest(
     bool CreateStartMenuShortcuts,
     bool CleanInstall,
     bool UseTemporaryLinuxDestination,
-    bool RequireLinuxPayloadChange);
+    bool RequireLinuxPayloadChange,
+    DownloadSettings? DownloadSettings = null);
 
 internal sealed record GogInstallerWorkflowResult(
     bool Success,
     GogInstallerWorkflowFailureStage FailureStage,
     string? ErrorMessage = null,
-    GogDownloadedInstallerPackage? DownloadedPackage = null);
+    GogDownloadedInstallerPackage? DownloadedPackage = null,
+    bool ArchivePending = false);
 
 /// <summary>
 /// Coordinates the shared download and execution workflow for GOG base-game and DLC installers.
@@ -66,7 +69,8 @@ public sealed class GogInstallerWorkflowService
     internal async Task<GogInstallerWorkflowResult> RunAsync(
         GogInstallerWorkflowRequest request,
         Action<string> appendLog,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action? installationStarted = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(appendLog);
@@ -97,14 +101,48 @@ public sealed class GogInstallerWorkflowService
         }
 
         GogDownloadedInstallerPackage downloadedPackage;
+        var package = request.InstallerPackage;
+        var settings = request.DownloadSettings ?? new DownloadSettings();
+        var archivePending = false;
         try
         {
+            var queuedStaging = GogInstallerArchive.GetStagingDirectory(package);
+            string? cache = Directory.Exists(queuedStaging) ? queuedStaging : null;
+            string? archive = null;
+            try
+            {
+                archive = GogInstallerArchive.GetPackageDirectory(settings, package);
+                GogInstallerArchive.EnsureSeparateFromInstallation(archive, request.InstallPath);
+                if (Directory.Exists(archive))
+                    cache = archive;
+            }
+            catch (IOException)
+            {
+                archive = null;
+            }
+
+            var limiter = settings.BytesPerSecond > 0
+                ? new DownloadRateLimiter(settings.BytesPerSecond, TimeProvider.System)
+                : null;
             downloadedPackage = await _installService.DownloadInstallerPackageAsync(
-                    request.InstallerPackage,
-                    request.StagingDirectory,
-                    CreateDownloadProgress(appendLog),
-                    cancellationToken)
+                    package, request.StagingDirectory, CreateDownloadProgress(appendLog), limiter, cache, cancellationToken)
                 .ConfigureAwait(false);
+
+            if (settings.KeepGogInstallers)
+            {
+                try
+                {
+                    if (archive == null)
+                        throw new IOException("The archive directory is unavailable.");
+                    if (!await _installService.ValidateArchivedPackageAsync(package, archive, cancellationToken).ConfigureAwait(false))
+                        await GogInstallerArchive.PublishAsync(archive, downloadedPackage, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    appendLog("[Storage] Could not save the offline installer archive. Staging will be retained.");
+                    archivePending = true;
+                }
+            }
         }
         catch (OperationCanceledException)
         {
@@ -131,6 +169,7 @@ public sealed class GogInstallerWorkflowService
                 ex.Message);
         }
 
+        installationStarted?.Invoke();
         appendLog("[Install] Starting installer execution...");
         var executionResult = await RunDownloadedInstallerAsync(
                 request,
@@ -142,8 +181,9 @@ public sealed class GogInstallerWorkflowService
             ? new GogInstallerWorkflowResult(
                 true,
                 GogInstallerWorkflowFailureStage.None,
-                DownloadedPackage: downloadedPackage)
-            : executionResult with { DownloadedPackage = downloadedPackage };
+                DownloadedPackage: downloadedPackage,
+                ArchivePending: archivePending)
+            : executionResult with { DownloadedPackage = downloadedPackage, ArchivePending = archivePending };
     }
 
     internal static void DeleteStagingDirectoryBestEffort(string? stagingDirectory)
@@ -167,8 +207,7 @@ public sealed class GogInstallerWorkflowService
 
         try
         {
-            if (Directory.Exists(fullStagingPath))
-                Directory.Delete(fullStagingPath, recursive: true);
+            StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(fullStagingPath);
         }
         catch (Exception ex)
         {

@@ -1293,7 +1293,7 @@ public partial class SettingsViewModel : ViewModelBase, IDisposable
     {
         // Tab order in SettingsView:
         // 0 = General, 1 = Controller, 2 = Emulators, 3 = Metadata,
-        // 4 = Launch/compatibility, 5 = Integrations, 6 = Backups, 7 = Help.
+        // 4 = Launch/compatibility, 5 = Integrations, 6 = Backups, 7 = Download manager, 8 = Help.
         if (value != 4)
             return;
 

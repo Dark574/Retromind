@@ -32,14 +32,25 @@ internal sealed partial class DesktopEpicWorkflow
         if (!await EnsureEpicSignInAsync(owner))
             return;
 
-        var dialog = new EpicDlcDialogView();
-        var viewModel = new EpicDlcDialogViewModel(
-            _epicInstallService,
-            item,
-            (entry, ct) => InstallOrUpdateEpicDlcAsync(item, entry, dialog, ct),
-            (entry, ct) => UninstallEpicDlcAsync(item, entry, dialog, ct));
-        dialog.DataContext = viewModel;
-        await dialog.ShowDialog(owner);
+        if (!CanManageEpicDlcs(item))
+            return;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            var dialog = new EpicDlcDialogView();
+            var viewModel = new EpicDlcDialogViewModel(
+                _epicInstallService,
+                item,
+                (entry, ct) => InstallOrUpdateEpicDlcAsync(item, entry, dialog, ct),
+                (entry, ct) => UninstallEpicDlcAsync(item, entry, dialog, ct));
+            dialog.DataContext = viewModel;
+            await dialog.ShowDialog(owner);
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
     }
 
     private async Task<bool> InstallOrUpdateEpicDlcAsync(

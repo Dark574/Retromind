@@ -1644,4 +1644,193 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
     <data name="NodeAssets.RecoveryRequired" xml:space="preserve"><value>Eine manuelle Wiederherstellung ist erforderlich. Dateien hier bitte aufbewahren: {0}</value></data>
     <data name="NodeAssets.MoveRecoveryRequired" xml:space="preserve"><value>Kategorie konnte nicht verschoben werden. Eine manuelle Wiederherstellung ist erforderlich. Dateien hier bitte aufbewahren (Pfad relativ zum Datenverzeichnis): {0}</value></data>
     <data name="SearchScope.BuildFailed" xml:space="preserve"><value>Die Suchbereiche konnten nicht geladen werden. Die bisherige Auswahl bleibt erhalten. Bitte schließe diesen Dialog und prüfe das Diagnoseprotokoll.</value></data>
+  <data name="Downloads.Title" xml:space="preserve">
+    <value>Download-Manager</value>
+  </data>
+  <data name="Downloads.AddUpdate" xml:space="preserve">
+    <value>Update einreihen</value>
+  </data>
+  <data name="Downloads.AddWindows" xml:space="preserve">
+    <value>GOG-Installer einreihen (Windows)</value>
+  </data>
+  <data name="Downloads.AddLinux" xml:space="preserve">
+    <value>GOG-Installer einreihen (Linux)</value>
+  </data>
+  <data name="Downloads.Exclude" xml:space="preserve">
+    <value>Von automatischen Updates ausschließen</value>
+  </data>
+  <data name="Downloads.Empty" xml:space="preserve">
+    <value>Die Download-Warteschlange ist leer.</value>
+  </data>
+  <data name="Downloads.Unavailable" xml:space="preserve">
+    <value>Die Download-Warteschlange konnte nicht geöffnet oder gespeichert werden. Prüfe das State-Verzeichnis und starte Retromind neu.</value>
+  </data>
+  <data name="Downloads.Start" xml:space="preserve">
+    <value>Jetzt starten</value>
+  </data>
+  <data name="Downloads.Pause" xml:space="preserve">
+    <value>Pausieren</value>
+  </data>
+  <data name="Downloads.Resume" xml:space="preserve">
+    <value>Fortsetzen</value>
+  </data>
+  <data name="Downloads.Cancel" xml:space="preserve">
+    <value>Abbrechen</value>
+  </data>
+  <data name="Downloads.Retry" xml:space="preserve">
+    <value>Erneut versuchen</value>
+  </data>
+  <data name="Downloads.Install" xml:space="preserve">
+    <value>Installieren</value>
+  </data>
+  <data name="Downloads.Repair" xml:space="preserve">
+    <value>Reparieren</value>
+  </data>
+  <data name="Downloads.Earlier" xml:space="preserve">
+    <value>Nach oben</value>
+  </data>
+  <data name="Downloads.Later" xml:space="preserve">
+    <value>Nach unten</value>
+  </data>
+  <data name="Downloads.Remove" xml:space="preserve">
+    <value>Aus Liste entfernen</value>
+  </data>
+  <data name="Downloads.ExitBusy" xml:space="preserve">
+    <value>Eine Store-Installation oder Wartung läuft. Warte auf den Abschluss, bevor du Retromind schließt oder ein Backup wiederherstellst. Danach kannst du Retromind sicher schließen.</value>
+  </data>
+  <data name="Downloads.Mode" xml:space="preserve">
+    <value>Automatische Spiele-Updates</value>
+  </data>
+  <data name="Downloads.ModeDisabled" xml:space="preserve">
+    <value>Deaktiviert</value>
+  </data>
+  <data name="Downloads.ModeDownloadOnly" xml:space="preserve">
+    <value>Nur herunterladen</value>
+  </data>
+  <data name="Downloads.ModeInstall" xml:space="preserve">
+    <value>Herunterladen und wenn möglich installieren</value>
+  </data>
+  <data name="Downloads.Window" xml:space="preserve">
+    <value>Downloads auf ein tägliches Zeitfenster beschränken</value>
+  </data>
+  <data name="Downloads.WindowFrom" xml:space="preserve">
+    <value>Beginn (Ortszeit)</value>
+  </data>
+  <data name="Downloads.WindowTo" xml:space="preserve">
+    <value>Ende (Ortszeit)</value>
+  </data>
+  <data name="Downloads.WindowHint" xml:space="preserve">
+    <value>Das Zeitfenster kann über Mitternacht reichen. Gleiche Uhrzeiten erlauben Downloads ganztägig. „Jetzt starten“ übersteuert das Fenster für einen Auftrag.</value>
+  </data>
+  <data name="Downloads.Speed" xml:space="preserve">
+    <value>Downloadgeschwindigkeit in MB/s (0 = unbegrenzt)</value>
+  </data>
+  <data name="Downloads.EpicHint" xml:space="preserve">
+    <value>Epic verwendet Legendary und schreibt Spieldateien bereits beim Herunterladen. Im Modus „Nur herunterladen“ warten Epic-Updates auf eine Freigabe. Ein gestartetes Update läuft bis zum Abschluss. Legendary bietet kein verlässliches Limit in MB/s.</value>
+  </data>
+  <data name="Downloads.GogHint" xml:space="preserve">
+    <value>GOG-Offline-Installer können Eingaben erfordern. Heruntergeladene GOG-Updates warten auf die manuelle Installation.</value>
+  </data>
+  <data name="Downloads.Archive" xml:space="preserve">
+    <value>Archiv für GOG-Offline-Installer</value>
+  </data>
+  <data name="Downloads.ArchiveHintFormat" xml:space="preserve">
+    <value>Bei leerem Feld verwendet Retromind {0} als Archivordner.</value>
+  </data>
+  <data name="Downloads.Browse" xml:space="preserve">
+    <value>Durchsuchen …</value>
+  </data>
+  <data name="Downloads.KeepInstallers" xml:space="preserve">
+    <value>Offline-Installer nach erfolgreicher Installation behalten</value>
+  </data>
+  <data name="Downloads.OfflineInstaller" xml:space="preserve">
+    <value>Offline-Installer</value>
+  </data>
+  <data name="Downloads.Update" xml:space="preserve">
+    <value>Update</value>
+  </data>
+  <data name="Downloads.UnavailableGame" xml:space="preserve">
+    <value>Spiel nicht verfügbar</value>
+  </data>
+  <data name="Downloads.State.Queued" xml:space="preserve">
+    <value>Wartend</value>
+  </data>
+  <data name="Downloads.State.WaitingForWindow" xml:space="preserve">
+    <value>Wartet auf das Zeitfenster</value>
+  </data>
+  <data name="Downloads.State.WaitingForSpace" xml:space="preserve">
+    <value>Wartet auf Speicherplatz</value>
+  </data>
+  <data name="Downloads.State.WaitingForGame" xml:space="preserve">
+    <value>Wartet auf Spiel oder Store-Vorgang</value>
+  </data>
+  <data name="Downloads.State.Downloading" xml:space="preserve">
+    <value>Wird vorbereitet oder heruntergeladen</value>
+  </data>
+  <data name="Downloads.State.Paused" xml:space="preserve">
+    <value>Pausiert</value>
+  </data>
+  <data name="Downloads.State.InstallationPending" xml:space="preserve">
+    <value>Installation ausstehend</value>
+  </data>
+  <data name="Downloads.State.Installing" xml:space="preserve">
+    <value>Wird installiert</value>
+  </data>
+  <data name="Downloads.State.Completed" xml:space="preserve">
+    <value>Abgeschlossen</value>
+  </data>
+  <data name="Downloads.State.Failed" xml:space="preserve">
+    <value>Fehlgeschlagen</value>
+  </data>
+  <data name="Downloads.State.Cancelled" xml:space="preserve">
+    <value>Abgebrochen</value>
+  </data>
+  <data name="Downloads.State.RepairRequired" xml:space="preserve">
+    <value>Reparatur erforderlich</value>
+  </data>
+  <data name="Downloads.Reason.DownloadSpace" xml:space="preserve">
+    <value>Auf dem Download- oder Archivlaufwerk fehlt Platz oder der freie Platz konnte nicht ermittelt werden.</value>
+  </data>
+  <data name="Downloads.Reason.InstallationSpace" xml:space="preserve">
+    <value>Für die Installation fehlt Platz oder der freie Platz konnte nicht ermittelt werden.</value>
+  </data>
+  <data name="Downloads.Reason.GameActive" xml:space="preserve">
+    <value>Beende das laufende Spiel oder schließe den aktuellen Store-Vorgang ab.</value>
+  </data>
+  <data name="Downloads.Reason.SignIn" xml:space="preserve">
+    <value>Melde dich beim Store an und versuche es erneut.</value>
+  </data>
+  <data name="Downloads.Reason.GameUnavailable" xml:space="preserve">
+    <value>Der Bibliothekseintrag ist nicht mehr verfügbar.</value>
+  </data>
+  <data name="Downloads.Reason.UnsafeDirectory" xml:space="preserve">
+    <value>Das Spielverzeichnis konnte keiner sicheren, von Retromind verwalteten Installation zugeordnet werden.</value>
+  </data>
+  <data name="Downloads.Reason.InstallerUnavailable" xml:space="preserve">
+    <value>Der Store lieferte keinen verwendbaren Installer oder kein verwendbares Update.</value>
+  </data>
+  <data name="Downloads.Reason.Excluded" xml:space="preserve">
+    <value>Automatische Updates sind für diesen Titel ausgeschlossen.</value>
+  </data>
+  <data name="Downloads.Reason.ManualGogInstallation" xml:space="preserve">
+    <value>Der GOG-Installer ist bereit. Wähle „Installieren“, um die Optionen zu prüfen und die Installation zu starten.</value>
+  </data>
+  <data name="Downloads.Reason.EpicCombinedUpdate" xml:space="preserve">
+    <value>Legendary lädt herunter und aktualisiert gleichzeitig Spieldateien. Wähle „Installieren“, um den kombinierten Vorgang zu starten.</value>
+  </data>
+  <data name="Downloads.Reason.InstallInterrupted" xml:space="preserve">
+    <value>Die Installation ist möglicherweise unvollständig. Wähle „Reparieren“, bevor du das Spiel startest.</value>
+  </data>
+  <data name="Downloads.Reason.OperationFailed" xml:space="preserve">
+    <value>Der Vorgang ist fehlgeschlagen. Prüfe das Fehlerprotokoll oder versuche es erneut.</value>
+  </data>
+  <data name="Downloads.Reason.SavePending" xml:space="preserve">
+    <value>Das Update wurde installiert. Retromind konnte die Bibliotheksdaten nicht speichern.</value>
+  </data>
+  <data name="Downloads.Reason.ArchiveUnavailable" xml:space="preserve">
+    <value>Das Installer-Archiv ist nicht zugänglich oder enthält ein widersprüchliches Paket.</value>
+  </data>
+  <data name="Downloads.RecoveryAvailable" xml:space="preserve">
+    <value>Eine Spielinstallation ist möglicherweise unvollständig. Öffne den Download-Manager.</value>
+  </data>
 </root>

@@ -116,6 +116,7 @@ internal sealed partial class DesktopEpicWorkflow
 
     private async Task<bool> InstallEpicItemAsync(MediaItem item, Window owner)
     {
+        using var foregroundOperation = TrackForegroundOperation();
 
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
         if (string.IsNullOrWhiteSpace(appName))

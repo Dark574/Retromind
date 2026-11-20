@@ -45,7 +45,8 @@ public sealed class DesktopStoreWorkflowFactoryTests
             RefreshActions: () => { },
             RefreshItemAsync: _ => Task.CompletedTask,
             PublishImportAsync: (_, _) => Task.CompletedTask);
-        var (gog, epic) = provider.GetRequiredService<DesktopStoreWorkflowFactory>().Create(workspace);
+        var (gog, epic, downloads) = provider.GetRequiredService<DesktopStoreWorkflowFactory>().Create(workspace);
+        Assert.NotNull(downloads);
         var game = new MediaItem("Unlinked game");
 
         Assert.True(gog.CanLinkMediaItemToGog(game));

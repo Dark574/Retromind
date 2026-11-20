@@ -30,8 +30,12 @@ internal static class StoreDiskSpaceHelper
         }
     }
 
-    internal static bool TryGetAvailableBytes(string path, out long availableBytes)
+    internal static bool TryGetAvailableBytes(string path, out long availableBytes) =>
+        TryGetFileSystem(path, out _, out availableBytes);
+
+    internal static bool TryGetFileSystem(string path, out string root, out long availableBytes)
     {
+        root = string.Empty;
         availableBytes = 0;
         try
         {
@@ -43,6 +47,7 @@ internal static class StoreDiskSpaceHelper
             if (drive == null)
                 return false;
 
+            root = drive.RootDirectory.FullName;
             availableBytes = System.Math.Max(0, drive.AvailableFreeSpace);
             return true;
         }

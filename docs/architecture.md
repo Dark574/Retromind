@@ -1118,6 +1118,10 @@ the report never mutates JSON or deletes files.
   launches and handles the managed uninstall that precedes library-item deletion. Both use the same
   desktop operation guard, persistence and selection callbacks. The main window owns command bindings,
   library selection after import, and the call to the launcher with the prepared arguments.
+- The desktop download workflow binds the central queue to library IDs, store workflows, settings,
+  and the existing game-session guard. `DownloadManagerService` owns queue transitions, timing,
+  cancellation and recovery. The download view displays snapshots and submits commands.
+  See [Download manager and GOG depot investigation](download-manager.md).
 - `GogUpdateCheckService` owns the background sweep, per-item check gate, and silent authentication cache. It
   compares installed snapshots with the remote base-game and DLC packages. The GOG desktop workflow captures
   snapshots, applies results on the UI thread, marks the library dirty, and owns the manual result dialog. Catalog failures

@@ -1,0 +1,77 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
+        x:Class="Retromind.Views.DownloadManagerView"
+        x:DataType="vm:DownloadManagerViewModel"
+        Title="{x:Static p:DownloadStrings.Title}"
+        Width="1140" Height="550" MinWidth="700" MinHeight="380"
+        WindowStartupLocation="CenterOwner"
+        ShowInTaskbar="False"
+        CanResize="False"
+        CanMinimize="False"
+        CanMaximize="False">
+    <Grid Margin="14" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <StackPanel Grid.Row="0" IsVisible="{Binding HasSelectedGame}" Spacing="6">
+            <TextBlock Text="{Binding SelectedGameTitle}" FontWeight="SemiBold" />
+            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
+                <Button Content="{x:Static p:DownloadStrings.AddUpdate}" Command="{Binding AddUpdate}" />
+                <Button Content="{x:Static p:DownloadStrings.AddWindows}" Command="{Binding AddWindowsInstaller}" />
+                <Button Content="{x:Static p:DownloadStrings.AddLinux}" Command="{Binding AddLinuxInstaller}" />
+                <CheckBox Content="{x:Static p:DownloadStrings.Exclude}" IsChecked="{Binding Excluded}" />
+            </WrapPanel>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <ListBox ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}">
+                <ListBox.Styles>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:DownloadManagerViewModel+Entry">
+                        <Grid ColumnDefinitions="2*,1*,2*" ColumnSpacing="14" Margin="2,4">
+                            <StackPanel Grid.Column="0" Spacing="3">
+                                <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <TextBlock Text="{Binding Store}" Opacity="0.7" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="3">
+                                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" />
+                                <TextBlock Text="{Binding Kind}" Opacity="0.7" TextWrapping="Wrap" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}"
+                                             IsIndeterminate="{Binding Indeterminate}" IsVisible="{Binding IsActive}" />
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <TextBlock Text="{Binding Data}" />
+                                    <TextBlock Text="{Binding Speed}" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding Reason}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+            <TextBlock IsVisible="{Binding IsEmpty}" Text="{x:Static p:DownloadStrings.Empty}"
+                       HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock IsVisible="{Binding QueueUnavailable}" Text="{x:Static p:DownloadStrings.Unavailable}"
+                       TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="30" />
+        </Grid>
+
+        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="{x:Static p:DownloadStrings.Start}" Command="{Binding Start}" />
+                <Button Content="{x:Static p:DownloadStrings.Pause}" Command="{Binding Pause}" />
+                <Button Content="{x:Static p:DownloadStrings.Resume}" Command="{Binding Resume}" />
+                <Button Content="{x:Static p:DownloadStrings.Cancel}" Command="{Binding Cancel}" />
+                <Button Content="{x:Static p:DownloadStrings.Retry}" Command="{Binding Retry}" />
+                <Button Content="{x:Static p:DownloadStrings.Install}" Command="{Binding Install}" />
+                <Button Content="{x:Static p:DownloadStrings.Repair}" Command="{Binding Repair}" />
+                <Button Content="{x:Static p:DownloadStrings.Earlier}" Command="{Binding Earlier}" />
+                <Button Content="{x:Static p:DownloadStrings.Later}" Command="{Binding Later}" />
+                <Button Content="{x:Static p:DownloadStrings.Remove}" Command="{Binding Remove}" />
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</Window>

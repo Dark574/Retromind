@@ -39,7 +39,8 @@ public sealed class GogUpdateCheckServiceTests
         }, CancellationToken.None);
 
         Assert.Equal(expectedResult, result.ToString());
-        Assert.Equal(new GogUpdateMetadata(expectedStatus, expectedAvailable, clock.GetUtcNow()), Assert.Single(updates));
+        Assert.Equal(new GogUpdateMetadata(expectedStatus, expectedAvailable, clock.GetUtcNow(),
+            AvailableRevision: expectedAvailable ? GogInstallerArchive.GetRevision(Remote) : null), Assert.Single(updates));
         Assert.False(Assert.Single(dlcAvailability));
     }
 
@@ -68,6 +69,38 @@ public sealed class GogUpdateCheckServiceTests
         Assert.Equal(GogUpdateResult.UpToDate, await CheckAsync(service, recent, force: true));
         Assert.Equal(2, auth.StateReads);
         Assert.Equal(3, requests);
+    }
+
+    [Fact]
+    public async Task CheckAsync_BackfillsMissingTargetRevisionBeforeTheDailyCheckAndRespectsRetryDeadline()
+    {
+        var clock = new ManualClock();
+        var service = CreateService(clock: clock);
+        var snapshot = Snapshot() with
+        {
+            InstalledVersion = "0.9",
+            LastCheckedUtc = clock.GetUtcNow().AddHours(-1),
+            LastStatus = "available",
+            NeedsAvailableRevision = true
+        };
+        var pendingRetry = snapshot with
+        {
+            RetryAfterUtc = clock.GetUtcNow().AddMinutes(15),
+            LastStatus = "error"
+        };
+
+        Assert.Equal(GogUpdateResult.NotDue, await CheckAsync(service, pendingRetry));
+
+        var updates = new List<GogUpdateMetadata>();
+        var result = await service.CheckAsync(snapshot, false, metadata =>
+        {
+            updates.Add(metadata);
+            return Task.CompletedTask;
+        }, IgnoreDlc, CancellationToken.None);
+
+        Assert.Equal(GogUpdateResult.UpdateAvailable, result);
+        Assert.Equal(GogInstallerArchive.GetRevision(Remote), Assert.Single(updates).AvailableRevision);
+        Assert.Equal(GogUpdateResult.NotDue, await CheckAsync(service, snapshot with { NeedsAvailableRevision = false }));
     }
 
     [Fact]
@@ -279,6 +312,39 @@ public sealed class GogUpdateCheckServiceTests
             var success = await published.Task.WaitAsync(TestTimeout);
             Assert.Equal(now.AddMinutes(15), success.CheckedUtc);
             Assert.Null(success.RetryAfterUtc);
+        }
+        finally
+        {
+            await service.StopBackgroundChecksAsync().WaitAsync(TestTimeout);
+        }
+    }
+
+    [Fact]
+    public async Task RequestImmediateSweep_WakesAnExistingLoopWithoutWaitingForItsTimer()
+    {
+        var clock = new ManualClock();
+        var service = CreateService(clock: clock);
+        var sweepCount = 0;
+        var secondSweep = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<IReadOnlyList<MediaItem>> Candidates()
+        {
+            if (Interlocked.Increment(ref sweepCount) == 2)
+                secondSweep.TrySetResult();
+            return Task.FromResult<IReadOnlyList<MediaItem>>([]);
+        }
+        Task<GogUpdateResult> Check(MediaItem item, CancellationToken ct) =>
+            Task.FromResult(GogUpdateResult.NotApplicable);
+
+        service.StartBackgroundChecks(Candidates, Check);
+        try
+        {
+            var timer = await clock.NextTimerAsync();
+            Assert.Equal(TimeSpan.FromMinutes(5), timer.Delay);
+
+            service.StartBackgroundChecks(Candidates, Check, requestImmediateSweep: true);
+
+            await secondSweep.Task.WaitAsync(TestTimeout);
+            Assert.Equal(2, sweepCount);
         }
         finally
         {

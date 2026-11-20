@@ -14,6 +14,8 @@ public class AppSettings
     /// </summary>
     public int Version { get; set; } = 1;
 
+    public DownloadSettings Downloads { get; set; } = new();
+
     /// <summary>
     /// When true, newly selected launch file paths will be stored relative
     /// to the portable data root (AppPaths.DataRoot). When false, absolute

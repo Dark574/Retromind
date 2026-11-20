@@ -29,10 +29,11 @@ internal sealed record GogInstalledSnapshot(
     IReadOnlyList<GogDlcInstallationState> InstalledDlcs,
     DateTimeOffset? LastCheckedUtc,
     DateTimeOffset? RetryAfterUtc = null,
-    string? LastStatus = null);
+    string? LastStatus = null,
+    bool NeedsAvailableRevision = false);
 
 internal sealed record GogUpdateMetadata(
-    string Status, bool? UpdateAvailable, DateTimeOffset? CheckedUtc, DateTimeOffset? RetryAfterUtc = null);
+    string Status, bool? UpdateAvailable, DateTimeOffset? CheckedUtc, DateTimeOffset? RetryAfterUtc = null, string? AvailableRevision = null);
 
 internal sealed class GogUpdateCheckService
 {
@@ -56,6 +57,7 @@ internal sealed class GogUpdateCheckService
     private readonly HashSet<string> _checksInFlight = new(StringComparer.Ordinal);
     private readonly SemaphoreSlim _authSemaphore = new(1, 1);
     private readonly object _loopLock = new();
+    private readonly SemaphoreSlim _sweepRequested = new(0, 1);
     private CancellationTokenSource? _loopCts;
     private Task _loopTask = Task.CompletedTask;
     private DateTimeOffset _authCacheValidUntilUtc = DateTimeOffset.MinValue;
@@ -80,12 +82,17 @@ internal sealed class GogUpdateCheckService
 
     internal void StartBackgroundChecks(
         Func<Task<IReadOnlyList<MediaItem>>> getCandidates,
-        Func<MediaItem, CancellationToken, Task<GogUpdateResult>> checkCandidate)
+        Func<MediaItem, CancellationToken, Task<GogUpdateResult>> checkCandidate,
+        bool requestImmediateSweep = false)
     {
         lock (_loopLock)
         {
             if (_loopCts is { IsCancellationRequested: false })
+            {
+                if (requestImmediateSweep && _sweepRequested.CurrentCount == 0)
+                    _sweepRequested.Release();
                 return;
+            }
 
             var previousLoop = _loopTask;
             var cancellation = new CancellationTokenSource();
@@ -143,7 +150,12 @@ internal sealed class GogUpdateCheckService
 
             try
             {
-                await Task.Delay(BackgroundSweepInterval, _timeProvider, ct).ConfigureAwait(false);
+                using var wait = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                var request = _sweepRequested.WaitAsync(wait.Token);
+                var interval = Task.Delay(BackgroundSweepInterval, _timeProvider, wait.Token);
+                await Task.WhenAny(request, interval).ConfigureAwait(false);
+                await wait.CancelAsync().ConfigureAwait(false);
+                ct.ThrowIfCancellationRequested();
             }
             catch (OperationCanceledException)
             {
@@ -175,6 +187,11 @@ internal sealed class GogUpdateCheckService
         var now = _timeProvider.GetUtcNow();
         if (snapshot.RetryAfterUtc is { } retryAfter)
             return now >= retryAfter;
+
+        // Older available-update records did not include the target revision that the queue uses.
+        if (snapshot.NeedsAvailableRevision &&
+            snapshot.LastStatus is not (AuthMissingStatus or InstallerUnknownStatus or ErrorStatus))
+            return true;
 
         // Older records used LastCheckedUtc for failures as well.
         return snapshot.LastCheckedUtc is not { } lastChecked ||
@@ -265,7 +282,8 @@ internal sealed class GogUpdateCheckService
             var available = versionChanged || signatureChanged;
 
             await PublishAsync(new GogUpdateMetadata(
-                available ? "available" : "up_to_date", available, _timeProvider.GetUtcNow())).ConfigureAwait(false);
+                available ? "available" : "up_to_date", available, _timeProvider.GetUtcNow(),
+                AvailableRevision: available ? GogInstallerArchive.GetRevision(remotePackage) : null)).ConfigureAwait(false);
             return available ? GogUpdateResult.UpdateAvailable : GogUpdateResult.UpToDate;
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

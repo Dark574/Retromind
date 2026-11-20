@@ -1301,6 +1301,7 @@ public partial class MainWindowViewModel
             SaveDataWithStatusAsync,
             settingsAccepted: () =>
             {
+                _downloads.SettingsChanged();
                 OnPropertyChanged(nameof(ShowStoreBadges));
                 _metadataService.ClearProviderCache();
                 NotifyNodeCommandsCanExecuteChanged();

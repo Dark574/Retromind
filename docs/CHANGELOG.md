@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.5-alpha] - unreleased
 
 ### Added
+- queue GOG and Epic updates in the desktop download manager, set daily download hours and a GOG speed limit, and archive GOG offline installers for later use
 
 ### Changed
 

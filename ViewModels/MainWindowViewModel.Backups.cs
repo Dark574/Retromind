@@ -12,8 +12,20 @@ public partial class MainWindowViewModel
 
     private async Task RestoreMetadataBackupAsync(MetadataBackupInfo backup, MetadataRestoreMode restoreMode)
     {
-        await _metadataBackups.RestoreAsync(backup, restoreMode);
-        _audioService.StopMusic();
+        if (_downloads.HasStoreActivity)
+            throw new InvalidOperationException(Resources.DownloadStrings.ExitBusy);
+        _closingDownloads = true;
+        await _downloads.StopAsync();
+        try
+        {
+            await _metadataBackups.RestoreAsync(backup, restoreMode);
+            _audioService.StopMusic();
+        }
+        catch
+        {
+            ResumeDownloadsAfterCancelledClose();
+            throw;
+        }
     }
 
     private async Task<bool> OpenMetadataBackupsAsync(Window owner)

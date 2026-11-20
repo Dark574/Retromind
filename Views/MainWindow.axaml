@@ -36,6 +36,9 @@
         <Geometry x:Key="IconTv">
             M3 5h18v12H3z M5 19h14v2H5z
         </Geometry>
+        <Geometry x:Key="IconDownloads">
+            M11,2 H13 V11 L16,8 L17.5,9.5 L12,15 L6.5,9.5 L8,8 L11,11 Z M4,15 H6 V19 H18 V15 H20 V21 H4 Z
+        </Geometry>
         <Geometry x:Key="IconSettings">
             M19.14 12.94c.04-.31.06-.63.06-.94s-.02-.63-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.03 7.03 0 0 0-1.63-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.58.24-1.12.55-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.7 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.04.31-.06.63-.06.94s.02.63.06.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .6.22l2.39-.96c.5.39 1.05.7 1.63.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.58-.24 1.12-.55 1.63-.94l2.39.96a.5.5 0 0 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58z M12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5z
         </Geometry>
@@ -81,6 +84,25 @@
                
                <!-- Buttons StackPanel -->
                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                   <Button Command="{Binding OpenDownloadsCommand}"
+                           ToolTip.Tip="{Binding DownloadManagerToolTip}"
+                           Background="Transparent" BorderThickness="0" Height="30" Padding="8,0"
+                           Foreground="{Binding TextColor}">
+                       <Grid RowDefinitions="Auto,3">
+                           <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                               <Grid>
+                                   <PathIcon Data="{StaticResource IconDownloads}" Width="16" Height="16" />
+                                   <Ellipse Width="7" Height="7" Fill="Orange" HorizontalAlignment="Right"
+                                            VerticalAlignment="Top" IsVisible="{Binding HasDownloadRecovery}" />
+                               </Grid>
+                               <TextBlock Text="{x:Static p:DownloadStrings.Title}" VerticalAlignment="Center" />
+                           </StackPanel>
+                           <ProgressBar Grid.Row="1" Height="2" MinHeight="0" VerticalAlignment="Bottom"
+                                        IsVisible="{Binding IsDownloadManagerActive}"
+                                        IsIndeterminate="{Binding IsDownloadManagerActive}"
+                                        IsHitTestVisible="False" />
+                       </Grid>
+                   </Button>
                    
                    <!-- Minimize -->
                    <Button Content="_" Width="30" Height="30" Background="Transparent" BorderThickness="0"

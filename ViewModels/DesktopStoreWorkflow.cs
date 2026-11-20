@@ -20,10 +20,28 @@ internal abstract class DesktopStoreWorkflow(DesktopStoreWorkspace workspace)
     protected Window? CurrentWindow => Workspace.GetWindow();
     protected IStorageProvider? StorageProvider => Workspace.GetStorageProvider();
     protected bool IsMultiSelectModeActive => Workspace.GetMultiSelectionActive();
+    private bool _ownsOperationGuard;
+    private int _foregroundOperations;
+    internal bool HasForegroundOperation => _ownsOperationGuard || _foregroundOperations > 0;
+
+    protected IDisposable TrackForegroundOperation()
+    {
+        _foregroundOperations++;
+        return new ForegroundOperation(this);
+    }
+
+    private sealed class ForegroundOperation(DesktopStoreWorkflow owner) : IDisposable
+    {
+        public void Dispose() => owner._foregroundOperations--;
+    }
     protected bool IsLaunchInProgress
     {
         get => Workspace.GetOperationInProgress();
-        set => Workspace.SetOperationInProgress(value);
+        set
+        {
+            _ownsOperationGuard = value;
+            Workspace.SetOperationInProgress(value);
+        }
     }
 
     protected Task<bool> SaveData() => Workspace.SaveLibraryAsync();

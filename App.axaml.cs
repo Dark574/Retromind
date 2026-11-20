@@ -14,6 +14,7 @@ using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.Achievements;
 using Retromind.Services.GameIdentification;
+using Retromind.Services.Downloads;
 using Retromind.Services.RetroAchievements;
 using Retromind.Services.Scrapers;
 using Retromind.Services.SteamAchievements;
@@ -367,6 +368,8 @@ public partial class App : Application
             provider.GetRequiredService<GogInstallerProcessService>(),
             AppPaths.LibraryRoot));
         services.AddSingleton<GogInstallerWorkflowService>();
+        services.AddSingleton<GogQueuedDownloadService>();
+        services.AddSingleton<DownloadManagerService>();
         RegisterGogCometServices(services, AppPaths.DataRoot);
         services.AddSingleton<GogProvider>();
         services.AddSingleton<IStoreProvider>(provider => provider.GetRequiredService<GogProvider>());

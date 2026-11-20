@@ -15,6 +15,12 @@ internal sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        if (args.FirstOrDefault() == Services.Downloads.DownloadProcessLifetime.WorkerArgument)
+        {
+            Environment.ExitCode = Services.Downloads.DownloadProcessLifetime.RunWorkerAsync(args).GetAwaiter().GetResult();
+            return;
+        }
+
         bool isBigModeOnly = args.Contains("--bigmode");
         bool useWayland = ConfigureLinuxDisplayBackend(args);
 

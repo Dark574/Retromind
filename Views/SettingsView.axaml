@@ -1112,7 +1112,62 @@
                 </ScrollViewer>
             </TabItem>
 
-            <!-- TAB 8: HELP -->
+            <TabItem Header="{x:Static p:DownloadStrings.Title}">
+                <ScrollViewer>
+                    <StackPanel Margin="12" Spacing="12">
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
+                                <TextBlock FontWeight="SemiBold" Text="{x:Static p:DownloadStrings.Mode}" />
+                                <ComboBox ItemsSource="{Binding DownloadUpdateModes}"
+                                          SelectedIndex="{Binding DownloadUpdateModeIndex, Mode=TwoWay}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:SettingsViewModel+UpdateModeOption">
+                                            <TextBlock Text="{Binding Label}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                                <TextBlock Text="{x:Static p:DownloadStrings.GogHint}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Static p:DownloadStrings.EpicHint}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
+                                <CheckBox Content="{x:Static p:DownloadStrings.Window}"
+                                          IsChecked="{Binding LimitDownloadWindow}" />
+                                <StackPanel Orientation="Horizontal" Spacing="20" IsEnabled="{Binding LimitDownloadWindow}">
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{x:Static p:DownloadStrings.WindowFrom}" />
+                                        <TimePicker ClockIdentifier="24HourClock" SelectedTime="{Binding DownloadWindowStart}" />
+                                    </StackPanel>
+                                    <StackPanel Spacing="4">
+                                        <TextBlock Text="{x:Static p:DownloadStrings.WindowTo}" />
+                                        <TimePicker ClockIdentifier="24HourClock" SelectedTime="{Binding DownloadWindowEnd}" />
+                                    </StackPanel>
+                                </StackPanel>
+                                <TextBlock Text="{x:Static p:DownloadStrings.WindowHint}" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Static p:DownloadStrings.Speed}" />
+                                <NumericUpDown Minimum="0" Maximum="100000" Increment="0.1"
+                                               Value="{Binding DownloadSpeedLimit}" Width="150" HorizontalAlignment="Left" />
+                            </StackPanel>
+                        </Border>
+                        <Border Classes="section">
+                            <StackPanel Spacing="8">
+                                <TextBlock FontWeight="SemiBold" Text="{x:Static p:DownloadStrings.Archive}" />
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                    <TextBox Text="{Binding GogInstallerArchiveDirectory}" />
+                                    <Button Grid.Column="1" Content="{x:Static p:DownloadStrings.Browse}"
+                                            Command="{Binding BrowseGogInstallerArchiveCommand}" />
+                                </Grid>
+                                <TextBlock Text="{Binding GogArchiveHint}" TextWrapping="Wrap" />
+                                <CheckBox IsChecked="{Binding KeepGogOfflineInstallers}"
+                                          Content="{x:Static p:DownloadStrings.KeepInstallers}" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- Keep Help as the last settings tab. -->
             <TabItem Header="{Binding SettingsTabHelpTitle}">
                 <ScrollViewer VerticalScrollBarVisibility="Auto"
                               HorizontalScrollBarVisibility="Disabled"
@@ -1310,7 +1365,6 @@
                     </StackPanel>
                 </ScrollViewer>
             </TabItem>
-            
         </TabControl>
 
         <!-- Footer Buttons -->

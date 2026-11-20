@@ -214,6 +214,21 @@ public partial class MainWindow : Window
             return;
         }
 
+        if (DataContext is MainWindowViewModel { HasStoreActivity: true })
+        {
+            e.Cancel = true;
+            _closeInProgress = true;
+            try
+            {
+                await DesktopDialogs.ShowInfoAsync(this, DownloadStrings.ExitBusy, showCopyButton: false);
+            }
+            finally
+            {
+                _closeInProgress = false;
+            }
+            return;
+        }
+
         // 1st pass: cancel closing and start the flush/cleanup sequence.
         e.Cancel = true;
         _closeInProgress = true;
@@ -277,6 +292,7 @@ public partial class MainWindow : Window
 
                 if (!exitWithoutSaving)
                 {
+                    vm.ResumeDownloadsAfterCancelledClose();
                     _closeInProgress = false;
                     return;
                 }

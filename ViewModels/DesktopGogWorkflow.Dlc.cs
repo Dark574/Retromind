@@ -33,24 +33,35 @@ internal sealed partial class DesktopGogWorkflow
         if (string.IsNullOrWhiteSpace(gameId))
             return;
 
-        var installedPlatform = TryResolveInstalledGogPath(item, out _)
-            ? GetPreferredInstalledGogPlatform(item)
-            : null;
-        var dialog = new GogDlcDialogView();
-        var viewModel = new GogDlcDialogViewModel(
-            _gogInstallService,
-            gameId,
-            installedPlatform,
-            item.GogDlcInstallations,
-            (entries, deleteStagingAfterSuccess, ct) => InstallGogDlcsAsync(
-                item,
-                entries,
-                dialog,
-                ct,
-                deleteStagingAfterSuccess: deleteStagingAfterSuccess),
-            hasUpdate => SetGogDlcUpdateAvailability(item, hasUpdate));
-        dialog.DataContext = viewModel;
-        await dialog.ShowDialog(owner);
+        if (!CanManageGogDlcs(item))
+            return;
+
+        IsLaunchInProgress = true;
+        try
+        {
+            var installedPlatform = TryResolveInstalledGogPath(item, out _)
+                ? GetPreferredInstalledGogPlatform(item)
+                : null;
+            var dialog = new GogDlcDialogView();
+            var viewModel = new GogDlcDialogViewModel(
+                _gogInstallService,
+                gameId,
+                installedPlatform,
+                item.GogDlcInstallations,
+                (entries, deleteStagingAfterSuccess, ct) => InstallGogDlcsAsync(
+                    item,
+                    entries,
+                    dialog,
+                    ct,
+                    deleteStagingAfterSuccess: deleteStagingAfterSuccess),
+                hasUpdate => SetGogDlcUpdateAvailability(item, hasUpdate));
+            dialog.DataContext = viewModel;
+            await dialog.ShowDialog(owner);
+        }
+        finally
+        {
+            IsLaunchInProgress = false;
+        }
     }
 
     private async Task<GogDlcInstallBatchResult> InstallGogDlcsAsync(
@@ -226,7 +237,8 @@ internal sealed partial class DesktopGogWorkflow
                         request.CreateStartMenuShortcuts,
                         CleanInstall: false,
                         UseTemporaryLinuxDestination: false,
-                        RequireLinuxPayloadChange: platform == GogInstallPlatform.Linux),
+                        RequireLinuxPayloadChange: platform == GogInstallPlatform.Linux,
+                        DownloadSettings: Workspace.Settings.Downloads),
                     line => AppendProcessLog(progressLogVm, line),
                     ct);
                 if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
@@ -274,7 +286,7 @@ internal sealed partial class DesktopGogWorkflow
                 else
                     installedCount++;
 
-                if (request.DeleteStagingAfterSuccess)
+                if (request.DeleteStagingAfterSuccess && !workflowResult.ArchivePending)
                 {
                     GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
                 }

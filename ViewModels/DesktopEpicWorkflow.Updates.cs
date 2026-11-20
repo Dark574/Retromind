@@ -54,12 +54,23 @@ internal sealed partial class DesktopEpicWorkflow
             using (BeginBusyCursor(owner))
             {
                 await Task.Yield();
-                status = await _epicInstallService.GetUpdateStatusAsync(appName);
+                await _updateCatalogGate.WaitAsync();
+                try
+                {
+                    status = await _epicInstallService.GetUpdateStatusAsync(appName);
+                    _catalogExpires = DateTimeOffset.MinValue;
+                }
+                finally
+                {
+                    _updateCatalogGate.Release();
+                }
             }
 
+            if (EpicMediaItemStateHelper.TryGetGameId(item) != appName)
+                return;
+
             item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = status.InstalledVersion;
-            item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] =
-                status.IsUpdateAvailable ? "true" : "false";
+            ApplyEpicUpdateCheckMetadata(item, status);
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             if (!await SaveData())
@@ -241,7 +252,7 @@ internal sealed partial class DesktopEpicWorkflow
                 Workspace.Settings.PreferPortableLaunchPaths);
             item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = installed.Version;
             if (!isRepair)
-                item.CustomFields[CustomFieldKeyHelper.StoreUpdateAvailable] = "false";
+                SetEpicUpdateAvailability(item, available: false);
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
             if (!await SaveData())

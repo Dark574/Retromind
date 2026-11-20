@@ -50,6 +50,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly StoreImportService _storeService;
     private readonly DesktopGogWorkflow _gogWorkflow;
     private readonly DesktopEpicWorkflow _epicWorkflow;
+    private readonly DesktopDownloadWorkflow _downloads;
     private readonly SettingsService _settingsService;
     private readonly MetadataService _metadataService;
     private readonly ScrapedAssetImporter _scrapedAssetImporter;
@@ -497,7 +498,7 @@ public partial class MainWindowViewModel : ViewModelBase
             () => _libraryLoadFailed,
             _persistence.CancelPendingSettingsSave);
         _fileService.LibraryChanged += _libraryTracker.MarkDirty;
-        (_gogWorkflow, _epicWorkflow) = storeWorkflowFactory.Create(new DesktopStoreWorkspace(
+        (_gogWorkflow, _epicWorkflow, _downloads) = storeWorkflowFactory.Create(new DesktopStoreWorkspace(
             _currentSettings,
             GetWindow: () => CurrentWindow,
             GetStorageProvider: () => StorageProvider,
@@ -513,6 +514,7 @@ public partial class MainWindowViewModel : ViewModelBase
             RefreshActions: NotifyPlayAvailabilityChanged,
             RefreshItemAsync: RefreshItemPresentationAsync,
             PublishImportAsync: PublishStoreImportAsync));
+        _downloads.QueueChanged += OnDownloadQueueChanged;
         
         // Seed layout values early so bindings are stable before LoadData completes.
         _treePaneWidth = new GridLength(_currentSettings.TreeColumnWidth);
@@ -639,7 +641,9 @@ public partial class MainWindowViewModel : ViewModelBase
             // Give the first media view time to load before starting background maintenance.
             await AwaitCurrentContentUpdateAsync();
 
-            _gogWorkflow.StartGogUpdateBackgroundLoop();
+            _downloadsReady = !_settingsService.HasLoadFailure && Volatile.Read(ref _cleanupOnce) == 0;
+            if (_downloadsReady && !_closingDownloads)
+                _downloads.Start();
 
             // Heavy startup maintenance runs in the background after first content is visible.
             _startupWarmupCts = new CancellationTokenSource();
@@ -905,6 +909,10 @@ public partial class MainWindowViewModel : ViewModelBase
     /// </summary>
     public async Task<bool> FlushAndCleanupAsync()
     {
+        _closingDownloads = true;
+        if (_downloadsReady)
+            await _downloads.StopAsync();
+
         // Stop playback immediately; saving can take a moment.
         _audioService.StopMusic();
 
@@ -970,7 +978,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
         RetroAchievementsProgress.Dispose();
 
-        _ = _gogWorkflow.StopBackgroundChecksAsync();
+        _downloads.QueueChanged -= OnDownloadQueueChanged;
+        _downloads.Release();
         
         _gamepadService.OnExitBigMode -= _onControllerExitRequested;
         _gamepadService.OnSessionExitRequested -= _onSessionExitRequested;

@@ -89,6 +89,9 @@ public sealed class EpicInstallService
         CancellationToken ct = default) =>
         _client.GetUpdateStatusAsync(appName, ct);
 
+    internal Task<IReadOnlyDictionary<string, LegendaryUpdateStatus>> GetUpdateStatusesAsync(CancellationToken ct) =>
+        _client.GetUpdateStatusesAsync(ct);
+
     internal Task<IReadOnlyList<LegendaryDlc>> GetDlcCatalogAsync(
         MediaItem item,
         CancellationToken ct = default)
@@ -319,6 +322,7 @@ public sealed class EpicInstallService
             CustomFieldKeyHelper.StoreInstalledVersion,
             CustomFieldKeyHelper.StoreInstalledInstallerSignature,
             CustomFieldKeyHelper.StoreUpdateAvailable,
+            CustomFieldKeyHelper.StoreAvailableRevision,
             CustomFieldKeyHelper.StoreDlcUpdateAvailable,
             CustomFieldKeyHelper.StoreUpdateLastCheckedUtc,
             CustomFieldKeyHelper.StoreUpdateLastStatus
@@ -514,7 +518,8 @@ public sealed class EpicInstallService
         string installPath,
         Action<string>? outputReceived,
         CancellationToken ct = default,
-        bool repair = false)
+        bool repair = false,
+        bool updateOnly = false)
     {
         ArgumentNullException.ThrowIfNull(item);
         var appName = EpicMediaItemStateHelper.TryGetGameId(item);
@@ -529,7 +534,7 @@ public sealed class EpicInstallService
         }
 
         var installed = await _client
-            .InstallAsync(appName, assessment.FullPath, outputReceived, ct, repair)
+            .InstallAsync(appName, assessment.FullPath, outputReceived, ct, repair, updateOnly)
             .ConfigureAwait(false);
         return installed;
     }

@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Retromind.Services.Downloads;
 using Retromind.Helpers;
 
 namespace Retromind.Services.Stores.Epic.Legendary;
@@ -42,6 +44,7 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
 
     private readonly LegendaryExecutableResolver _executableResolver;
     private readonly string _configDirectory;
+    private readonly SemaphoreSlim _operation = new(1, 1);
 
     internal LegendaryCliProcessRunner(
         LegendaryExecutableResolver executableResolver,
@@ -62,6 +65,20 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
         LegendaryCliCommand command,
         CancellationToken ct = default)
     {
+        await _operation.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            return await RunProcessAsync(command, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            _operation.Release();
+        }
+    }
+
+    private async Task<LegendaryCliResult> RunProcessAsync(LegendaryCliCommand command, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(command);
         if (command.Timeout != Timeout.InfiniteTimeSpan && command.Timeout <= TimeSpan.Zero)
             throw new ArgumentOutOfRangeException(nameof(command), "The Legendary command timeout must be positive.");
@@ -69,6 +86,8 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
         Directory.CreateDirectory(_configDirectory);
         var executablePath = _executableResolver.GetRequiredExecutable();
         var startInfo = CreateStartInfo(executablePath, command);
+        var useParentPipe = command.StandardInput == null && command.Arguments.Contains("--update-only") &&
+                            DownloadProcessLifetime.UseParentPipe(startInfo);
 
         using var process = new Process { StartInfo = startInfo };
         try
@@ -92,9 +111,16 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
                     .ConfigureAwait(false);
                 process.StandardInput.Close();
             }
+            catch (OperationCanceledException)
+            {
+                TryKill(process);
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
+                throw;
+            }
             catch (Exception ex) when (ex is IOException or InvalidOperationException)
             {
                 TryKill(process);
+                await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
                 throw new LegendaryCliException(
                     $"Legendary could not receive input for the '{command.Operation}' operation.",
                     ex);
@@ -139,14 +165,16 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            TryKill(process);
+            StopProcess(process, useParentPipe);
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             await ObserveOutputTasksAsync(stdoutTask, stderrTask).ConfigureAwait(false);
             throw new LegendaryCliException(
                 $"Legendary's '{command.Operation}' operation timed out after {command.Timeout.TotalSeconds:0} seconds.");
         }
         catch (OperationCanceledException)
         {
-            TryKill(process);
+            StopProcess(process, useParentPipe);
+            await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
             await ObserveOutputTasksAsync(stdoutTask, stderrTask).ConfigureAwait(false);
             throw;
         }
@@ -243,6 +271,14 @@ internal sealed class LegendaryCliProcessRunner : ILegendaryCliProcessRunner
         {
             // The caller's cancellation is already propagated by RunAsync.
         }
+    }
+
+    private static void StopProcess(Process process, bool useParentPipe)
+    {
+        if (useParentPipe)
+            process.StandardInput.Close();
+        else
+            TryKill(process);
     }
 
     private static void TryKill(Process process)

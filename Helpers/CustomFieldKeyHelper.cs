@@ -12,6 +12,8 @@ public static class CustomFieldKeyHelper
     public const string StoreInstallPlatform = InternalStorePrefix + "InstallPlatform";
     public const string StoreInstallRunnerVersionId = InternalStorePrefix + "InstallRunnerVersionId";
     public const string StoreInstallWindowsInstallerPreference = InternalStorePrefix + "InstallWindowsInstallerPreference";
+    public const string StoreAvailableRevision = InternalStorePrefix + "AvailableRevision";
+    public const string StoreAutomaticUpdatesExcluded = InternalStorePrefix + "AutomaticUpdatesExcluded";
     public const string StoreInstalledVersion = InternalStorePrefix + "InstalledVersion";
     public const string StoreInstalledInstallerSignature = InternalStorePrefix + "InstalledInstallerSignature";
     public const string StoreUpdateAvailable = InternalStorePrefix + "UpdateAvailable";

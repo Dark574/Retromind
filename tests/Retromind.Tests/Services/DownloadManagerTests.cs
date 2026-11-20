@@ -1,0 +1,336 @@
+using Retromind.Models;
+using Retromind.Services.Downloads;
+using Retromind.Tests.TestInfrastructure;
+
+namespace Retromind.Tests.Services;
+
+public sealed class DownloadManagerTests
+{
+    [Fact]
+    public async Task Restart_RequeuesDownloadAndFlagsInterruptedInstallation()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var download = Job("download", DownloadState.Downloading);
+        var install = Job("install", DownloadState.Installing);
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([download, install]);
+        }
+
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new DownloadSettings(), (_, _) => throw new InvalidOperationException());
+        Assert.False(manager.Enqueue("another", DownloadStore.Gog, DownloadKind.Update, automatic: true));
+        await manager.StopAsync();
+
+        Assert.Equal([DownloadState.Queued, DownloadState.RepairRequired],
+            manager.Snapshot().Select(row => row.Job.State));
+        Assert.Equal((null, true), manager.GetQueueStatus());
+        manager.Release();
+        using var restored = new DownloadQueueStore(path);
+        Assert.Equal(DownloadReason.InstallInterrupted, restored.Load()[1].Reason);
+    }
+
+    [Fact]
+    public async Task Restart_RecoversCancelledInstallationWithoutRequeuingIt()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var oldCancellation = Job("game", DownloadState.Cancelled) with
+        {
+            Automatic = false, InstallRequested = true, OverrideWindow = true, PayloadReady = true
+        };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([oldCancellation, Job("cancelled-transfer", DownloadState.Cancelled)]);
+        }
+
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException("No job should run."));
+        await manager.StopAsync();
+        manager.Release();
+
+        Assert.Collection(manager.Snapshot().Select(row => row.Job),
+            job => AssertInstallReady(job, oldCancellation.Id, DownloadReason.ManualGogInstallation, payloadReady: true),
+            job => Assert.Equal(DownloadState.Cancelled, job.State));
+    }
+
+    [Fact]
+    public async Task Queue_DeduplicatesAndWaitsForCancelledWorkBeforeStartingNext()
+    {
+        using var temp = new TemporaryDirectory();
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var interrupted = Signal();
+        var finish = Signal();
+        var next = Signal();
+        var resumed = Signal();
+        var attempts = 0;
+        manager.Start(new(), async (work, ct) =>
+        {
+            if (work.Job.ItemId == "first" && Interlocked.Increment(ref attempts) == 1)
+            {
+                entered.SetResult();
+                try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+                catch (OperationCanceledException) { interrupted.SetResult(); }
+                await finish.Task;
+            }
+            else if (work.Job.ItemId == "second")
+                next.SetResult();
+            else
+                resumed.SetResult();
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+
+        Assert.True(manager.Enqueue("first", DownloadStore.Gog, DownloadKind.Update));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(manager.Enqueue("first", DownloadStore.Gog, DownloadKind.Update));
+        Assert.True(manager.Enqueue("second", DownloadStore.Epic, DownloadKind.Update));
+        var first = manager.Snapshot()[0].Job.Id;
+        Assert.True(manager.Change(first, DownloadAction.Pause));
+        await interrupted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(next.Task.IsCompleted);
+        finish.SetResult();
+        await next.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(DownloadState.Paused, manager.Snapshot()[0].Job.State);
+        Assert.True(manager.Change(first, DownloadAction.Resume));
+        await resumed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        manager.Release();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Cancel_QueuedInstallationCanBeRequestedAgain(bool isGog)
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var reason = isGog ? DownloadReason.ManualGogInstallation : DownloadReason.EpicCombinedUpdate;
+        var job = Job("game", DownloadState.InstallationPending) with
+        {
+            Store = isGog ? DownloadStore.Gog : DownloadStore.Epic, Reason = reason, PayloadReady = isGog
+        };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([Job("busy", DownloadState.Queued) with { Automatic = false }, job]);
+        }
+
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        manager.Start(new(), async (work, ct) =>
+        {
+            Assert.Equal("busy", work.Job.ItemId);
+            entered.SetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(manager.Change(job.Id, DownloadAction.Install));
+            Assert.True(manager.Change(job.Id, DownloadAction.Cancel));
+
+            AssertInstallReady(manager.Snapshot()[1].Job, job.Id, reason, payloadReady: isGog);
+            Assert.True(manager.Change(job.Id, DownloadAction.Install));
+            Assert.Equal(DownloadState.Queued, manager.Snapshot()[1].Job.State);
+        }
+        finally
+        {
+            await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            manager.Release();
+        }
+    }
+
+    [Fact]
+    public async Task Cancel_PreflightPreservesInstallerAndPreventsEnteringCriticalPhase()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var job = Job("game", DownloadState.InstallationPending) with { PayloadReady = true };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([job]);
+        }
+
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var canEnterInstallation = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.Start(new(), async (work, ct) =>
+        {
+            entered.TrySetResult();
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+            catch (OperationCanceledException) { canEnterInstallation.TrySetResult(work.BeginInstallation()); }
+            return new DownloadOutcome(DownloadState.WaitingForGame, DownloadReason.GameActive);
+        });
+        try
+        {
+            Assert.True(manager.Change(job.Id, DownloadAction.Install));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.True(manager.Change(job.Id, DownloadAction.Cancel));
+            Assert.False(await canEnterInstallation.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            manager.Release();
+        }
+
+        AssertInstallReady(Assert.Single(manager.Snapshot()).Job, job.Id, DownloadReason.ManualGogInstallation, payloadReady: true);
+    }
+
+    [Fact]
+    public async Task Shutdown_WaitsForCriticalInstallationWithoutCancelling()
+    {
+        using var temp = new TemporaryDirectory();
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var finish = Signal();
+        manager.Start(new DownloadSettings { AutomaticUpdates = AutomaticUpdateMode.DownloadAndInstall }, async (work, ct) =>
+        {
+            Assert.True(work.BeginInstallation());
+            entered.SetResult();
+            await finish.Task.WaitAsync(ct);
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+        Assert.True(manager.Enqueue("epic", DownloadStore.Epic, DownloadKind.Update, new string('A', 64), automatic: true));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var stop = manager.StopAsync();
+        Assert.True(manager.IsInstalling);
+        Assert.Equal(DownloadState.Installing, manager.GetQueueStatus().Activity);
+        Assert.False(stop.IsCompleted);
+        Assert.False(manager.Enqueue("other", DownloadStore.Gog, DownloadKind.Update));
+        finish.SetResult();
+        await stop.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal(DownloadState.Completed, Assert.Single(manager.Snapshot()).Job.State);
+        Assert.Null(manager.GetQueueStatus().Activity);
+        manager.Release();
+    }
+
+    [Fact]
+    public async Task Shutdown_CancelsAndPersistsAnActiveDownloadForNextStart()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var drained = Signal();
+        manager.Start(new(), async (_, ct) =>
+        {
+            entered.SetResult();
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+            finally { drained.SetResult(); }
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+        Assert.True(manager.Enqueue("game", DownloadStore.Gog, DownloadKind.Update));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.True(drained.Task.IsCompletedSuccessfully);
+        manager.Release();
+        using var store = new DownloadQueueStore(path);
+        Assert.Equal(DownloadState.Queued, Assert.Single(store.Load()).State);
+    }
+
+    [Fact]
+    public async Task WindowChange_StopsOnlyTheTransferAndAllowsManualOverride()
+    {
+        using var temp = new TemporaryDirectory();
+        var clock = new LocalClock(new DateTimeOffset(2026, 11, 20, 12, 0, 0, TimeSpan.Zero));
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), new RecordingErrorService(), clock);
+        var entered = Signal();
+        var waiting = Signal();
+        var overridden = Signal();
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot().Any(row => row.Job.State == DownloadState.WaitingForWindow))
+                waiting.TrySetResult();
+        };
+        manager.Start(new(), async (work, ct) =>
+        {
+            if (work.Job.OverrideWindow)
+            {
+                overridden.TrySetResult();
+                return new DownloadOutcome(DownloadState.Completed);
+            }
+            entered.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, ct);
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+        Assert.True(manager.Enqueue("game", DownloadStore.Gog, DownloadKind.Update));
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        Assert.Equal(DownloadState.Downloading, manager.GetQueueStatus().Activity);
+        manager.UpdateSettings(new DownloadSettings { LimitToTimeWindow = true });
+        await waiting.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Null(manager.GetQueueStatus().Activity);
+        Assert.True(manager.Change(Assert.Single(manager.Snapshot()).Job.Id, DownloadAction.Start));
+
+        await overridden.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        manager.Release();
+    }
+
+    private sealed class LocalClock(DateTimeOffset utc) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utc;
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
+
+    [Theory]
+    [InlineData(19, false, 1)]
+    [InlineData(20, true, 10)]
+    [InlineData(0, true, 6)]
+    [InlineData(6, false, 14)]
+    public void OvernightWindow_UsesLocalBoundaries(int hour, bool allowed, int hoursUntilTransition)
+    {
+        var settings = new DownloadSettings
+        {
+            LimitToTimeWindow = true, WindowStart = new TimeOnly(20, 0), WindowEnd = new TimeOnly(6, 0)
+        };
+        var now = new DateTimeOffset(2026, 11, 21, hour, 0, 0, TimeSpan.Zero);
+
+        Assert.Equal(allowed, DownloadSchedule.IsAllowed(settings, now));
+        Assert.Equal(TimeSpan.FromHours(hoursUntilTransition), DownloadSchedule.UntilTransition(settings, now, TimeZoneInfo.Utc));
+    }
+
+    [Fact]
+    public async Task CorruptQueue_IsPreservedAndStopsDispatch()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        await File.WriteAllTextAsync(path, "{broken");
+        var errors = new RecordingErrorService();
+        var manager = new DownloadManagerService(path, errors, TimeProvider.System);
+
+        manager.Start(new(), (_, _) => throw new InvalidOperationException());
+
+        Assert.True(manager.PersistenceFailed);
+        Assert.False(manager.Enqueue("game", DownloadStore.Epic, DownloadKind.Update));
+        Assert.Equal("Downloads.QueueUnavailable", Assert.Single(errors.Reports).Code);
+        Assert.Equal("{broken", await File.ReadAllTextAsync(path));
+        manager.Release();
+    }
+
+    private static DownloadJob Job(string id, DownloadState state) => new(Guid.NewGuid(), id, DownloadStore.Gog,
+        DownloadKind.Update, "", true, false, false, state);
+
+    private static void AssertInstallReady(DownloadJob job, Guid id, DownloadReason reason, bool payloadReady)
+    {
+        Assert.Equal(id, job.Id);
+        Assert.Equal(DownloadState.InstallationPending, job.State);
+        Assert.Equal(reason, job.Reason);
+        Assert.Equal(payloadReady, job.PayloadReady);
+        Assert.False(job.InstallRequested);
+        Assert.False(job.OverrideWindow);
+    }
+
+    private static TaskCompletionSource Signal() => new(TaskCreationOptions.RunContinuationsAsynchronously);
+}

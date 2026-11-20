@@ -12,29 +12,38 @@ namespace Retromind.ViewModels;
 
 internal sealed partial class DesktopGogWorkflow
 {
-    internal void StartGogUpdateBackgroundLoop() =>
+    internal event Action<MediaItem, string>? UpdateFound;
+
+    internal void StartGogUpdateBackgroundLoop(bool requestImmediateSweep = false) =>
         _gogUpdateChecks.StartBackgroundChecks(
             () => UiThreadHelper.InvokeAsync(GetInstalledGogItems),
-            (item, ct) => CheckGogUpdatesForItemCoreAsync(item, force: false, ct));
+            (item, ct) => CheckGogUpdatesForItemCoreAsync(item, force: false, ct),
+            requestImmediateSweep);
 
     private IReadOnlyList<MediaItem> GetInstalledGogItems()
     {
-        var result = new List<MediaItem>();
+        if ((Workspace.Settings.Downloads?.AutomaticUpdates ?? AutomaticUpdateMode.Disabled) == AutomaticUpdateMode.Disabled)
+            return [];
+
+        var knownUpdates = new List<MediaItem>();
+        var regularChecks = new List<MediaItem>();
         foreach (var root in RootItems)
-            CollectInstalledGogItemsRecursive(root, result);
-        return result;
+            CollectInstalledGogItemsRecursive(root, knownUpdates, regularChecks);
+        knownUpdates.AddRange(regularChecks);
+        return knownUpdates;
     }
 
-    private void CollectInstalledGogItemsRecursive(MediaNode node, ICollection<MediaItem> buffer)
+    private void CollectInstalledGogItemsRecursive(
+        MediaNode node, ICollection<MediaItem> knownUpdates, ICollection<MediaItem> regularChecks)
     {
         foreach (var item in node.Items)
         {
             if (CreateInstalledGogSnapshot(item) is { } snapshot && _gogUpdateChecks.IsAutomaticCheckDue(snapshot))
-                buffer.Add(item);
+                (snapshot.NeedsAvailableRevision ? knownUpdates : regularChecks).Add(item);
         }
 
         foreach (var child in node.Children)
-            CollectInstalledGogItemsRecursive(child, buffer);
+            CollectInstalledGogItemsRecursive(child, knownUpdates, regularChecks);
     }
 
     internal bool CanCheckGogUpdatesForItem(MediaItem? item)
@@ -125,6 +134,12 @@ internal sealed partial class DesktopGogWorkflow
         fields.TryGetValue(CustomFieldKeyHelper.StoreInstalledVersion, out var installedVersion);
         fields.TryGetValue(CustomFieldKeyHelper.StoreInstalledInstallerSignature, out var installedSignature);
         fields.TryGetValue(CustomFieldKeyHelper.StoreUpdateLastStatus, out var lastStatus);
+        fields.TryGetValue(CustomFieldKeyHelper.StoreAvailableRevision, out var availableRevision);
+        var needsAvailableRevision =
+            Workspace.Settings.Downloads?.AutomaticUpdates is (AutomaticUpdateMode.DownloadOnly or AutomaticUpdateMode.DownloadAndInstall) &&
+            string.IsNullOrWhiteSpace(availableRevision) &&
+            GogMediaItemStateHelper.HasUpdateAvailable(item) &&
+            GogMediaItemStateHelper.IsRetromindManagedInstallation(item);
 
         return new GogInstalledSnapshot(
             item.Id,
@@ -144,7 +159,8 @@ internal sealed partial class DesktopGogWorkflow
                 .ToArray() ?? Array.Empty<GogDlcInstallationState>(),
             ReadGogUpdateTimestamp(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc),
             ReadGogUpdateTimestamp(fields, CustomFieldKeyHelper.StoreUpdateRetryAfterUtc),
-            lastStatus);
+            lastStatus,
+            needsAvailableRevision);
     }
 
     private static DateTimeOffset? ReadGogUpdateTimestamp(IReadOnlyDictionary<string, string> fields, string key) =>
@@ -173,6 +189,11 @@ internal sealed partial class DesktopGogWorkflow
             if (metadata.UpdateAvailable is { } available)
                 hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreUpdateAvailable, available ? "true" : "false");
 
+            if (metadata.UpdateAvailable == true && metadata.AvailableRevision is { } revision)
+                hasChanged |= SetField(fields, CustomFieldKeyHelper.StoreAvailableRevision, revision);
+            else if (metadata.UpdateAvailable == false)
+                hasChanged |= fields.Remove(CustomFieldKeyHelper.StoreAvailableRevision);
+
             if (!hasChanged)
                 return false;
 
@@ -180,6 +201,9 @@ internal sealed partial class DesktopGogWorkflow
             NotifyPlayAvailabilityChanged();
             return true;
         }).ConfigureAwait(false);
+
+        if (metadata.UpdateAvailable == true && metadata.AvailableRevision is { } availableRevision)
+            await UiThreadHelper.InvokeAsync(() => UpdateFound?.Invoke(item, availableRevision)).ConfigureAwait(false);
 
         if (changed)
             Workspace.MarkLibraryDirtyAndSaveSoon();
@@ -222,6 +246,7 @@ internal sealed partial class DesktopGogWorkflow
         SetField(fields, CustomFieldKeyHelper.StoreUpdateLastStatus, "up_to_date");
         SetField(fields, CustomFieldKeyHelper.StoreUpdateLastCheckedUtc, DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture));
         fields.Remove(CustomFieldKeyHelper.StoreUpdateRetryAfterUtc);
+        fields.Remove(CustomFieldKeyHelper.StoreAvailableRevision);
         item.CustomFields = fields;
     }
 }
