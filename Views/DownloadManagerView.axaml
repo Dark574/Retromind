@@ -7,12 +7,27 @@
         Title="{x:Static p:DownloadStrings.Title}"
         Width="1140" Height="550" MinWidth="700" MinHeight="380"
         WindowStartupLocation="CenterOwner"
+        WindowDecorations="BorderOnly"
         ShowInTaskbar="False"
-        CanResize="False"
         CanMinimize="False"
         CanMaximize="False">
-    <Grid Margin="14" RowDefinitions="Auto,*,Auto" RowSpacing="10">
-        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+    <Grid Margin="14,0,14,14" RowDefinitions="Auto,Auto,*,Auto" RowSpacing="10">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Height="30">
+            <Border Background="Transparent" PointerPressed="OnTitleBarPointerPressed">
+                <TextBlock Text="{x:Static p:DownloadStrings.Title}" VerticalAlignment="Center"
+                           IsHitTestVisible="False" />
+            </Border>
+            <Button Grid.Column="1" Width="36" Height="30" Padding="0"
+                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                    Background="Transparent" BorderThickness="0" Click="OnCloseClicked"
+                    AutomationProperties.Name="{x:Static p:Strings.Button_Close}"
+                    ToolTip.Tip="{x:Static p:Strings.Button_Close}">
+                <PathIcon Width="12" Height="12"
+                          Data="M1,0 L6,5 L11,0 L12,1 L7,6 L12,11 L11,12 L6,7 L1,12 L0,11 L5,6 L0,1 Z" />
+            </Button>
+        </Grid>
+
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="12">
             <StackPanel IsVisible="{Binding HasSelectedGame}" Spacing="6">
                 <TextBlock Text="{Binding SelectedGameTitle}" FontWeight="SemiBold" />
                 <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="6">
@@ -26,7 +41,7 @@
                     Command="{Binding ToggleQueuePause}" ToolTip.Tip="{x:Static p:DownloadStrings.QueuePauseHint}" />
         </Grid>
 
-        <Grid Grid.Row="1">
+        <Grid Grid.Row="2">
             <ListBox ItemsSource="{Binding Entries}" SelectedItem="{Binding Selected}">
                 <ListBox.Styles>
                     <Style Selector="ListBoxItem">
@@ -63,7 +78,7 @@
                        TextWrapping="Wrap" TextAlignment="Center" VerticalAlignment="Center" Margin="30" />
         </Grid>
 
-        <ScrollViewer Grid.Row="2" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+        <ScrollViewer Grid.Row="3" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <Button Content="{x:Static p:DownloadStrings.Start}" Command="{Binding Start}" />
                 <Button Content="{x:Static p:DownloadStrings.Pause}" Command="{Binding Pause}" />
