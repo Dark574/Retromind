@@ -510,12 +510,16 @@ public partial class MediaItem : ObservableObject
             OnPropertyChanged(propertyName);
     }
 
-    partial void OnCustomFieldsChanged(Dictionary<string, string> value)
+    internal (bool IsGog, bool HasUpdate) GogUpdateSearchState => GogMediaItemStateHelper.GetSearchState(CustomFields);
+
+    partial void OnCustomFieldsChanged(Dictionary<string, string>? oldValue, Dictionary<string, string> newValue)
     {
         OnPropertyChanged(nameof(VisibleCustomFields));
         OnPropertyChanged(nameof(HasCustomFields));
         OnPropertyChanged(nameof(StoreProviderId));
         OnPropertyChanged(nameof(StorePresentationState));
+        if (GogMediaItemStateHelper.GetSearchState(oldValue) != GogUpdateSearchState)
+            OnPropertyChanged(nameof(GogUpdateSearchState));
     }
 }
 

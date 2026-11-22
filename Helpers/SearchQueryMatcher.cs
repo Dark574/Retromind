@@ -19,6 +19,17 @@ public sealed class SearchQueryMatcher
 
     public bool IsActive { get; }
 
+    internal bool UsesGogUpdate => UsesGogUpdateField(_root);
+
+    private static bool UsesGogUpdateField(QueryNode? node) => node switch
+    {
+        TermNode term => term.Term.Field == QueryField.GogUpdate,
+        NotNode not => UsesGogUpdateField(not.Inner),
+        AndNode and => UsesGogUpdateField(and.Left) || UsesGogUpdateField(and.Right),
+        OrNode or => UsesGogUpdateField(or.Left) || UsesGogUpdateField(or.Right),
+        _ => false
+    };
+
     public static SearchQueryMatcher Create(string? query)
     {
         var normalized = query?.Trim();
@@ -644,7 +655,7 @@ public sealed class SearchQueryMatcher
             case QueryField.Store:
                 return StoreProviderBadgeHelper.GetProviderId(item) == null;
             case QueryField.GogUpdate:
-                return !GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
+                return !item.GogUpdateSearchState.HasUpdate;
             case QueryField.Rating:
                 return item.Rating <= 0d;
             case QueryField.Asset:
@@ -825,15 +836,9 @@ public sealed class SearchQueryMatcher
 
     private static bool MatchesGogUpdate(MediaItem item, string rawValue)
     {
-        if (!string.Equals(
-                StoreProviderBadgeHelper.GetProviderId(item),
-                StoreProviderBadgeHelper.GogProviderId,
-                StringComparison.OrdinalIgnoreCase))
-        {
+        var (isGog, hasUpdate) = item.GogUpdateSearchState;
+        if (!isGog)
             return false;
-        }
-
-        var hasUpdate = GogMediaItemStateHelper.HasAnyUpdateAvailable(item);
         var normalized = rawValue.Trim().ToLowerInvariant();
         if (normalized is "1" or "true" or "yes" or "y")
             return hasUpdate;

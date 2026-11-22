@@ -10,16 +10,18 @@ internal static class GogMediaItemStateHelper
 {
     private const string ProviderId = "gog";
 
-    public static string? TryGetGameId(MediaItem? item)
+    public static string? TryGetGameId(MediaItem? item) => TryGetGameIdFromFields(item?.CustomFields);
+
+    private static string? TryGetGameIdFromFields(IReadOnlyDictionary<string, string>? fields)
     {
-        if (item == null ||
-            !item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
+        if (fields == null ||
+            !fields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var providerId) ||
             !string.Equals(providerId, ProviderId, StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
 
-        return item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId) &&
+        return fields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId) &&
                !string.IsNullOrWhiteSpace(gameId)
             ? gameId
             : null;
@@ -68,6 +70,11 @@ internal static class GogMediaItemStateHelper
 
     public static bool HasAnyUpdateAvailable(MediaItem? item) =>
         TryGetGameId(item) != null && HasAnyUpdateAvailable(item!.CustomFields);
+
+    internal static (bool IsGog, bool HasUpdate) GetSearchState(IReadOnlyDictionary<string, string>? fields) =>
+        (string.Equals(fields?.GetValueOrDefault(CustomFieldKeyHelper.StoreProviderId)?.Trim(),
+            ProviderId, StringComparison.OrdinalIgnoreCase),
+            TryGetGameIdFromFields(fields) != null && HasAnyUpdateAvailable(fields));
 
     public static bool HasAnyUpdateAvailable(IReadOnlyDictionary<string, string>? customFields)
     {

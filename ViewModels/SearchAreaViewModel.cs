@@ -224,6 +224,12 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void RefreshResults() => RequestSearch(keepSelectionVisible: true);
 
+    internal void RefreshGogUpdateFilter()
+    {
+        if (SearchQueryMatcher.Create(SearchText).UsesGogUpdate)
+            RefreshResults();
+    }
+
     private IEnumerable<MediaNode> RootNodes => _rootNodesObservable ?? _rootNodesSnapshot;
 
     private void UpdateRootAvailability()

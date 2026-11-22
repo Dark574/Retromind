@@ -410,7 +410,8 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
                 return;
         }
 
-        PopulateItems(matches);
+        if (!MediaGridRows.HaveSameItemOrder(FilteredItems, matches))
+            PopulateItems(matches);
     }
 
     private void CancelPendingFilter()
@@ -427,6 +428,21 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MediaItem.GogUpdateSearchState))
+        {
+            if (!UiThreadHelper.CheckAccess())
+            {
+                UiThreadHelper.Post(() => OnItemPropertyChanged(sender, e));
+                return;
+            }
+
+            if (_isDisposed)
+                return;
+            if (SearchQueryMatcher.Create(SearchText).UsesGogUpdate)
+                DebouncedApplyFilter(SearchText);
+            return;
+        }
+
         if (e.PropertyName != nameof(MediaItem.IsFavorite) &&
             e.PropertyName != nameof(MediaItem.Status))
         {

@@ -782,6 +782,13 @@ public partial class MainWindowViewModel : ViewModelBase
             else
                 UiThreadHelper.Post(() => _desktopContent.SearchArea?.RefreshResults());
         }
+        else if (e.PropertyName == nameof(MediaItem.GogUpdateSearchState))
+        {
+            if (UiThreadHelper.CheckAccess())
+                _desktopContent.SearchArea?.RefreshGogUpdateFilter();
+            else
+                UiThreadHelper.Post(() => _desktopContent.SearchArea?.RefreshGogUpdateFilter());
+        }
 
         if (e.PropertyName == nameof(MediaItem.RetroAchievementsGame) &&
             ReferenceEquals(item, GetCurrentSelectedItem()))

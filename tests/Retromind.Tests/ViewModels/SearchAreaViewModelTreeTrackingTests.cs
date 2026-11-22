@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services;
 using Retromind.Tests.TestInfrastructure;
 using Retromind.ViewModels;
 
@@ -7,6 +10,99 @@ namespace Retromind.Tests.ViewModels;
 
 public sealed class SearchAreaViewModelTreeTrackingTests
 {
+    [Fact]
+    public async Task GogUpdateFilter_RefreshesBothViewsAndCountsWithoutLosingAnotherSelection()
+    {
+        AvaloniaTestDispatcher.EnsureStarted();
+        await UiThreadHelper.InvokeAsync(async () =>
+        {
+            var first = CreateGogItem("First", "123");
+            var selected = CreateGogItem("Selected", "456");
+            var root = new MediaNode("Games");
+            root.Items.Add(first);
+            root.Items.Add(selected);
+            var roots = new ObservableCollection<MediaNode> { root };
+            const string query = "store:GOG AND (has:gogupdate OR gogupdate:true)";
+            using var search = new SearchAreaViewModel(roots, new RecordingErrorService());
+            using var category = new MediaAreaViewModel(root, 150, initialSearchText: query);
+            var notifications = 0;
+            var tracker = new LibraryChangeTracker(new MediaDataService(), (_, args) =>
+            {
+                if (args.PropertyName == nameof(MediaItem.GogUpdateSearchState))
+                {
+                    notifications++;
+                    search.RefreshGogUpdateFilter();
+                }
+            });
+            tracker.Initialize(roots);
+            try
+            {
+                var initialSearch = WaitForItems(search.SearchResults, () => search.SearchResults.Count == 2);
+                search.SearchText = query;
+                await initialSearch;
+                search.SelectedMediaItem = selected;
+                category.SelectedMediaItem = selected;
+                Assert.Equal(2, root.GlobalSearchHitCount);
+
+                // A new check timestamp and a switch from base-game to DLC availability
+                // leave the search-facing state unchanged.
+                first.CustomFields = new(first.CustomFields)
+                {
+                    [CustomFieldKeyHelper.StoreUpdateLastCheckedUtc] = "time-2",
+                    [CustomFieldKeyHelper.StoreUpdateAvailable] = "false",
+                    [CustomFieldKeyHelper.StoreDlcUpdateAvailable] = "true"
+                };
+                Assert.Equal(0, notifications);
+
+                var nextSearch = WaitForItems(search.SearchResults, () => search.SearchResults.Count == 1);
+                var nextCategory = WaitForItems(category.FilteredItems, () => category.FilteredItems.Count == 1);
+                // Make two transitions while the previous search is waiting on the same debounce.
+                first.CustomFields = new(first.CustomFields) { [CustomFieldKeyHelper.StoreDlcUpdateAvailable] = "false" };
+                first.CustomFields = new(first.CustomFields) { [CustomFieldKeyHelper.StoreDlcUpdateAvailable] = "true" };
+                first.CustomFields = new(first.CustomFields) { [CustomFieldKeyHelper.StoreDlcUpdateAvailable] = "false" };
+                await Task.WhenAll(nextSearch, nextCategory);
+
+                Assert.Equal(3, notifications);
+                Assert.Equal(1, root.GlobalSearchHitCount);
+                Assert.Same(selected, Assert.Single(search.SearchResults));
+                Assert.Same(selected, Assert.Single(category.FilteredItems));
+                Assert.Same(selected, search.SelectedMediaItem);
+                Assert.Same(selected, category.SelectedMediaItem);
+            }
+            finally { tracker.StopTracking(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("store:GOG", false)]
+    [InlineData("title:\"has:gogupdate\"", false)]
+    [InlineData("NOT (title:Fixture OR missing:gogupdate)", true)]
+    public void GogUpdateFilter_OnlyTracksQueriesThatUseTheField(string query, bool expected) =>
+        Assert.Equal(expected, SearchQueryMatcher.Create(query).UsesGogUpdate);
+
+    private static MediaItem CreateGogItem(string name, string id) => new(name)
+    {
+        CustomFields = new()
+        {
+            [CustomFieldKeyHelper.StoreProviderId] = "gog",
+            [CustomFieldKeyHelper.StoreGameId] = id,
+            [CustomFieldKeyHelper.StoreUpdateAvailable] = "true"
+        }
+    };
+
+    private static async Task WaitForItems(INotifyCollectionChanged collection, Func<bool> matches)
+    {
+        var applied = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged(object? sender, NotifyCollectionChangedEventArgs args)
+        {
+            if (matches())
+                applied.TrySetResult();
+        }
+        collection.CollectionChanged += OnChanged;
+        try { await applied.Task.WaitAsync(TimeSpan.FromSeconds(5)); }
+        finally { collection.CollectionChanged -= OnChanged; }
+    }
+
     [Fact]
     public void ScopeDialogFactory_PassesTheExistingErrorServiceAndDoesNotChangeCurrentSelection()
     {
