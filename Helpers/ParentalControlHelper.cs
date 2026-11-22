@@ -5,6 +5,9 @@ namespace Retromind.Helpers;
 
 public static class ParentalControlHelper
 {
+    internal static bool IsPlaybackBlocked(AppSettings settings, MediaItem item) =>
+        item.IsProtected && IsFilterActive(settings);
+
     public static bool IsFilterActive(AppSettings settings)
     {
         if (settings == null)

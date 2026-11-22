@@ -12,6 +12,57 @@ namespace Retromind.Tests.Services;
 public sealed class LauncherServiceTests
 {
     [Theory]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, true)]
+    public async Task LaunchAsync_ChecksParentalProtectionAtStart(bool protectedItem, bool unlocked, bool allowed)
+    {
+        using var temp = new TemporaryDirectory();
+        var settings = new AppSettings
+        {
+            ParentalLockPasswordEncrypted = "configured",
+            ParentalLockUnlocked = unlocked
+        };
+        var path = temp.CreateFile("game.sh", "#!/bin/sh\nexit 0\n");
+        var item = new MediaItem("Game") { IsProtected = protectedItem, Files = [new() { Path = path }] };
+        var launcher = new LauncherService(temp.RootPath, settings, new LaunchLogService(temp.GetPath("logs")));
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(allowed, result.IsStarted);
+        Assert.Equal(allowed, Directory.Exists(temp.GetPath("logs")));
+    }
+
+    [Fact]
+    public async Task LaunchAsync_RechecksParentalLockAfterAsyncPreparation()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.CreateFile("game.sh", "#!/bin/sh\nexit 0\n");
+        var item = CreateGogItem("GOG game", path);
+        item.IsProtected = true;
+        var settings = new AppSettings
+        {
+            EnableGogGalaxyIntegration = true,
+            ParentalLockPasswordEncrypted = "configured",
+            ParentalLockUnlocked = true
+        };
+        var blocker = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var comet = new StubGogCometSessionService { StartBlocker = blocker };
+        var service = CreateLauncherWithComet(temp, settings, comet);
+        var launch = service.LaunchAsync(item, recordStatistics: false);
+        try
+        {
+            await comet.StartEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            settings.ParentalLockUnlocked = false;
+        }
+        finally { blocker.TrySetResult(); }
+
+        Assert.False((await launch.WaitAsync(TimeSpan.FromSeconds(5))).IsStarted);
+        Assert.Equal(1, comet.Session.DisposeCalls);
+        Assert.False(Directory.Exists(temp.GetPath("launch-logs")));
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task LaunchAsync_PlaylistFailureLaunchesPrimaryAndNeverUsesStalePlaylist(bool failWriting)

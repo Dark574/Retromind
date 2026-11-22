@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Resources;
 using Retromind.Services.SteamAchievements;
 using Retromind.Services.Stores.Gog.Comet;
 using Retromind.Services.Stores.Gog.Playtime;
@@ -115,6 +116,8 @@ public sealed class LauncherService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(item);
+        if (ParentalControlHelper.IsPlaybackBlocked(_settings, item))
+            return ParentalBlockResult();
 
         TaskCompletionSource? launchCompletion = null;
         if (_settings.EnableGogGalaxyIntegration && GogCometSessionService.IsEligible(item))
@@ -236,6 +239,12 @@ public sealed class LauncherService
                     // transient authentication failure must not block the game.
                     Debug.WriteLine($"[Comet] Optional startup failed: {ex.Message}");
                 }
+            }
+
+            if (ParentalControlHelper.IsPlaybackBlocked(_settings, item))
+            {
+                await FinishGogCometSessionAsync(gogCometSession, allowGracefulCompletion: false).ConfigureAwait(false);
+                return ParentalBlockResult();
             }
 
             process = item.MediaType == MediaType.Command
@@ -537,6 +546,10 @@ public sealed class LauncherService
             .ConfigureAwait(false);
         return result;
     }
+
+    private static LaunchResult ParentalBlockResult() => LaunchResult.Failed(
+        Strings.ResourceManager.GetString("Launch.ParentalBlocked", Strings.Culture) ??
+        "Parental control blocks this game from starting.");
 
     private void ReportSessionWarning(
         string code, string message, string itemId, string phase,

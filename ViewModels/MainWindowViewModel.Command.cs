@@ -388,7 +388,8 @@ public partial class MainWindowViewModel
 
     private bool CanPlayMedia(MediaItem? item)
     {
-        if (IsLaunchInProgress || IsMultiSelectModeActive || item == null)
+        if (IsLaunchInProgress || IsMultiSelectModeActive || item == null ||
+            ParentalControlHelper.IsPlaybackBlocked(_currentSettings, item))
             return false;
 
         if (ShouldOfferInstallForItem(item))

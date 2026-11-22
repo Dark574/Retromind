@@ -1861,4 +1861,7 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Launch.Preview.Unavailable" xml:space="preserve">
     <value>The current launch configuration could not be prepared.</value>
   </data>
+  <data name="Launch.ParentalBlocked" xml:space="preserve">
+    <value>Parental control blocks this game from starting.</value>
+  </data>
 </root>

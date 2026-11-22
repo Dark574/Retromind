@@ -1863,4 +1863,7 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Launch.Preview.Unavailable" xml:space="preserve">
     <value>Die aktuelle Startkonfiguration konnte nicht vorbereitet werden.</value>
   </data>
+  <data name="Launch.ParentalBlocked" xml:space="preserve">
+    <value>Die Kindersicherung verhindert den Start dieses Spiels.</value>
+  </data>
 </root>

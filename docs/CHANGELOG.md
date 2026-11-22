@@ -19,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep original and shared artwork files when saving media edits, including when the library write fails
 - align the launch preview with the actual command, wrapper order, working directory and configured environment
 - refresh current GOG update filters and result counts when update availability changes
+- check parental protection when a game is started, including when a search refresh is still pending
 - protect restored libraries against overlapping saves and roll back a full restore when writing settings fails
 - preserve current settings and runner registrations when runner changes and desktop saves overlap
 - require all installer parts and validate the destination of authenticated GOG downlink requests
