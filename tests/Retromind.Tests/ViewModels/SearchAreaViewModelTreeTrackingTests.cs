@@ -11,6 +11,69 @@ namespace Retromind.Tests.ViewModels;
 public sealed class SearchAreaViewModelTreeTrackingTests
 {
     [Fact]
+    public async Task UnplayedFilter_RefreshesAfterTheFirstLaunchAndKeepsTheOtherSelection()
+    {
+        AvaloniaTestDispatcher.EnsureStarted();
+        await UiThreadHelper.InvokeAsync(async () =>
+        {
+            var played = new MediaItem("Started");
+            var selected = new MediaItem("Unplayed");
+            var root = new MediaNode("Games");
+            root.Items.Add(played);
+            root.Items.Add(selected);
+            var roots = new ObservableCollection<MediaNode> { root };
+            const string query = "played:false";
+            using var search = new SearchAreaViewModel(roots, new RecordingErrorService());
+            using var category = new MediaAreaViewModel(root, 150, initialSearchText: query);
+            var notifications = 0;
+            var tracker = new LibraryChangeTracker(new MediaDataService(), (_, args) =>
+            {
+                if (args.PropertyName is { } property && SearchQueryMatcher.IsLiveItemFilterInput(property))
+                {
+                    notifications++;
+                    search.RefreshAfterItemChange(property);
+                }
+            });
+            tracker.Initialize(roots);
+            try
+            {
+                var initial = WaitForItems(search.SearchResults, () => search.SearchResults.Count == 2);
+                search.SearchText = query;
+                await initial;
+                search.SelectedMediaItem = selected;
+                category.SelectedMediaItem = selected;
+                var nextSearch = WaitForItems(search.SearchResults, () => search.SearchResults.Count == 1);
+                var nextCategory = WaitForItems(category.FilteredItems, () => category.FilteredItems.Count == 1);
+
+                // The launcher updates all three play statistics together.
+                played.LastPlayed = new DateTime(2026, 11, 22);
+                played.PlayCount = 1;
+                played.TotalPlayTime = TimeSpan.FromMinutes(1);
+                await Task.WhenAll(nextSearch, nextCategory);
+
+                Assert.Equal(1, notifications);
+                Assert.Equal(1, root.GlobalSearchHitCount);
+                Assert.Same(selected, Assert.Single(search.SearchResults));
+                Assert.Same(selected, Assert.Single(category.FilteredItems));
+                Assert.Same(selected, search.SelectedMediaItem);
+                Assert.Same(selected, category.SelectedMediaItem);
+            }
+            finally { tracker.StopTracking(); }
+        });
+    }
+
+    [Theory]
+    [InlineData("title:Game", nameof(MediaItem.HasPlayedForSearch), false, false, false)]
+    [InlineData("played:false", nameof(MediaItem.HasPlayedForSearch), false, false, true)]
+    [InlineData("fav:true", nameof(MediaItem.IsFavorite), false, false, true)]
+    [InlineData("", nameof(MediaItem.IsFavorite), true, false, true)]
+    [InlineData("", nameof(MediaItem.Status), false, true, true)]
+    public void LiveSearchInputs_OnlyInvalidateFiltersThatUseThem(
+        string query, string property, bool onlyFavorites, bool statusFilter, bool expected) =>
+        Assert.Equal(expected, SearchQueryMatcher.Create(query)
+            .IsAffectedByItemChange(property, onlyFavorites, statusFilter));
+
+    [Fact]
     public async Task GogUpdateFilter_RefreshesBothViewsAndCountsWithoutLosingAnotherSelection()
     {
         AvaloniaTestDispatcher.EnsureStarted();
@@ -31,7 +94,7 @@ public sealed class SearchAreaViewModelTreeTrackingTests
                 if (args.PropertyName == nameof(MediaItem.GogUpdateSearchState))
                 {
                     notifications++;
-                    search.RefreshGogUpdateFilter();
+                    search.RefreshAfterItemChange(args.PropertyName);
                 }
             });
             tracker.Initialize(roots);

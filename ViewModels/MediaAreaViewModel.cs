@@ -428,31 +428,18 @@ public partial class MediaAreaViewModel : ViewModelBase, IDisposable
 
     private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(MediaItem.GogUpdateSearchState))
-        {
-            if (!UiThreadHelper.CheckAccess())
-            {
-                UiThreadHelper.Post(() => OnItemPropertyChanged(sender, e));
-                return;
-            }
+        if (e.PropertyName is not { } property || !SearchQueryMatcher.IsLiveItemFilterInput(property))
+            return;
 
-            if (_isDisposed)
-                return;
-            if (SearchQueryMatcher.Create(SearchText).UsesGogUpdate)
-                DebouncedApplyFilter(SearchText);
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(() => OnItemPropertyChanged(sender, e));
             return;
         }
 
-        if (e.PropertyName != nameof(MediaItem.IsFavorite) &&
-            e.PropertyName != nameof(MediaItem.Status))
-        {
-            return;
-        }
-
-        if (!OnlyFavorites && SelectedStatus == null)
-            return;
-
-        DebouncedApplyFilter(SearchText);
+        if (!_isDisposed && SearchQueryMatcher.Create(SearchText)
+            .IsAffectedByItemChange(property, OnlyFavorites, SelectedStatus != null))
+            DebouncedApplyFilter(SearchText);
     }
     
     /// <summary>

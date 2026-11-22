@@ -224,9 +224,10 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void RefreshResults() => RequestSearch(keepSelectionVisible: true);
 
-    internal void RefreshGogUpdateFilter()
+    internal void RefreshAfterItemChange(string property)
     {
-        if (SearchQueryMatcher.Create(SearchText).UsesGogUpdate)
+        if (!_disposed && SearchQueryMatcher.Create(SearchText)
+            .IsAffectedByItemChange(property, OnlyFavorites, SelectedStatus != null))
             RefreshResults();
     }
 

@@ -19,14 +19,31 @@ public sealed class SearchQueryMatcher
 
     public bool IsActive { get; }
 
-    internal bool UsesGogUpdate => UsesGogUpdateField(_root);
+    internal bool UsesGogUpdate => UsesField(_root, QueryField.GogUpdate);
 
-    private static bool UsesGogUpdateField(QueryNode? node) => node switch
+    internal static bool IsLiveItemFilterInput(string? property) => GetLiveField(property).HasValue;
+
+    internal bool IsAffectedByItemChange(string property, bool onlyFavorites, bool statusFilterActive) =>
+        GetLiveField(property) is { } field &&
+        ((field == QueryField.Favorite && onlyFavorites) ||
+         (field == QueryField.Status && statusFilterActive) ||
+         UsesField(_root, field));
+
+    private static QueryField? GetLiveField(string? property) => property switch
     {
-        TermNode term => term.Term.Field == QueryField.GogUpdate,
-        NotNode not => UsesGogUpdateField(not.Inner),
-        AndNode and => UsesGogUpdateField(and.Left) || UsesGogUpdateField(and.Right),
-        OrNode or => UsesGogUpdateField(or.Left) || UsesGogUpdateField(or.Right),
+        nameof(MediaItem.IsFavorite) => QueryField.Favorite,
+        nameof(MediaItem.Status) => QueryField.Status,
+        nameof(MediaItem.HasPlayedForSearch) => QueryField.Played,
+        nameof(MediaItem.GogUpdateSearchState) => QueryField.GogUpdate,
+        _ => null
+    };
+
+    private static bool UsesField(QueryNode? node, QueryField field) => node switch
+    {
+        TermNode term => term.Term.Field == field,
+        NotNode not => UsesField(not.Inner, field),
+        AndNode and => UsesField(and.Left, field) || UsesField(and.Right, field),
+        OrNode or => UsesField(or.Left, field) || UsesField(or.Right, field),
         _ => false
     };
 

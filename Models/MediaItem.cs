@@ -435,6 +435,26 @@ public partial class MediaItem : ObservableObject
     [ObservableProperty] private int _playCount;
     [ObservableProperty] private TimeSpan _totalPlayTime = TimeSpan.Zero;
 
+    internal bool HasPlayedForSearch => MediaPlayStateHelper.HasPlayEvidence(this);
+
+    partial void OnLastPlayedChanged(DateTime? oldValue, DateTime? newValue)
+    {
+        if (oldValue.HasValue != newValue.HasValue && PlayCount <= 0 && TotalPlayTime <= TimeSpan.Zero)
+            OnPropertyChanged(nameof(HasPlayedForSearch));
+    }
+
+    partial void OnPlayCountChanged(int oldValue, int newValue)
+    {
+        if ((oldValue > 0) != (newValue > 0) && !LastPlayed.HasValue && TotalPlayTime <= TimeSpan.Zero)
+            OnPropertyChanged(nameof(HasPlayedForSearch));
+    }
+
+    partial void OnTotalPlayTimeChanged(TimeSpan oldValue, TimeSpan newValue)
+    {
+        if ((oldValue > TimeSpan.Zero) != (newValue > TimeSpan.Zero) && PlayCount <= 0 && !LastPlayed.HasValue)
+            OnPropertyChanged(nameof(HasPlayedForSearch));
+    }
+
     // --- Constructors ---
 
     public MediaItem(string title)

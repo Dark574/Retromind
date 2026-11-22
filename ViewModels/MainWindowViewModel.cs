@@ -775,19 +775,12 @@ public partial class MainWindowViewModel : ViewModelBase
         if (string.IsNullOrWhiteSpace(e.PropertyName))
             return;
 
-        if (e.PropertyName == nameof(MediaItem.IsFavorite))
+        if (SearchQueryMatcher.IsLiveItemFilterInput(e.PropertyName))
         {
             if (UiThreadHelper.CheckAccess())
-                _desktopContent.SearchArea?.RefreshResults();
+                _desktopContent.SearchArea?.RefreshAfterItemChange(e.PropertyName);
             else
-                UiThreadHelper.Post(() => _desktopContent.SearchArea?.RefreshResults());
-        }
-        else if (e.PropertyName == nameof(MediaItem.GogUpdateSearchState))
-        {
-            if (UiThreadHelper.CheckAccess())
-                _desktopContent.SearchArea?.RefreshGogUpdateFilter();
-            else
-                UiThreadHelper.Post(() => _desktopContent.SearchArea?.RefreshGogUpdateFilter());
+                UiThreadHelper.Post(() => _desktopContent.SearchArea?.RefreshAfterItemChange(e.PropertyName));
         }
 
         if (e.PropertyName == nameof(MediaItem.RetroAchievementsGame) &&
