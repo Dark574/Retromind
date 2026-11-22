@@ -90,7 +90,14 @@ internal sealed partial class DesktopEpicWorkflow
         if (!updates.TryGetValue(appName, out var status))
             return new(DownloadState.Failed, DownloadReason.InstallerUnavailable);
         if (!execution.Job.RepairRequested && !status.IsUpdateAvailable)
-            return new(DownloadState.Completed);
+        {
+            if (!ApplyEpicUpdateCheckMetadata(item, status))
+                return new(DownloadState.Completed);
+
+            Workspace.MarkLibraryDirty();
+            NotifyPlayAvailabilityChanged();
+            return new(DownloadState.Completed, await SaveData() ? DownloadReason.None : DownloadReason.SavePending);
+        }
         if (!execution.MayInstall)
             return new(DownloadState.InstallationPending, DownloadReason.EpicCombinedUpdate);
 

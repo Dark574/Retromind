@@ -4,11 +4,49 @@ using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.Scrapers;
 using Retromind.Tests.TestInfrastructure;
+using SkiaSharp;
 
 namespace Retromind.Tests.Services;
 
 public sealed class ScrapedAssetImporterTests
 {
+    [Fact]
+    public async Task ImportAsync_SavesOriginalArtworkEvenWhenASmallerPreviewIsCached()
+    {
+        AvaloniaTestDispatcher.EnsureStarted();
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        using var source = new SKBitmap(640, 320);
+        using var encoded = source.Encode(SKEncodedImageFormat.Png, 100);
+        var original = encoded.ToArray();
+        var url = $"https://images.example/{Guid.NewGuid()}.png";
+        using var handler = new RecordingHttpHandler(_ => new HttpResponseMessage(HttpStatusCode.OK)
+        {
+            Content = new ByteArrayContent(original)
+        });
+        using var client = new HttpClient(handler);
+        var errors = new RecordingErrorService();
+        using var preview = await AsyncImageHelper.AcquireBitmapAsync(url, 100, false, default, client, errors);
+        Assert.NotNull(preview);
+        Assert.Equal(100, preview.Bitmap.PixelSize.Width);
+        var importer = new ScrapedAssetImporter(client, new FileManagementService(AppPaths.LibraryRoot, errors), errors);
+        var item = new MediaItem("Fixture");
+        try
+        {
+            var outcome = await importer.ImportAsync(item, new ScraperSearchResult { CoverUrl = url },
+                ["Games"], new ScraperImportSettings { ImportCover = true }, false);
+
+            Assert.True(outcome.Changed);
+            var asset = Assert.Single(item.Assets);
+            Assert.Equal(original, await File.ReadAllBytesAsync(asset.AbsolutePath));
+            Assert.Equal(2, handler.RequestCount);
+        }
+        finally
+        {
+            AsyncImageHelper.InvalidateCache(url);
+        }
+    }
+
     [Theory]
     [InlineData(false, true)]
     [InlineData(false, false)]

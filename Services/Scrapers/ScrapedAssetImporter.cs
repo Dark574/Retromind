@@ -190,7 +190,7 @@ public sealed class ScrapedAssetImporter
         await using var source = await response.Content.ReadAsStreamAsync(timeout.Token);
         await using var destination = new FileStream(
             destinationPath,
-            FileMode.Create,
+            FileMode.CreateNew,
             FileAccess.Write,
             FileShare.None,
             bufferSize: 81920,
@@ -216,18 +216,13 @@ public sealed class ScrapedAssetImporter
 
     private async Task<bool> DownloadAndSetAssetAsync(string url, MediaItem item, List<string> nodePath, AssetType type)
     {
-        string? tempPathWithExt = null;
+        DirectoryInfo? tempDirectory = null;
         try
         {
-            var tempFile = Path.GetTempFileName();
-            var ext = GetScrapedAssetExtension(url, type);
-            tempPathWithExt = Path.ChangeExtension(tempFile, ext);
-
-            if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
-            File.Move(tempFile, tempPathWithExt);
-
-            if (type == AssetType.Video || !await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt))
-                await DownloadScrapedAssetAsync(url, tempPathWithExt, type);
+            tempDirectory = Directory.CreateTempSubdirectory("retromind-scraped-asset-");
+            var tempPathWithExt = Path.Combine(tempDirectory.FullName, "asset" + GetScrapedAssetExtension(url, type));
+            // Preview bitmaps may have been resized. Persist the original response.
+            await DownloadScrapedAssetAsync(url, tempPathWithExt, type);
 
             var imported = await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
             if (imported != null)
@@ -244,8 +239,7 @@ public sealed class ScrapedAssetImporter
         {
             try
             {
-                if (!string.IsNullOrEmpty(tempPathWithExt) && File.Exists(tempPathWithExt))
-                    File.Delete(tempPathWithExt);
+                tempDirectory?.Delete(recursive: true);
             }
             catch
             {

@@ -22,6 +22,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - download changed GOG installers through the queue and ask for installation approval again
 - bound scraper image and video downloads and skip incomplete transfers
 - continue importing Steam games from available libraries when a library disconnects or becomes unreadable
+- save scraper artwork at its original resolution even after a smaller preview has been shown
+- clear obsolete Epic update badges when Legendary confirms a queued game is already current
 - pause automatic updates when excluding a game and resume those updates when including it again
 - keep the latest settings when manual and delayed saves overlap
 - restore resizing in the download manager and make its close button work after repeated opening clicks
