@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.ComponentModel;
 using System.Reflection;
 using Retromind.Models;
@@ -8,6 +9,8 @@ namespace Retromind.Tests.Services;
 
 public sealed class AudioServiceTests
 {
+    private static readonly TimeSpan PlaybackEventTimeout = TimeSpan.FromSeconds(5);
+
     [Theory]
     [InlineData("track.mp3", "ffplay")]
     [InlineData("track.SID", "sidplayfp")]
@@ -52,7 +55,7 @@ public sealed class AudioServiceTests
     {
         using var temp = new TemporaryDirectory();
         var path = temp.CreateFile(file);
-        var process = new FakeAudioProcess();
+        var process = new FakeAudioProcess(runContinuationsAsynchronously: true);
         using var errors = new RecordingErrorService();
         var starts = 0;
         var service = new AudioService(errors, _ => { starts++; return process; });
@@ -62,6 +65,7 @@ public sealed class AudioServiceTests
         await service.PlayMusicAsync(path);
 
         process.Complete(17);
+        await errors.FirstReportRecorded.WaitAsync(PlaybackEventTimeout);
 
         var report = Assert.Single(errors.Reports);
         AssertReport(report, "Audio.ProcessFailed", ErrorSeverity.Warning, "Playback", player);
@@ -93,13 +97,14 @@ public sealed class AudioServiceTests
         using var temp = new TemporaryDirectory();
         var path = temp.CreateFile("track.mp3");
         using var errors = new RecordingErrorService();
-        var process = new FakeAudioProcess();
+        var process = new FakeAudioProcess(runContinuationsAsynchronously: true);
         var service = new AudioService(errors, _ => process);
-        var ended = new List<string>();
-        service.MusicPlaybackEnded += ended.Add;
+        var ended = new ConcurrentQueue<string>();
+        var playbackEnded = ObservePlaybackEnded(service, ended);
         await service.PlayMusicAsync(path);
 
         process.Complete(0);
+        await playbackEnded.WaitAsync(PlaybackEventTimeout);
 
         Assert.Equal([path], ended);
         Assert.Equal(1, process.DisposeCalls);
@@ -195,15 +200,19 @@ public sealed class AudioServiceTests
     {
         using var temp = new TemporaryDirectory();
         var path = temp.CreateFile("track.mp3");
-        var process = new FakeAudioProcess { DisposeException = new IOException("Dispose failed") };
+        var process = new FakeAudioProcess(runContinuationsAsynchronously: true)
+        {
+            DisposeException = new IOException("Dispose failed")
+        };
         using var errors = new RecordingErrorService();
         var service = new AudioService(errors, _ => process);
         errors.OnReport = _ => AssertOutsideProcessLock(service);
-        var ended = new List<string>();
-        service.MusicPlaybackEnded += ended.Add;
+        var ended = new ConcurrentQueue<string>();
+        var playbackEnded = ObservePlaybackEnded(service, ended);
         await service.PlayMusicAsync(path);
 
         process.Complete(0);
+        await playbackEnded.WaitAsync(PlaybackEventTimeout);
 
         AssertReport(Assert.Single(errors.Reports), "Audio.StopFailed", ErrorSeverity.Diagnostic, "Dispose", "ffplay");
         Assert.Null(CurrentProcess(service));
@@ -215,12 +224,12 @@ public sealed class AudioServiceTests
     {
         using var temp = new TemporaryDirectory();
         var first = new FakeAudioProcess { CompleteOnKill = false };
-        var second = new FakeAudioProcess();
+        var second = new FakeAudioProcess(runContinuationsAsynchronously: true);
         var processes = new Queue<FakeAudioProcess>([first, second]);
         using var errors = new RecordingErrorService();
         var service = new AudioService(errors, _ => processes.Dequeue());
-        var ended = new List<string>();
-        service.MusicPlaybackEnded += ended.Add;
+        var ended = new ConcurrentQueue<string>();
+        var playbackEnded = ObservePlaybackEnded(service, ended);
         await service.PlayMusicAsync(temp.CreateFile("first.mp3"));
         var secondPath = temp.CreateFile("second.mp3");
         await service.PlayMusicAsync(secondPath);
@@ -229,6 +238,7 @@ public sealed class AudioServiceTests
         Assert.Same(second, CurrentProcess(service));
         Assert.Empty(ended);
         second.Complete(0);
+        await playbackEnded.WaitAsync(PlaybackEventTimeout);
 
         Assert.Equal([secondPath], ended);
         Assert.Empty(errors.Reports);
@@ -254,6 +264,17 @@ public sealed class AudioServiceTests
         Assert.Empty(errors.Reports);
     }
 
+    private static Task ObservePlaybackEnded(AudioService service, ConcurrentQueue<string> ended)
+    {
+        var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.MusicPlaybackEnded += path =>
+        {
+            ended.Enqueue(path);
+            completion.TrySetResult();
+        };
+        return completion.Task;
+    }
+
     private static void AssertReport(ErrorReport report, string code, ErrorSeverity severity, string operation, string player)
     {
         Assert.Equal(code, report.Code);
@@ -273,13 +294,15 @@ public sealed class AudioServiceTests
 
     private sealed class RecordingErrorService : IErrorService, IDisposable
     {
-        private readonly List<Exception> _assertionFailures = [];
-        public List<ErrorReport> Reports { get; } = [];
+        private readonly TaskCompletionSource _firstReportRecorded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly ConcurrentQueue<Exception> _assertionFailures = new();
+        public Task FirstReportRecorded => _firstReportRecorded.Task;
+        public ConcurrentQueue<ErrorReport> Reports { get; } = new();
         public Action<ErrorReport>? OnReport { get; set; }
         public bool ThrowOnReport { get; init; }
         public void Report(ErrorReport error, Func<Task>? notifyUser = null)
         {
-            Reports.Add(error);
+            Reports.Enqueue(error);
             // The caller intentionally catches errors from IErrorService. Preserve test
             // assertions for verification outside that boundary so they cannot be swallowed.
             var assertionFailure = Record.Exception(() =>
@@ -288,7 +311,8 @@ public sealed class AudioServiceTests
                 OnReport?.Invoke(error);
             });
             if (assertionFailure != null)
-                _assertionFailures.Add(assertionFailure);
+                _assertionFailures.Enqueue(assertionFailure);
+            _firstReportRecorded.TrySetResult();
             if (ThrowOnReport)
                 throw new IOException("Error service unavailable");
         }
@@ -296,11 +320,12 @@ public sealed class AudioServiceTests
         public void Dispose() => Assert.Empty(_assertionFailures);
     }
 
-    private sealed class FakeAudioProcess : AudioService.IAudioProcess
+    private sealed class FakeAudioProcess(bool runContinuationsAsynchronously = false) : AudioService.IAudioProcess
     {
-        // Inline completion deliberately exercises exit callbacks occurring during Kill
-        // while the service holds its lock, without real processes, delays, or timers.
-        private readonly TaskCompletionSource _exit = new();
+        // Stop tests still allow inline callbacks during Kill while the service holds its lock.
+        private readonly TaskCompletionSource _exit = new(runContinuationsAsynchronously
+            ? TaskCreationOptions.RunContinuationsAsynchronously
+            : TaskCreationOptions.None);
         public bool HasExited => _exit.Task.IsCompleted;
         public int ExitCode { get; private set; }
         public int KillCalls { get; private set; }
