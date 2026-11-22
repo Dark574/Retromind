@@ -63,8 +63,9 @@ trigger removal of files to make space.
   updates, subject to retry deadlines.
   Queued downloads can complete while the game is running. GOG installers may need license approval,
   a compatible setup program, Wine interaction, executable selection or DLC reapplication. The
-  update waits for explicit installation. The installed version is recorded through the existing
-  installer success path.
+  update waits for explicit installation of the version prepared by the queue. If the available
+  package has changed or the local payload cannot be verified, the job returns to the regular download
+  schedule and requires fresh approval. The installed version is recorded after installation succeeds.
 - Epic checks its managed titles from a shared Legendary catalog snapshot. **Download and install**
   can apply an update after checking authentication, registration, disk space and the install
   directory's ownership marker. **Download only** displays an approval-required job. Legendary

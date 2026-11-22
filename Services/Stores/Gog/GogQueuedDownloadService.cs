@@ -25,7 +25,8 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
 
         if (package == null)
             return new(DownloadState.Failed, DownloadReason.InstallerUnavailable);
-        if (request.Job.Kind == DownloadKind.Update && GogInstallerArchive.GetRevision(package) == installedRevision)
+        var revision = GogInstallerArchive.GetRevision(package);
+        if (request.Job.Kind == DownloadKind.Update && revision == installedRevision)
             return new(DownloadState.Completed);
 
         var offlineOnly = request.Job.Kind == DownloadKind.OfflineInstaller;
@@ -38,7 +39,7 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
                 archive = GogInstallerArchive.GetPackageDirectory(request.Settings, package);
                 GogInstallerArchive.EnsureSeparateFromInstallation(archive, installPath);
                 if (await installer.ValidateArchivedPackageAsync(package, archive, ct).ConfigureAwait(false))
-                    return Ready(offlineOnly);
+                    return Ready(offlineOnly, revision);
                 if (Directory.Exists(archive))
                     return new(DownloadState.Failed, DownloadReason.ArchiveUnavailable);
             }
@@ -78,12 +79,13 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
         }
 
         // The offline installer can require licenses, installer UI, Wine or DLC reapplication.
-        return Ready(offlineOnly);
+        return Ready(offlineOnly, revision);
     }
 
-    private static DownloadOutcome Ready(bool offlineOnly) => offlineOnly
-        ? new(DownloadState.Completed, PayloadReady: true)
-        : new(DownloadState.InstallationPending, DownloadReason.ManualGogInstallation, PayloadReady: true);
+    private static DownloadOutcome Ready(bool offlineOnly, string revision) => offlineOnly
+        ? new(DownloadState.Completed, PayloadReady: true, PayloadRevision: revision)
+        : new(DownloadState.InstallationPending, DownloadReason.ManualGogInstallation,
+            PayloadReady: true, PayloadRevision: revision);
 
     private sealed class TransferProgress(Action<DownloadProgress> publish) : IProgress<GogInstallerDownloadProgress>
     {

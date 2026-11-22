@@ -1843,6 +1843,9 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Downloads.Reason.ArchiveUnavailable" xml:space="preserve">
     <value>The installer archive could not be opened or contains a conflicting package.</value>
   </data>
+  <data name="Downloads.Reason.GogPayloadChanged" xml:space="preserve">
+    <value>The prepared installer changed or is unavailable. It will be downloaded again.</value>
+  </data>
   <data name="Downloads.RecoveryAvailable" xml:space="preserve">
     <value>A game installation may need repair. Open the download manager.</value>
   </data>

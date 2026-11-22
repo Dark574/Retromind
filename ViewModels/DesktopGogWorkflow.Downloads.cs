@@ -43,6 +43,8 @@ internal sealed partial class DesktopGogWorkflow
 
             if (job.InstallRequested && (job.PayloadReady || job.RepairRequested))
             {
+                if (!job.RepairRequested && job.PayloadRevision == null)
+                    return RequireFreshPayload();
                 if (IsLaunchInProgress)
                     return new(DownloadState.WaitingForGame, DownloadReason.GameActive, true);
                 if (CurrentWindow == null || !execution.BeginInstallation())
@@ -50,10 +52,17 @@ internal sealed partial class DesktopGogWorkflow
 
                 IsLaunchInProgress = true;
                 var started = false;
+                var needsRedownload = false;
                 try
                 {
                     var operation = job.RepairRequested ? GogInstallOperation.Reinstall : GogInstallOperation.Update;
-                    var success = await InstallGogItemAsync(item, operation: operation, installationStarted: () => started = true);
+                    var queuedPayload = job.RepairRequested
+                        ? null
+                        : new QueuedGogPayload(platform.Value, job.PayloadRevision!, () => needsRedownload = true);
+                    var success = await InstallGogItemAsync(item, operation: operation,
+                        installationStarted: () => started = true, queuedPayload: queuedPayload);
+                    if (needsRedownload)
+                        return RequireFreshPayload();
                     return success ? new(DownloadState.Completed, PayloadReady: true)
                         : started || job.RepairRequested ? new(DownloadState.RepairRequired, DownloadReason.InstallInterrupted, true)
                         : new(DownloadState.InstallationPending, DownloadReason.ManualGogInstallation, true);
@@ -69,4 +78,7 @@ internal sealed partial class DesktopGogWorkflow
         return await service.DownloadAsync(execution, gameId, platform.Value, installPath, revision, ct)
             .ConfigureAwait(false);
     }
+
+    private static DownloadOutcome RequireFreshPayload() =>
+        new(DownloadState.Queued, DownloadReason.GogPayloadChanged, RedownloadRequired: true);
 }

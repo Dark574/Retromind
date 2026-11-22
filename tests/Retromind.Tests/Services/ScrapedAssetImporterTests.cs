@@ -10,6 +10,44 @@ namespace Retromind.Tests.Services;
 public sealed class ScrapedAssetImporterTests
 {
     [Theory]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    public async Task ImportAsync_RejectsOversizedArtworkAndVideo(bool video, bool advertiseLength)
+    {
+        using var temp = new TemporaryDirectory();
+        var errors = new RecordingErrorService();
+        var limit = video ? ScrapedAssetImporter.MaxVideoBytes : AsyncImageHelper.MaximumHttpImageBytes;
+        var type = video ? AssetType.Video : AssetType.Cover;
+        using var handler = new RecordingHttpHandler(_ =>
+        {
+            HttpContent content = advertiseLength
+                ? new ByteArrayContent([1])
+                : new StreamContent(new NonSeekableStream(new byte[limit + 1]));
+            if (advertiseLength)
+                content.Headers.ContentLength = limit + 1;
+            return new HttpResponseMessage(HttpStatusCode.OK) { Content = content };
+        });
+        using var client = new HttpClient(handler);
+        var importer = new ScrapedAssetImporter(client, new FileManagementService(temp.RootPath, errors), errors);
+        var result = new ScraperSearchResult
+        {
+            CoverUrl = $"https://images.example/{Guid.NewGuid()}.png",
+            VideoUrl = "https://images.example/fixture.mp4"
+        };
+        var item = new MediaItem("Fixture");
+        var failures = new List<AssetType>();
+
+        var outcome = await importer.ImportAsync(item, result, ["Games"],
+            new ScraperImportSettings { ImportCover = !video, ImportVideo = video }, false, failures.Add);
+
+        Assert.False(outcome.Changed);
+        Assert.Empty(item.Assets);
+        Assert.Equal(type, Assert.Single(failures));
+        Assert.Equal(1, handler.RequestCount);
+    }
+
+    [Theory]
     [InlineData("disabled", 0)]
     [InlineData("no-url", 0)]
     [InlineData("existing", 0)]
@@ -116,5 +154,10 @@ public sealed class ScrapedAssetImporterTests
             RequestCount++;
             return Task.FromResult(respond(request));
         }
+    }
+
+    private sealed class NonSeekableStream(byte[] data) : MemoryStream(data)
+    {
+        public override bool CanSeek => false;
     }
 }

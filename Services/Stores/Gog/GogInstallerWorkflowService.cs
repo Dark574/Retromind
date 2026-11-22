@@ -12,13 +12,17 @@ using Retromind.Services.Downloads;
 
 namespace Retromind.Services.Stores.Gog;
 
+internal sealed class GogInstallerPayloadUnavailableException()
+    : IOException("The queued GOG installer payload is missing or invalid.");
+
 internal enum GogInstallerWorkflowFailureStage
 {
     None = 0,
     Download = 1,
     Execution = 2,
     Cancelled = 3,
-    Storage = 4
+    Storage = 4,
+    PayloadUnavailable = 5
 }
 
 internal sealed record GogInstallerWorkflowRequest(
@@ -34,7 +38,8 @@ internal sealed record GogInstallerWorkflowRequest(
     bool CleanInstall,
     bool UseTemporaryLinuxDestination,
     bool RequireLinuxPayloadChange,
-    DownloadSettings? DownloadSettings = null);
+    DownloadSettings? DownloadSettings = null,
+    bool RequireCachedPayload = false);
 
 internal sealed record GogInstallerWorkflowResult(
     bool Success,
@@ -90,7 +95,9 @@ public sealed class GogInstallerWorkflowService
                 message);
         }
 
-        appendLog("[Download] Starting installer download...");
+        appendLog(request.RequireCachedPayload
+            ? "[Download] Preparing the verified local installer..."
+            : "[Download] Starting installer download...");
         var reusableStagingFiles = CountExistingStagedInstallerFiles(
             request.InstallerPackage,
             request.StagingDirectory);
@@ -123,7 +130,7 @@ public sealed class GogInstallerWorkflowService
                 : null;
             downloadedPackage = await _installService.DownloadInstallerPackageAsync(
                     package, request.StagingDirectory, CreateDownloadProgress(appendLog), limiter, queuedStaging,
-                    cancellationToken, archiveDirectory: archive)
+                    cancellationToken, archiveDirectory: archive, requireCachedPayload: request.RequireCachedPayload)
                 .ConfigureAwait(false);
 
             if (settings.KeepGogInstallers)
@@ -150,6 +157,10 @@ public sealed class GogInstallerWorkflowService
                 false,
                 GogInstallerWorkflowFailureStage.Cancelled,
                 "Installation cancelled by user.");
+        }
+        catch (GogInstallerPayloadUnavailableException ex)
+        {
+            return new GogInstallerWorkflowResult(false, GogInstallerWorkflowFailureStage.PayloadUnavailable, ex.Message);
         }
         catch (GogInsufficientDiskSpaceException ex)
         {

@@ -564,7 +564,8 @@ public sealed class GogInstallService
         DownloadRateLimiter? rateLimiter,
         string? cachedPackageDirectory,
         CancellationToken ct,
-        string? archiveDirectory = null)
+        string? archiveDirectory = null,
+        bool requireCachedPayload = false)
     {
         await _transfer.WaitAsync(ct).ConfigureAwait(false);
         try
@@ -575,7 +576,7 @@ public sealed class GogInstallService
             else if (!Directory.Exists(cachedPackageDirectory))
                 cachedPackageDirectory = null;
             return await DownloadInstallerPackageCoreAsync(package, stagingDirectory, progress,
-                rateLimiter, cachedPackageDirectory, ct).ConfigureAwait(false);
+                rateLimiter, cachedPackageDirectory, requireCachedPayload, ct).ConfigureAwait(false);
         }
         finally
         {
@@ -604,6 +605,7 @@ public sealed class GogInstallService
         IProgress<GogInstallerDownloadProgress>? progress,
         DownloadRateLimiter? rateLimiter,
         string? cachedPackageDirectory,
+        bool requireCachedPayload,
         CancellationToken ct)
     {
         if (package == null)
@@ -654,6 +656,7 @@ public sealed class GogInstallService
                 bytes => transferredBytes = StoreDiskSpaceHelper.SaturatingAdd(transferredBytes, bytes),
                 rateLimiter,
                 cachedPackageDirectory == null ? null : Path.Combine(cachedPackageDirectory, safeName),
+                requireCachedPayload,
                 ct).ConfigureAwait(false);
             downloadedFiles.Add(targetPath);
         }
@@ -791,6 +794,7 @@ public sealed class GogInstallService
         Action<int> countNetworkBytes,
         DownloadRateLimiter? rateLimiter,
         string? cachedFile,
+        bool requireCachedPayload,
         CancellationToken ct)
     {
         GogInstallerArchive.EnsureSafeFile(targetPath);
@@ -801,6 +805,8 @@ public sealed class GogInstallService
         var expectedSize = checksum != null ? checksum.TotalSize : catalogSize;
         var expectedMd5 = checksum?.Md5;
         EnsureInstallerFileSizeAllowed(checksum?.TotalSize ?? catalogSize, file.FileName);
+        if (requireCachedPayload && (!expectedSize.HasValue || hasChecksumReference && checksum == null))
+            throw new GogInstallerPayloadUnavailableException();
 
         if (File.Exists(targetPath))
         {
@@ -832,6 +838,9 @@ public sealed class GogInstallService
                 return;
             }
         }
+
+        if (requireCachedPayload)
+            throw new GogInstallerPayloadUnavailableException();
 
         var partPath = targetPath + ".part";
         var resumeOffset = 0L;

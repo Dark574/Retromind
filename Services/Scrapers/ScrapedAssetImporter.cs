@@ -17,6 +17,7 @@ namespace Retromind.Services.Scrapers;
 /// </summary>
 public sealed class ScrapedAssetImporter
 {
+    internal const int MaxVideoBytes = 512 * 1024 * 1024;
     private readonly HttpClient _httpClient;
     private readonly FileManagementService _fileService;
     private readonly IErrorService _errorService;
@@ -167,11 +168,14 @@ public sealed class ScrapedAssetImporter
         };
     }
 
-    private async Task DownloadScrapedVideoAsync(
+    private async Task DownloadScrapedAssetAsync(
         string url,
-        string destinationPath)
+        string destinationPath,
+        AssetType type)
     {
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+        var isVideo = type == AssetType.Video;
+        var maximumBytes = isVideo ? MaxVideoBytes : AsyncImageHelper.MaximumHttpImageBytes;
+        using var timeout = new CancellationTokenSource(isVideo ? TimeSpan.FromMinutes(5) : _httpClient.Timeout);
 
         using var response = await _httpClient.GetAsync(
             url,
@@ -179,6 +183,9 @@ public sealed class ScrapedAssetImporter
             timeout.Token);
 
         response.EnsureSuccessStatusCode();
+        var expectedBytes = response.Content.Headers.ContentLength;
+        if (expectedBytes > maximumBytes)
+            throw new InvalidDataException("The scraper asset exceeds the download size limit.");
 
         await using var source = await response.Content.ReadAsStreamAsync(timeout.Token);
         await using var destination = new FileStream(
@@ -189,7 +196,22 @@ public sealed class ScrapedAssetImporter
             bufferSize: 81920,
             options: FileOptions.Asynchronous | FileOptions.SequentialScan);
 
-        await source.CopyToAsync(destination, timeout.Token);
+        var buffer = new byte[81920];
+        var total = 0;
+        while (true)
+        {
+            var count = Math.Min(buffer.Length, maximumBytes - total + 1);
+            var read = await source.ReadAsync(buffer.AsMemory(0, count), timeout.Token);
+            if (read == 0)
+                break;
+            total += read;
+            if (total > maximumBytes)
+                throw new InvalidDataException("The scraper asset exceeds the download size limit.");
+            await destination.WriteAsync(buffer.AsMemory(0, read), timeout.Token);
+        }
+
+        if (expectedBytes.HasValue && expectedBytes.Value != total)
+            throw new InvalidDataException("The scraper asset download is incomplete.");
     }
 
     private async Task<bool> DownloadAndSetAssetAsync(string url, MediaItem item, List<string> nodePath, AssetType type)
@@ -204,45 +226,19 @@ public sealed class ScrapedAssetImporter
             if (File.Exists(tempPathWithExt)) File.Delete(tempPathWithExt);
             File.Move(tempFile, tempPathWithExt);
 
-            bool success = false;
+            if (type == AssetType.Video || !await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt))
+                await DownloadScrapedAssetAsync(url, tempPathWithExt, type);
 
-            if (type == AssetType.Video)
+            var imported = await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
+            if (imported != null)
             {
-                await DownloadScrapedVideoAsync(url, tempPathWithExt);
-                success = true;
-            }
-            else if (await AsyncImageHelper.SaveCachedImageAsync(url, tempPathWithExt))
-            {
-                success = true;
-            }
-            else
-            {
-                try
-                {
-                    // Use DI-managed HttpClient (configured in App: timeout + user-agent)
-                    var data = await _httpClient.GetByteArrayAsync(url);
-                    await File.WriteAllBytesAsync(tempPathWithExt, data);
-                    success = true;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Download Failed: {ex.Message}");
-                }
-            }
-
-            if (success)
-            {
-                var imported = await _fileService.ImportAssetAsync(tempPathWithExt, item, nodePath, type);
-                if (imported != null)
-                {
-                    await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported));
-                    return true;
-                }
+                await UiThreadHelper.InvokeAsync(() => item.Assets.Add(imported));
+                return true;
             }
         }
         catch (Exception ex)
         {
-            Debug.WriteLine($"Critical Download Error: {ex.Message}");
+            Debug.WriteLine($"[Scraper] Could not import {type}: {ex.GetType().Name}");
         }
         finally
         {

@@ -63,29 +63,32 @@ public class StoreImportService
                     discoveredSteamAppsPaths.Add(path);
             }
 
-            try
+            var seenAppIds = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var libraryPath in libraryPaths)
             {
-                var seenAppIds = new HashSet<string>(StringComparer.Ordinal);
-                foreach (var libraryPath in libraryPaths)
+                string[] acfFiles;
+                try
                 {
                     // Steam uses appmanifest_*.acf files for installed games
-                    var acfFiles = Directory.GetFiles(libraryPath, "appmanifest_*.acf");
-
-                    foreach (var file in acfFiles)
-                    {
-                        var (item, appId) = await ParseSteamAcfFileAsync(file);
-                        if (item != null && !string.IsNullOrWhiteSpace(appId))
-                        {
-                            if (!seenAppIds.Add(appId))
-                                continue;
-                            results.Add(item);
-                        }
-                    }
+                    acfFiles = Directory.GetFiles(libraryPath, "appmanifest_*.acf");
                 }
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[StoreImport] Error scanning Steam folder: {ex.Message}");
+                catch (DirectoryNotFoundException)
+                {
+                    // Removable volumes can disappear between discovery and enumeration.
+                    continue;
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    Debug.WriteLine($"[StoreImport] Error scanning a Steam folder: {ex.GetType().Name}");
+                    continue;
+                }
+
+                foreach (var file in acfFiles)
+                {
+                    var (item, appId) = await ParseSteamAcfFileAsync(file);
+                    if (item != null && !string.IsNullOrWhiteSpace(appId) && seenAppIds.Add(appId))
+                        results.Add(item);
+                }
             }
 
             return results;
@@ -124,7 +127,20 @@ public class StoreImportService
             var vdfPath = Path.Combine(steamAppsPath, "libraryfolders.vdf");
             if (!File.Exists(vdfPath)) continue;
 
-            var libraryRoots = await ParseSteamLibraryFoldersAsync(vdfPath);
+            List<string> libraryRoots;
+            try
+            {
+                libraryRoots = await ParseSteamLibraryFoldersAsync(vdfPath);
+            }
+            catch (Exception ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            {
+                continue;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                Debug.WriteLine($"[StoreImport] Error reading a Steam library list: {ex.GetType().Name}");
+                continue;
+            }
             foreach (var root in libraryRoots)
             {
                 if (string.IsNullOrWhiteSpace(root)) continue;
@@ -157,7 +173,15 @@ public class StoreImportService
         if (string.IsNullOrWhiteSpace(inputPath))
             return null;
 
-        var fullPath = Path.GetFullPath(inputPath);
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(inputPath);
+        }
+        catch (ArgumentException)
+        {
+            return null;
+        }
         if (!Directory.Exists(fullPath))
             return null;
 

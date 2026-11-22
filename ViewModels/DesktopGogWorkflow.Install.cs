@@ -23,11 +23,14 @@ internal sealed partial class DesktopGogWorkflow
         Update
     }
 
+    internal sealed record QueuedGogPayload(GogInstallPlatform Platform, string Revision, Action NeedsRedownload);
+
     internal async Task<bool> InstallGogItemAsync(
         MediaItem item,
         Window? ownerOverride = null,
         GogInstallOperation operation = GogInstallOperation.Install,
-        Action? installationStarted = null)
+        Action? installationStarted = null,
+        QueuedGogPayload? queuedPayload = null)
     {
         var owner = ownerOverride ?? CurrentWindow;
         if (owner == null)
@@ -93,6 +96,9 @@ internal sealed partial class DesktopGogWorkflow
                     BuildShortErrorDetail(ex)));
             return false;
         }
+
+        if (queuedPayload != null)
+            availablePlatforms = availablePlatforms.Where(platform => platform == queuedPayload.Platform).ToArray();
 
         if (availablePlatforms.Count == 0)
         {
@@ -206,6 +212,12 @@ internal sealed partial class DesktopGogWorkflow
             return false;
         }
 
+        if (queuedPayload != null && GogInstallerArchive.GetRevision(installerPackage) != queuedPayload.Revision)
+        {
+            queuedPayload.NeedsRedownload();
+            return false;
+        }
+
         var selectedInstallerPackage = installerPackage;
         var platformFolder = installRequest.Platform == GogInstallPlatform.Windows ? "windows" : "linux";
         var stagingRoot = Path.Combine(
@@ -213,6 +225,11 @@ internal sealed partial class DesktopGogWorkflow
             ".retromind-gog-installers",
             storeGameId,
             platformFolder);
+        if (queuedPayload != null)
+        {
+            // The version-specific cache is checked before copying, including after an interrupted preparation.
+            stagingRoot = Path.Combine(stagingRoot, queuedPayload.Revision);
+        }
 
         if (!await ConfirmGogInstallSpaceAsync(
                 owner,
@@ -254,13 +271,20 @@ internal sealed partial class DesktopGogWorkflow
                     installRequest.CleanInstall,
                     UseTemporaryLinuxDestination: true,
                     RequireLinuxPayloadChange: false,
-                    DownloadSettings: downloadSettings),
+                    DownloadSettings: downloadSettings,
+                    RequireCachedPayload: queuedPayload != null),
                 line => AppendProcessLog(progressLogVm, line),
                 progressLogVm.Token,
                 installationStarted);
             if (!workflowResult.Success)
             {
-                if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
+                if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.PayloadUnavailable && queuedPayload != null)
+                {
+                    queuedPayload.NeedsRedownload();
+                    AppendProcessLog(progressLogVm,
+                        T("Downloads.Reason.GogPayloadChanged", "The prepared installer changed or is unavailable. It will be downloaded again."));
+                }
+                else if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
                 {
                     progressLogVm.MarkCancelled(T("Gog.Install.Cancelled", "Installation cancelled by user."));
                     AppendProcessLog(

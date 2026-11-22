@@ -554,6 +554,76 @@ public sealed class DownloadManagerTests
         manager.Release();
     }
 
+    [Fact]
+    public async Task ChangedInstaller_RespectsTheWindowAndRequiresFreshApproval()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var previousRevision = new string('A', 64);
+        var latestRevision = new string('B', 64);
+        var original = Job("game", DownloadState.InstallationPending) with
+        {
+            Automatic = false, Revision = previousRevision, PayloadReady = true, PayloadRevision = previousRevision
+        };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([original]);
+        }
+
+        var clock = new LocalClock(new DateTimeOffset(2026, 11, 20, 12, 0, 0, TimeSpan.Zero));
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), clock);
+        var waiting = Signal();
+        var ready = Signal();
+        var executions = 0;
+        manager.Changed += () =>
+        {
+            var job = Assert.Single(manager.Snapshot()).Job;
+            if (job.State == DownloadState.WaitingForWindow)
+                waiting.TrySetResult();
+            if (job is { State: DownloadState.InstallationPending } && job.PayloadRevision == latestRevision)
+                ready.TrySetResult();
+        };
+        manager.Start(new DownloadSettings { LimitToTimeWindow = true }, (work, _) =>
+        {
+            Interlocked.Increment(ref executions);
+            if (work.Job.InstallRequested)
+            {
+                Assert.Equal(previousRevision, work.Job.PayloadRevision);
+                Assert.True(work.BeginInstallation());
+                return Task.FromResult(new DownloadOutcome(
+                    DownloadState.Queued, DownloadReason.GogPayloadChanged, RedownloadRequired: true));
+            }
+
+            Assert.Null(work.Job.PayloadRevision);
+            Assert.False(work.Job.PayloadReady || work.Job.OverrideWindow);
+            return Task.FromResult(new DownloadOutcome(DownloadState.InstallationPending,
+                DownloadReason.ManualGogInstallation, PayloadReady: true, PayloadRevision: latestRevision));
+        });
+        try
+        {
+            Assert.True(manager.Change(original.Id, DownloadAction.Install));
+            await waiting.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(1, executions);
+            Assert.Equal(DownloadReason.GogPayloadChanged, Assert.Single(manager.Snapshot()).Job.Reason);
+
+            manager.UpdateSettings(new DownloadSettings());
+            await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(2, executions);
+        }
+        finally
+        {
+            await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            manager.Release();
+        }
+
+        using var restored = new DownloadQueueStore(path);
+        var job = Assert.Single(restored.Load());
+        AssertInstallReady(job, original.Id, DownloadReason.ManualGogInstallation, payloadReady: true);
+        Assert.Equal(latestRevision, job.PayloadRevision);
+        Assert.Equal(latestRevision, job.Revision);
+    }
+
     private sealed class LocalClock(DateTimeOffset utc) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => utc;

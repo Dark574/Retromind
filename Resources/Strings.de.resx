@@ -1845,6 +1845,9 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Downloads.Reason.ArchiveUnavailable" xml:space="preserve">
     <value>Das Installer-Archiv ist nicht zugänglich oder enthält ein widersprüchliches Paket.</value>
   </data>
+  <data name="Downloads.Reason.GogPayloadChanged" xml:space="preserve">
+    <value>Der vorbereitete Installer wurde geändert oder fehlt. Er wird erneut heruntergeladen.</value>
+  </data>
   <data name="Downloads.RecoveryAvailable" xml:space="preserve">
     <value>Eine Spielinstallation ist möglicherweise unvollständig. Öffne den Download-Manager.</value>
   </data>

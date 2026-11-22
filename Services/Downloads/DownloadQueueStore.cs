@@ -63,6 +63,8 @@ internal sealed class DownloadQueueStore(string path) : IDisposable
     internal static bool IsValid(DownloadJob? job) =>
         job != null && job.Id != Guid.Empty && IsIdentifier(job.ItemId) &&
         (job.Revision is "" || job.Revision is { Length: 64 } && job.Revision.All(Uri.IsHexDigit)) &&
+        (job.PayloadRevision == null || job.Store == DownloadStore.Gog &&
+            job.PayloadRevision.Length == 64 && job.PayloadRevision.All(Uri.IsHexDigit)) &&
         Enum.IsDefined(job.Store) && Enum.IsDefined(job.Kind) && Enum.IsDefined(job.State) && Enum.IsDefined(job.Reason) &&
         (job.Platform is null or "windows" or "linux") &&
         (job.StoreGameId == null || IsIdentifier(job.StoreGameId)) &&

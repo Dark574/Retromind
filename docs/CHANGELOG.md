@@ -19,6 +19,9 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - protect restored libraries against overlapping saves and roll back a full restore when writing settings fails
 - preserve current settings and runner registrations when runner changes and desktop saves overlap
 - require all installer parts and validate the destination of authenticated GOG downlink requests
+- download changed GOG installers through the queue and ask for installation approval again
+- bound scraper image and video downloads and skip incomplete transfers
+- continue importing Steam games from available libraries when a library disconnects or becomes unreadable
 - pause automatic updates when excluding a game and resume those updates when including it again
 - keep the latest settings when manual and delayed saves overlap
 - restore resizing in the download manager and make its close button work after repeated opening clicks

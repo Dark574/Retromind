@@ -363,7 +363,11 @@ public sealed class DownloadManagerService
         if (waitingForWindow.Count > 0)
         {
             Save(_jobs.Select(job => waitingForWindow.Contains(job.Id)
-                ? job with { State = DownloadState.WaitingForWindow, Reason = DownloadReason.None }
+                ? job with
+                {
+                    State = DownloadState.WaitingForWindow,
+                    Reason = job.Reason == DownloadReason.GogPayloadChanged ? job.Reason : DownloadReason.None
+                }
                 : job).ToList());
         }
         if (hasWindowBlockedJobs)
@@ -418,6 +422,20 @@ public sealed class DownloadManagerService
         {
             _active = null;
             var finished = active.InterruptedJob ?? (job with { State = outcome.State, Reason = outcome.Reason });
+            if (active.InterruptedJob == null && outcome.RedownloadRequired)
+            {
+                finished = finished with { PayloadReady = false, PayloadRevision = null, InstallRequested = false, OverrideWindow = false };
+                _progress.Remove(job.Id);
+            }
+            else
+            {
+                finished = finished with
+                {
+                    PayloadReady = finished.PayloadReady || outcome.PayloadReady,
+                    PayloadRevision = outcome.PayloadRevision ?? finished.PayloadRevision,
+                    Revision = job.Kind == DownloadKind.Update ? outcome.PayloadRevision ?? finished.Revision : finished.Revision
+                };
+            }
             finished = ApplyAutomaticUpdateExclusion(finished);
             if (finished is { State: DownloadState.InstallationPending, InstallRequested: true })
                 finished = RestorePendingInstallation(finished);
@@ -426,7 +444,7 @@ public sealed class DownloadManagerService
             else
                 _blockedUntil.Remove(job.Id);
 
-            Update(finished with { PayloadReady = finished.PayloadReady || outcome.PayloadReady });
+            Update(finished);
             Notify();
         }
     }

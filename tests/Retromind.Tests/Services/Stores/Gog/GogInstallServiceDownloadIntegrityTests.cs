@@ -153,7 +153,7 @@ public sealed class GogInstallServiceDownloadIntegrityTests
         Assert.Equal(payload, await File.ReadAllBytesAsync(archivedFile));
 
         var working = await service.DownloadInstallerPackageAsync(package, temp.GetPath("install-staging"),
-            null, null, staging, CancellationToken.None, archiveDirectory: archive);
+            null, null, staging, CancellationToken.None, archiveDirectory: archive, requireCachedPayload: true);
         Assert.Equal(1, networkDownloads);
         Assert.Equal(payload, await File.ReadAllBytesAsync(working.EntryFilePath));
 
@@ -162,6 +162,36 @@ public sealed class GogInstallServiceDownloadIntegrityTests
             service.ArchiveQueuedPackageAsync(package, archive, downloaded, CancellationToken.None));
         Assert.Equal(payload, await File.ReadAllBytesAsync(downloaded.EntryFilePath));
         Assert.Equal(payload, await File.ReadAllBytesAsync(archivedFile));
+    }
+
+    [Fact]
+    public async Task RequireCachedPayload_DoesNotDownloadMissingOrCorruptInstallerBytes()
+    {
+        using var temp = new TemporaryDirectory();
+        var payload = Encoding.UTF8.GetBytes("verified installer payload");
+        var package = CreatePackage(catalogSize: payload.Length);
+        var staging = temp.CreateDirectory("staging");
+        var cache = temp.CreateDirectory("cache");
+        var file = Path.Combine(cache, GogInstallerArchive.GetSafeFileNames(package)[0]);
+        await File.WriteAllBytesAsync(file, new byte[payload.Length]);
+        var networkDownloads = 0;
+        using var client = new HttpClient(new StubHandler(request =>
+        {
+            if (request.RequestUri == ChecksumUri)
+                return ChecksumResponse(payload);
+            networkDownloads++;
+            return BytesResponse(payload);
+        }));
+        var service = CreateService(client);
+
+        await Assert.ThrowsAsync<GogInstallerPayloadUnavailableException>(() =>
+            service.DownloadInstallerPackageAsync(package, staging, null, null, cache, CancellationToken.None, requireCachedPayload: true));
+        File.Delete(file);
+        await Assert.ThrowsAsync<GogInstallerPayloadUnavailableException>(() =>
+            service.DownloadInstallerPackageAsync(package, staging, null, null, cache, CancellationToken.None, requireCachedPayload: true));
+
+        Assert.Equal(0, networkDownloads);
+        Assert.Empty(Directory.EnumerateFiles(staging));
     }
 
     [Fact]
