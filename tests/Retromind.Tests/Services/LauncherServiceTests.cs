@@ -12,6 +12,28 @@ namespace Retromind.Tests.Services;
 public sealed class LauncherServiceTests
 {
     [Theory]
+    [InlineData("\"Retro  Games\"", "Retro  Games")]
+    [InlineData("\"  Retro\tGames  \"", "  Retro\tGames  ")]
+    [InlineData("\"Retro\\\"  Games\"", "Retro\"  Games")]
+    [InlineData("\"Retro  Games\\\\\"", "Retro  Games\\")]
+    public async Task LaunchAsync_PreservesQuotedNativeArgumentValues(string configured, string expected)
+    {
+        using var temp = new TemporaryDirectory();
+        var executable = temp.CreateFile("argv.sh", "#!/bin/sh\nprintf '%s|[%s]|%s\\n' \"$1\" \"$2\" \"$3\"\nexit 23\n");
+        var item = new MediaItem("Native game")
+        {
+            LauncherArgs = $" \t--profile  {configured}\t  --fullscreen ",
+            Files = [new() { Path = executable }]
+        };
+        var launcher = new LauncherService(temp.RootPath, new AppSettings(), new LaunchLogService(temp.GetPath("logs")));
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Contains($"--profile|[{expected}]|--fullscreen", result.ConsoleOutput);
+    }
+
+    [Theory]
     [InlineData(true, false, false)]
     [InlineData(true, true, true)]
     [InlineData(false, false, true)]

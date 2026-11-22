@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 
 namespace Retromind.Helpers;
 
@@ -26,40 +27,32 @@ public static class LaunchArgumentHelper
         if (string.IsNullOrWhiteSpace(value))
             return string.Empty;
 
-        Span<char> buffer = stackalloc char[value.Length];
-        int w = 0;
-        bool lastWasSpace = false;
+        var normalized = new StringBuilder(value.Length);
+        var inQuotes = false;
+        var pendingSpace = false;
+        var backslashes = 0;
 
-        for (int i = 0; i < value.Length; i++)
+        foreach (var character in value)
         {
-            var c = value[i];
-            if (char.IsWhiteSpace(c))
+            if (!inQuotes && char.IsWhiteSpace(character))
             {
-                if (lastWasSpace)
-                    continue;
+                pendingSpace = normalized.Length > 0;
+                backslashes = 0;
+                continue;
+            }
 
-                buffer[w++] = ' ';
-                lastWasSpace = true;
-            }
-            else
-            {
-                buffer[w++] = c;
-                lastWasSpace = false;
-            }
+            if (pendingSpace)
+                normalized.Append(' ');
+            pendingSpace = false;
+            normalized.Append(character);
+
+            // ProcessStartInfo.Arguments treats a quote after an odd run of
+            // backslashes as literal. Preserve the original escapes.
+            if (character == '"' && backslashes % 2 == 0)
+                inQuotes = !inQuotes;
+            backslashes = character == '\\' ? backslashes + 1 : 0;
         }
 
-        int start = 0;
-        int length = w;
-
-        if (length > 0 && buffer[0] == ' ')
-        {
-            start++;
-            length--;
-        }
-
-        if (length > 0 && buffer[start + length - 1] == ' ')
-            length--;
-
-        return length <= 0 ? string.Empty : new string(buffer.Slice(start, length));
+        return normalized.ToString();
     }
 }
