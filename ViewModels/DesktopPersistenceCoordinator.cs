@@ -25,6 +25,7 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
     private readonly Func<string, Task<bool>> _tryShowSaveFailure;
 
     private readonly object _stateLock = new();
+    private readonly SemaphoreSlim _settingsSaveGate = new(1, 1);
     private CancellationTokenSource? _settingsSaveCancellation;
     private int _settingsDirtyVersion;
     private int _settingsSaveFailureVersion;
@@ -150,17 +151,27 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
 
     private async Task SaveSettingsSnapshotAsync(int saveVersion, CancellationToken token = default)
     {
-        int failureVersion;
-        lock (_stateLock) failureVersion = _settingsSaveFailureVersion;
-        var json = await _captureSettings().ConfigureAwait(false);
-        await _settingsService.SaveJsonAsync(json, token).ConfigureAwait(false);
-        lock (_stateLock)
+        // Serialize snapshot capture as well as writing to prevent stale snapshots from overtaking newer saves.
+        await _settingsSaveGate.WaitAsync(token).ConfigureAwait(false);
+        try
         {
-            if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion && failureVersion == _settingsSaveFailureVersion)
+            token.ThrowIfCancellationRequested();
+            int failureVersion;
+            lock (_stateLock) failureVersion = _settingsSaveFailureVersion;
+            var json = await _captureSettings().ConfigureAwait(false);
+            await _settingsService.SaveJsonAsync(json, token).ConfigureAwait(false);
+            lock (_stateLock)
             {
-                _settingsSaveFailed = false;
-                TryClearSaveFailureNotice();
+                if (Volatile.Read(ref _settingsDirtyVersion) == saveVersion && failureVersion == _settingsSaveFailureVersion)
+                {
+                    _settingsSaveFailed = false;
+                    TryClearSaveFailureNotice();
+                }
             }
+        }
+        finally
+        {
+            _settingsSaveGate.Release();
         }
     }
 

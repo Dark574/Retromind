@@ -115,6 +115,8 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 ### Explicit save results and callers
 
 `DesktopPersistenceCoordinator` coordinates explicit saves, the settings debounce, and the final flush.
+It serializes each settings snapshot and its write as one operation so an older snapshot cannot
+overwrite a newer one.
 The main window view model supplies settings snapshots on the UI thread and handles dialogs and the
 window lifecycle. Library change tracking and writes remain with `LibraryChangeTracker`.
 

@@ -148,7 +148,7 @@ public sealed class DesktopPersistenceCoordinatorTests
     }
 
     [Fact]
-    public async Task OlderSettingsWriteDoesNotClearNewerFailure()
+    public async Task OverlappingSettingsSaves_ReportNewerFailureAfterOlderSnapshot()
     {
         using var state = new PersistenceState();
         var snapshot = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -156,13 +156,11 @@ public sealed class DesktopPersistenceCoordinatorTests
         var save = state.Save();
 
         state.CaptureSettings = () => Task.FromException<string>(new IOException("A newer save failed"));
-        Assert.Equal((false, false), await state.Save());
+        var newerSave = state.Save();
         snapshot.SetResult(state.Settings.Serialize(new AppSettings()));
 
-        var result = await save;
-
-        Assert.True(result.SettingsSaved);
-        Assert.False(result.AllSaved);
+        Assert.True((await save).SettingsSaved);
+        Assert.Equal((false, false), await newerSave);
         Assert.Single(state.Notices);
         state.CaptureSettings = state.DefaultSnapshot;
         Assert.True((await state.Save()).AllSaved);
@@ -202,6 +200,45 @@ public sealed class DesktopPersistenceCoordinatorTests
         Assert.Empty(state.Errors.Reports);
         await pendingSettingsSave;
         Assert.True((await state.Save()).AllSaved);
+    }
+
+    [Fact]
+    public async Task ExplicitSave_WritesAfterAnInFlightDebouncedSnapshot()
+    {
+        using var state = new PersistenceState();
+        var captureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var oldSnapshot = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var expected = new AppSettings { SavedSearchTerms = ["new search"] };
+        state.CaptureSettings = () =>
+        {
+            captureStarted.SetResult();
+            return oldSnapshot.Task;
+        };
+        var debouncedSave = state.Coordinator.ScheduleSettingsSave();
+        await captureStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var explicitCaptureStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        state.CaptureSettings = () =>
+        {
+            explicitCaptureStarted.SetResult();
+            return Task.FromResult(state.Settings.Serialize(expected));
+        };
+        var explicitSave = state.Save();
+        try
+        {
+            // If the explicit write raced ahead, deliberately let it finish before the older one.
+            if (explicitCaptureStarted.Task.IsCompleted)
+                await explicitSave.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally
+        {
+            oldSnapshot.SetResult(state.Settings.Serialize(new AppSettings { SavedSearchTerms = ["old search"] }));
+        }
+
+        await debouncedSave.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal((true, true), await explicitSave.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal(expected.SavedSearchTerms, (await state.Settings.LoadAsync()).SavedSearchTerms);
+        Assert.Empty(state.Errors.Reports);
     }
 
     [Fact]
