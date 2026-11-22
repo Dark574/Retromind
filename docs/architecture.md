@@ -1407,6 +1407,9 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
 - `LaunchPlanBuilder` owns the deterministic executable, argument-placeholder, and wrapper composition after the
   launch file has been resolved. Plan layering remains item launcher -> emulator config -> node/item wrapper chain;
   there is no application-global wrapper layer
+- The editor uses the same process-start preparation with its unsaved launch configuration. It resolves
+  the expected playlist and prefix without creating files or directories, masks sensitive environment
+  values and arguments, and marks Legendary launch parameters and playlist publication as start-time work.
 - `LaunchEnvironmentService` owns inherited environment cleanup for AppImage and portable-home launches, applies
   resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
 - `WinePrefixService` resolves existing portable or absolute prefix paths, selects the correct Wine, Proton, or UMU

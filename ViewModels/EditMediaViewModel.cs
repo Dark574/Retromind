@@ -45,6 +45,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasPrefix))]
+    [NotifyPropertyChangedFor(nameof(PreviewText))]
     [NotifyCanExecuteChangedFor(nameof(OpenPrefixFolderCommand))]
     [NotifyCanExecuteChangedFor(nameof(ClearPrefixCommand))]
     [NotifyCanExecuteChangedFor(nameof(RunWinetricksCommand))]
@@ -326,17 +327,20 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     [NotifyPropertyChangedFor(nameof(IsNativeMode))]
     [NotifyPropertyChangedFor(nameof(IsWrapperEditorVisible))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
+    [NotifyPropertyChangedFor(nameof(EffectiveWorkingDirectory))]
     private MediaType _mediaType;
 
     [ObservableProperty] 
     [NotifyPropertyChangedFor(nameof(IsManualEmulator))]
     [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
+    [NotifyPropertyChangedFor(nameof(EffectiveWorkingDirectory))]
     private EmulatorProfileOption? _selectedEmulatorProfile;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCustomLauncherVisible))]
     [NotifyPropertyChangedFor(nameof(PreviewText))]
+    [NotifyPropertyChangedFor(nameof(EffectiveWorkingDirectory))]
     private string? _launcherPath;
 
     [ObservableProperty]
@@ -479,6 +483,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     partial void OnTitleChanged(string value)
     {
         CopyAssetPrefixCommand.NotifyCanExecuteChanged();
+        OnPropertyChanged(nameof(PreviewText));
     }
 
     partial void OnDeveloperChanged(string? value)
@@ -804,7 +809,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
     }
 
     private bool CanCopyPreview(Window? _)
-        => !string.IsNullOrWhiteSpace(PreviewText);
+        => FormatLaunchPreview(includeNotes: false).StartsWith("> ", StringComparison.Ordinal);
 
     private bool CanCopyAssetPrefix(Window? _)
         => !string.IsNullOrWhiteSpace(AssetFilePrefix);
@@ -814,8 +819,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         try
         {
             // Window is a TopLevel, so Clipboard is available here.
-            var text = PreviewText ?? string.Empty;
-            if (string.IsNullOrWhiteSpace(text))
+            var text = FormatLaunchPreview(includeNotes: false);
+            if (!text.StartsWith("> ", StringComparison.Ordinal))
                 return;
 
             // Optional: trim to keep copy clean (no trailing whitespace)
@@ -1394,6 +1399,13 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 EmulatorProfileOption.OptionKind.Emulator,
                 emu.Name,
                 emu));
+        }
+
+        if (_originalItem.MediaType == MediaType.Command)
+        {
+            SelectedEmulatorProfile = null;
+            MediaType = MediaType.Command;
+            return;
         }
 
         if (!string.IsNullOrEmpty(_originalItem.EmulatorId))

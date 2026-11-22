@@ -35,7 +35,7 @@ public sealed class LaunchPlaylistService
         List<string>? nodePath,
         bool usePlaylistForMultiDisc)
     {
-        if (!usePlaylistForMultiDisc || item.Files is not { Count: > 1 } || nodePath is not { Count: > 0 })
+        if (!UsesPlaylist(item, nodePath, usePlaylistForMultiDisc))
             return item.GetPrimaryLaunchPath();
 
         // Missing references can arrive from malformed persisted data. In that case the
@@ -45,8 +45,35 @@ public sealed class LaunchPlaylistService
         if (!IsValidEntry(primary))
             primary = null;
 
-        var playlistPath = CreateOrUpdatePlaylist(item, nodePath, primary);
+        var playlistPath = CreateOrUpdatePlaylist(item, nodePath!, primary);
         return string.IsNullOrWhiteSpace(playlistPath) ? primary : playlistPath;
+    }
+
+    internal static bool UsesPlaylist(MediaItem item, List<string>? nodePath, bool usePlaylistForMultiDisc) =>
+        usePlaylistForMultiDisc && item.Files is { Count: > 1 } && nodePath is { Count: > 0 };
+
+    internal static string? GetPlannedPlaylistPath(MediaItem item, List<string> nodePath, string libraryRootPath) =>
+        item.Files.TrueForAll(file => ResolvePlaylistEntry(file) != null)
+            ? BuildPlaylistPath(item, nodePath, libraryRootPath)
+            : null;
+
+    private static string BuildPlaylistPath(MediaItem item, List<string> nodePath, string libraryRootPath)
+    {
+        var nodeFolder = PathHelper.ResolveNodeFolder(nodePath, libraryRootPath);
+        return Path.Combine(nodeFolder, "Playlists", $"{item.Id}_{SanitizeForFilename(item.Title)}.m3u");
+    }
+
+    private static string? ResolvePlaylistEntry(MediaFileRef? file)
+    {
+        if (file == null || !IsValidEntry(file.Path))
+            return null;
+        var resolved = file.Kind switch
+        {
+            MediaFileKind.Absolute => file.Path,
+            MediaFileKind.LibraryRelative => AppPaths.ResolveDataPathInsideRootOrEmpty(file.Path),
+            _ => null
+        };
+        return IsValidEntry(resolved) ? resolved : null;
     }
 
     private string? CreateOrUpdatePlaylist(MediaItem item, List<string> nodePath, string? primary)
@@ -84,28 +111,21 @@ public sealed class LaunchPlaylistService
             var lines = new List<string>(ordered.Count);
             foreach (var file in ordered)
             {
-                var resolved = file.Kind switch
-                {
-                    MediaFileKind.Absolute => file.Path,
-                    MediaFileKind.LibraryRelative => AppPaths.ResolveDataPathInsideRootOrEmpty(file.Path),
-                    _ => null
-                };
-                if (!IsValidEntry(file.Path) || !IsValidEntry(resolved))
+                var resolved = ResolvePlaylistEntry(file);
+                if (resolved == null)
                 {
                     context["DiscPath"] = file.Path;
                     context["DiscKind"] = file.Kind.ToString();
                     throw new InvalidDataException("A configured disc has an empty, invalid, or unresolvable playlist path.");
                 }
 
-                lines.Add(resolved!);
+                lines.Add(resolved);
             }
 
             operation = "CreateDirectory";
-            var nodeFolder = PathHelper.ResolveNodeFolder(nodePath, _libraryRootPath);
-            var playlistsFolder = Path.Combine(nodeFolder, "Playlists");
-            var safeTitle = SanitizeForFilename(item.Title);
-            var fileName = $"{item.Id}_{safeTitle}.m3u";
-            fullPath = Path.Combine(playlistsFolder, fileName);
+            fullPath = BuildPlaylistPath(item, nodePath, _libraryRootPath);
+            var playlistsFolder = Path.GetDirectoryName(fullPath)!;
+            var fileName = Path.GetFileName(fullPath);
             Directory.CreateDirectory(playlistsFolder);
 
             operation = "WritePlaylist";

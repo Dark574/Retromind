@@ -130,7 +130,7 @@ internal sealed class LaunchLogBuilder
         return log.ToString();
     }
 
-    private static IReadOnlyList<KeyValuePair<string, string>> CaptureEnvironment(
+    internal static IReadOnlyList<KeyValuePair<string, string>> CaptureEnvironment(
         ProcessStartInfo startInfo,
         IReadOnlyDictionary<string, string>? effectiveEnvironment)
     {

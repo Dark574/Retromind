@@ -1849,4 +1849,16 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Downloads.RecoveryAvailable" xml:space="preserve">
     <value>A game installation may need repair. Open the download manager.</value>
   </data>
+  <data name="Launch.Preview.PlaylistPlanned" xml:space="preserve">
+    <value>The playlist is written at launch. If writing fails, Retromind uses the primary file.</value>
+  </data>
+  <data name="Launch.Preview.PlaylistFallback" xml:space="preserve">
+    <value>The configured discs cannot form a playlist. The primary file is shown.</value>
+  </data>
+  <data name="Launch.Preview.EpicDynamic" xml:space="preserve">
+    <value>Epic launch arguments and environment from Legendary are resolved at launch.</value>
+  </data>
+  <data name="Launch.Preview.Unavailable" xml:space="preserve">
+    <value>The current launch configuration could not be prepared.</value>
+  </data>
 </root>

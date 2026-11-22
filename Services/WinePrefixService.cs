@@ -30,7 +30,13 @@ public sealed class WinePrefixService
     public void Prepare(
         MediaItem item,
         ProcessStartInfo startInfo,
-        WinePrefixRuntime runtime)
+        WinePrefixRuntime runtime) => Prepare(item, startInfo, runtime, scaffold: true);
+
+    internal void Prepare(
+        MediaItem item,
+        ProcessStartInfo startInfo,
+        WinePrefixRuntime runtime,
+        bool scaffold)
     {
         var prefixPath = ResolvePrefixPath(item, out var relativePrefixPathToSave);
         var prefixRoot = prefixPath;
@@ -51,6 +57,22 @@ public sealed class WinePrefixService
                 break;
         }
 
+        if (scaffold)
+            ScaffoldPrefix(prefixRoot, winePrefixPath, runtime);
+
+        if (runtime is WinePrefixRuntime.Proton or WinePrefixRuntime.Umu)
+            startInfo.EnvironmentVariables["STEAM_COMPAT_DATA_PATH"] = prefixRoot;
+
+        startInfo.EnvironmentVariables["WINEPREFIX"] = runtime == WinePrefixRuntime.Umu
+            ? prefixRoot
+            : winePrefixPath;
+
+        if (scaffold && relativePrefixPathToSave != null)
+            item.PrefixPath = relativePrefixPathToSave;
+    }
+
+    private void ScaffoldPrefix(string prefixRoot, string winePrefixPath, WinePrefixRuntime runtime)
+    {
         Directory.CreateDirectory(prefixRoot);
 
         // UMU owns <compat-root>/pfx. Only scaffold its compat root until umu-run creates that link/folder.
@@ -79,15 +101,6 @@ public sealed class WinePrefixService
             dosDevicesDirectory,
             _libraryRootPath);
 
-        if (runtime is WinePrefixRuntime.Proton or WinePrefixRuntime.Umu)
-            startInfo.EnvironmentVariables["STEAM_COMPAT_DATA_PATH"] = prefixRoot;
-
-        startInfo.EnvironmentVariables["WINEPREFIX"] = runtime == WinePrefixRuntime.Umu
-            ? prefixRoot
-            : winePrefixPath;
-
-        if (relativePrefixPathToSave != null)
-            item.PrefixPath = relativePrefixPathToSave;
     }
 
     private string ResolvePrefixPath(MediaItem item, out string? relativePrefixPathToSave)

@@ -1851,4 +1851,16 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Downloads.RecoveryAvailable" xml:space="preserve">
     <value>Eine Spielinstallation ist möglicherweise unvollständig. Öffne den Download-Manager.</value>
   </data>
+  <data name="Launch.Preview.PlaylistPlanned" xml:space="preserve">
+    <value>Die Playlist wird beim Start geschrieben. Schlägt das fehl, verwendet Retromind die Hauptdatei.</value>
+  </data>
+  <data name="Launch.Preview.PlaylistFallback" xml:space="preserve">
+    <value>Aus den konfigurierten Datenträgern kann keine Playlist erstellt werden. Die Vorschau zeigt die Hauptdatei.</value>
+  </data>
+  <data name="Launch.Preview.EpicDynamic" xml:space="preserve">
+    <value>Epic-Startargumente und Umgebungsvariablen von Legendary werden beim Start ermittelt.</value>
+  </data>
+  <data name="Launch.Preview.Unavailable" xml:space="preserve">
+    <value>Die aktuelle Startkonfiguration konnte nicht vorbereitet werden.</value>
+  </data>
 </root>

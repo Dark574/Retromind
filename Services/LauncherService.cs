@@ -737,6 +737,14 @@ public sealed class LauncherService
         IReadOnlyDictionary<string, string>? environmentOverrides,
         LaunchLogBuilder launchLog)
     {
+        var (startInfo, target) = PrepareCommandStartInfo(item, environmentOverrides, _launchEnvironmentService);
+        launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
+        return _launchProcessService.Start(startInfo);
+    }
+
+    internal static (ProcessStartInfo StartInfo, string Target) PrepareCommandStartInfo(MediaItem item,
+        IReadOnlyDictionary<string, string>? environmentOverrides, LaunchEnvironmentService environmentService)
+    {
         // Command media: can be either
         // A) a URL/protocol (steam://, heroic://, https://, …) -> open via xdg-open on Linux
         // B) an executable command with arguments
@@ -756,15 +764,13 @@ public sealed class LauncherService
 
             // xdg-open expects the URI as a single argument
             psi.ArgumentList.Add(target);
-            _launchEnvironmentService.PrepareHostCommand(psi, environmentOverrides);
-            launchLog.CaptureProcessStart(psi, target, environmentOverrides);
-
-            return _launchProcessService.Start(psi);
+            environmentService.PrepareHostCommand(psi, environmentOverrides);
+            return (psi, target);
         }
 
         // Otherwise treat as executable command
         var hasEnvOverrides = environmentOverrides is { Count: > 0 };
-        var forceDirectExec = hasEnvOverrides || _launchEnvironmentService.IsRunningInsideAppImageRuntime;
+        var forceDirectExec = hasEnvOverrides || environmentService.IsRunningInsideAppImageRuntime;
         var startInfo = new ProcessStartInfo
         {
             FileName = target,
@@ -775,9 +781,8 @@ public sealed class LauncherService
             UseShellExecute = !forceDirectExec
         };
         startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, target, launchFilePath: null);
-        _launchEnvironmentService.PrepareCommand(startInfo, environmentOverrides);
-        launchLog.CaptureProcessStart(startInfo, target, environmentOverrides);
-        return _launchProcessService.Start(startInfo);
+        environmentService.PrepareCommand(startInfo, environmentOverrides);
+        return (startInfo, target);
     }
 
     internal static string BuildLinuxCommandArguments(MediaItem item, string target)
@@ -831,59 +836,11 @@ public sealed class LauncherService
             item,
             nodePath,
             usePlaylistForMultiDisc);
-        var (fileName, args, useShellExecute) =
-            LaunchPlanBuilder.Build(item, inheritedConfig, nativeWrappers, launchFilePath);
-        args = AppendLaunchArguments(args, additionalLaunchArguments);
+        var (startInfo, repairProtonPrefix) = PrepareNativeOrEmulatorStartInfo(item, inheritedConfig,
+            nativeWrappers, launchFilePath, environmentOverrides, _launchEnvironmentService, _winePrefixService,
+            additionalLaunchArguments);
 
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = fileName
-        };
-
-        startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, fileName, launchFilePath);
-
-        var hasEnvOverrides =
-            (environmentOverrides?.Count ?? 0) > 0 ||
-            ((environmentOverrides == null) &&
-             ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
-              (item.EnvironmentOverrides?.Count ?? 0) > 0));
-        var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-        var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-
-        // Prefix management rules:
-        // - explicit item PrefixPath -> always apply
-        // - emulator profile with UsesWinePrefix=true -> apply
-        var shouldApplyPrefix =
-            !string.IsNullOrWhiteSpace(item.PrefixPath) ||
-            (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
-        var isAppImageRuntime = _launchEnvironmentService.IsRunningInsideAppImageRuntime;
-
-        // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
-        var requiresDirectExec = isAppImageRuntime ||
-                                 shouldApplyPrefix ||
-                                 hasEnvOverrides ||
-                                 (nativeWrappers is { Count: > 0 }) ||
-                                 !string.IsNullOrWhiteSpace(args);
-
-        startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
-
-        if (shouldApplyPrefix)
-        {
-            var prefixRuntime = isUmuLaunch
-                ? WinePrefixRuntime.Umu
-                : isProtonLaunch
-                    ? WinePrefixRuntime.Proton
-                    : WinePrefixRuntime.Wine;
-            _winePrefixService.Prepare(item, startInfo, prefixRuntime);
-        }
-            
-        _launchEnvironmentService.PrepareNativeOrEmulator(
-            startInfo,
-            item,
-            inheritedConfig,
-            environmentOverrides);
-
-        if (shouldApplyPrefix && isProtonLaunch)
+        if (repairProtonPrefix)
         {
             var effectiveProtonPath = startInfo.EnvironmentVariables.ContainsKey("PROTONPATH")
                 ? startInfo.EnvironmentVariables["PROTONPATH"]
@@ -903,8 +860,6 @@ public sealed class LauncherService
             }
         }
 
-        startInfo.Arguments = args ?? string.Empty;
-
         if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
             item.MediaType == MediaType.Native &&
             !string.IsNullOrWhiteSpace(launchFilePath))
@@ -918,6 +873,68 @@ public sealed class LauncherService
         launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
 
         return _launchProcessService.Start(startInfo);
+    }
+
+    internal static (ProcessStartInfo StartInfo, bool RepairProtonPrefix) PrepareNativeOrEmulatorStartInfo(
+        MediaItem item, EmulatorConfig? inheritedConfig, IReadOnlyList<LaunchWrapper>? nativeWrappers,
+        string? launchFilePath, IReadOnlyDictionary<string, string>? environmentOverrides,
+        LaunchEnvironmentService environmentService, WinePrefixService winePrefixService,
+        IReadOnlyList<string>? additionalLaunchArguments = null, bool preview = false, bool plannedPlaylist = false)
+    {
+        var (fileName, args, useShellExecute) =
+            LaunchPlanBuilder.Build(item, inheritedConfig, nativeWrappers, launchFilePath);
+        args = AppendLaunchArguments(args, additionalLaunchArguments);
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = fileName
+        };
+
+        startInfo.WorkingDirectory = ResolveWorkingDirectory(item.WorkingDirectory, fileName, launchFilePath, plannedPlaylist);
+
+        var hasEnvOverrides =
+            (environmentOverrides?.Count ?? 0) > 0 ||
+            ((environmentOverrides == null) &&
+             ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
+              (item.EnvironmentOverrides?.Count ?? 0) > 0));
+        var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+        var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+
+        // Prefix management rules:
+        // - explicit item PrefixPath -> always apply
+        // - emulator profile with UsesWinePrefix=true -> apply
+        var shouldApplyPrefix =
+            !string.IsNullOrWhiteSpace(item.PrefixPath) ||
+            (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
+        var isAppImageRuntime = environmentService.IsRunningInsideAppImageRuntime;
+
+        // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
+        var requiresDirectExec = isAppImageRuntime ||
+                                 shouldApplyPrefix ||
+                                 hasEnvOverrides ||
+                                 (nativeWrappers is { Count: > 0 }) ||
+                                 !string.IsNullOrWhiteSpace(args);
+
+        startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
+
+        if (shouldApplyPrefix)
+        {
+            var prefixRuntime = isUmuLaunch
+                ? WinePrefixRuntime.Umu
+                : isProtonLaunch
+                    ? WinePrefixRuntime.Proton
+                    : WinePrefixRuntime.Wine;
+            winePrefixService.Prepare(item, startInfo, prefixRuntime, scaffold: !preview);
+        }
+            
+        environmentService.PrepareNativeOrEmulator(
+            startInfo,
+            item,
+            inheritedConfig,
+            environmentOverrides);
+
+        startInfo.Arguments = args ?? string.Empty;
+        return (startInfo, shouldApplyPrefix && isProtonLaunch);
     }
 
     internal static string AppendLaunchArguments(
@@ -976,7 +993,8 @@ public sealed class LauncherService
         _ => "Launch handed off successfully"
     };
 
-    private static string ResolveWorkingDirectory(string? overrideDirectory, string fileName, string? launchFilePath)
+    private static string ResolveWorkingDirectory(string? overrideDirectory, string fileName, string? launchFilePath,
+        bool plannedPlaylist = false)
     {
         var overridePath = ResolveWorkingDirectoryOverride(overrideDirectory);
         if (!string.IsNullOrWhiteSpace(overridePath))
@@ -990,10 +1008,10 @@ public sealed class LauncherService
         // Prefer the media file directory if we have one.
         if (!string.IsNullOrWhiteSpace(launchFilePath))
         {
-            if (Directory.Exists(launchFilePath))
+            if (!plannedPlaylist && Directory.Exists(launchFilePath))
                 return launchFilePath;
 
-            if (File.Exists(launchFilePath))
+            if (plannedPlaylist || File.Exists(launchFilePath))
                 return Path.GetDirectoryName(launchFilePath) ?? string.Empty;
         }
 

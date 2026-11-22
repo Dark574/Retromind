@@ -33,6 +33,11 @@ public partial class EditMediaViewModel
         _originalItem.CustomFields = BuildCustomFieldsDictionary();
         SavePlayStatistics();
 
+        ApplyLaunchConfiguration(_originalItem);
+    }
+
+    private void ApplyLaunchConfiguration(MediaItem item)
+    {
         // Prefix: store null when not used.
         // In portable mode, absolute paths inside LibraryRoot are normalized to library-relative.
         var prefixPathToStore = string.IsNullOrWhiteSpace(PrefixPath) ? null : PrefixPath.Trim();
@@ -43,24 +48,24 @@ public partial class EditMediaViewModel
                 AppPaths.LibraryRoot);
         }
 
-        _originalItem.PrefixPath = string.IsNullOrWhiteSpace(prefixPathToStore) ? null : prefixPathToStore;
-        _originalItem.RunnerVersionId = string.IsNullOrWhiteSpace(SelectedRunnerVersion?.Id)
+        item.PrefixPath = string.IsNullOrWhiteSpace(prefixPathToStore) ? null : prefixPathToStore;
+        item.RunnerVersionId = string.IsNullOrWhiteSpace(SelectedRunnerVersion?.Id)
             ? null
             : SelectedRunnerVersion.Id;
 
         // Always store per-item launcher arguments (used for both Native and Emulator modes)
-        _originalItem.LauncherArgs = LauncherArgs;
-        _originalItem.Files = CloneFiles(_editedFiles);
+        item.LauncherArgs = LauncherArgs;
+        item.Files = CloneFiles(_editedFiles);
 
-        _originalItem.WorkingDirectory = NormalizeOptionalPortableDataPath(WorkingDirectory);
-        _originalItem.XdgConfigPath = NormalizeOptionalPortableDataPath(XdgConfigPath);
-        _originalItem.XdgDataPath = NormalizeOptionalPortableDataPath(XdgDataPath);
-        _originalItem.XdgCachePath = NormalizeOptionalPortableDataPath(XdgCachePath);
-        _originalItem.XdgStatePath = NormalizeOptionalPortableDataPath(XdgStatePath);
-        _originalItem.XdgBasePath = NormalizeOptionalPortableDataPath(XdgBasePath);
+        item.WorkingDirectory = NormalizeOptionalPortableDataPath(WorkingDirectory);
+        item.XdgConfigPath = NormalizeOptionalPortableDataPath(XdgConfigPath);
+        item.XdgDataPath = NormalizeOptionalPortableDataPath(XdgDataPath);
+        item.XdgCachePath = NormalizeOptionalPortableDataPath(XdgCachePath);
+        item.XdgStatePath = NormalizeOptionalPortableDataPath(XdgStatePath);
+        item.XdgBasePath = NormalizeOptionalPortableDataPath(XdgBasePath);
 
         // Always store process monitor override (null when empty)
-        _originalItem.OverrideWatchProcess = string.IsNullOrWhiteSpace(OverrideWatchProcess)
+        item.OverrideWatchProcess = string.IsNullOrWhiteSpace(OverrideWatchProcess)
             ? null
             : OverrideWatchProcess;
 
@@ -68,43 +73,43 @@ public partial class EditMediaViewModel
         switch (SelectedEmulatorProfile?.Kind)
         {
             case EmulatorProfileOption.OptionKind.Emulator:
-                _originalItem.MediaType = MediaType.Emulator;
-                _originalItem.EmulatorId = SelectedEmulatorProfile.Emulator?.Id;
-                _originalItem.LauncherPath = null;
+                item.MediaType = MediaType.Emulator;
+                item.EmulatorId = SelectedEmulatorProfile.Emulator?.Id;
+                item.LauncherPath = null;
                 break;
 
             case EmulatorProfileOption.OptionKind.Manual:
-                _originalItem.MediaType = MediaType.Emulator;
-                _originalItem.EmulatorId = null;
+                item.MediaType = MediaType.Emulator;
+                item.EmulatorId = null;
                 if (_settings.PreferPortableLaunchPaths &&
                     !string.IsNullOrWhiteSpace(LauncherPath) &&
                     Path.IsPathRooted(LauncherPath) &&
                     PortablePathHelper.TryMakeDataRelativeIfInsideDataRoot(LauncherPath, out var relativeLauncherPath))
                 {
-                    _originalItem.LauncherPath = relativeLauncherPath;
+                    item.LauncherPath = relativeLauncherPath;
                 }
                 else
                 {
-                    _originalItem.LauncherPath = LauncherPath;
+                    item.LauncherPath = LauncherPath;
                 }
                 break;
 
             case EmulatorProfileOption.OptionKind.Inherit:
-                _originalItem.MediaType = MediaType.Emulator;
-                _originalItem.EmulatorId = null;
-                _originalItem.LauncherPath = null;
+                item.MediaType = MediaType.Emulator;
+                item.EmulatorId = null;
+                item.LauncherPath = null;
                 break;
 
             case EmulatorProfileOption.OptionKind.Native:
-                _originalItem.MediaType = MediaType.Native;
-                _originalItem.EmulatorId = null;
-                _originalItem.LauncherPath = null;
+                item.MediaType = MediaType.Native;
+                item.EmulatorId = null;
+                item.LauncherPath = null;
                 break;
 
             default:
-                _originalItem.MediaType = MediaType;
-                _originalItem.EmulatorId = null;
-                _originalItem.LauncherPath = null;
+                item.MediaType = MediaType;
+                item.EmulatorId = null;
+                item.LauncherPath = null;
                 break;
         }
 
@@ -112,11 +117,11 @@ public partial class EditMediaViewModel
         switch (NativeWrapperMode)
         {
             case WrapperMode.Inherit:
-                _originalItem.NativeWrappersOverride = null;
+                item.NativeWrappersOverride = null;
                 break;
 
             case WrapperMode.None:
-                _originalItem.NativeWrappersOverride = new List<LaunchWrapper>();
+                item.NativeWrappersOverride = new List<LaunchWrapper>();
                 break;
 
             case WrapperMode.Override:
@@ -128,12 +133,12 @@ public partial class EditMediaViewModel
                 if (_settings.PreferPortableLaunchPaths)
                     PortablePathHelper.ConvertWrapperPathsToPortable(wrapperOverrides);
 
-                _originalItem.NativeWrappersOverride = wrapperOverrides;
+                item.NativeWrappersOverride = wrapperOverrides;
                 break;
         }
 
         // 4. Environment overrides: sync back into the model dictionary
-        _originalItem.EnvironmentOverrides.Clear();
+        item.EnvironmentOverrides.Clear();
         foreach (var row in EnvironmentOverrides)
         {
             if (row.IsInherited)
@@ -142,11 +147,11 @@ public partial class EditMediaViewModel
             if (string.IsNullOrWhiteSpace(row.Key))
                 continue;
 
-            _originalItem.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
+            item.EnvironmentOverrides[row.Key.Trim()] = row.Value ?? string.Empty;
         }
 
         if (_settings.PreferPortableLaunchPaths)
-            EnvironmentPathHelper.ConvertDataRootPathsToPortable(_originalItem.EnvironmentOverrides);
+            EnvironmentPathHelper.ConvertDataRootPathsToPortable(item.EnvironmentOverrides);
     }
 
     private static string? NormalizeOptionalText(string? value)
