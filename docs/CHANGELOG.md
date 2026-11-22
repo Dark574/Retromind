@@ -18,6 +18,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Fixed
 - preserve spaces and tabs inside quoted game launch arguments
 - preserve the previous asset paths until the library saves a media or category move or a category rename
+- keep selection music during launch checks, restore it after a failed start, and report unexpected launch errors
 - keep original and shared artwork files when saving media edits, including when the library write fails
 - align the launch preview with the actual command, wrapper order, working directory and configured environment
 - refresh current GOG update filters and result counts when update availability changes

@@ -812,24 +812,24 @@ public partial class MainWindowViewModel
         if (item == null)
             return null;
 
-        if (!CanPlayMedia(item))
-            return null;
-
-        // Global launch guard: ignore additional requests while one is in progress.
-        if (IsLaunchInProgress)
-            return null;
-
-        var isDelegatedLaunch = string.IsNullOrWhiteSpace(item.OverrideWatchProcess) &&
-                                LauncherService.IsDelegatedCommand(item);
-        var launchGuardStartedAt = Stopwatch.GetTimestamp();
-        IsDelegatedLaunchPending = isDelegatedLaunch;
-        IsLaunchInProgress = true;
-        
-        // Stop music immediately for responsiveness
-        _audioService.StopMusic();
-
+        var ownsLaunchGuard = false;
+        var phase = "Preflight";
+        LaunchResult? launchResult = null;
+        string? interruptedTrack = null;
+        MediaItem? previewItem = null;
+        object? previewContent = null;
         try
         {
+            if (!CanPlayMedia(item))
+                return null;
+
+            var isDelegatedLaunch = string.IsNullOrWhiteSpace(item.OverrideWatchProcess) &&
+                                    LauncherService.IsDelegatedCommand(item);
+            var launchGuardStartedAt = Stopwatch.GetTimestamp();
+            ownsLaunchGuard = true;
+            IsDelegatedLaunchPending = isDelegatedLaunch;
+            IsLaunchInProgress = true;
+
             if (ShouldOfferInstallForItem(item))
             {
                 await InstallStoreItemAsync(item);
@@ -886,6 +886,7 @@ public partial class MainWindowViewModel
                 return null;
             }
 
+            phase = "Preparation";
             // Native wrapper resolution (emulator -> node -> item)
             IReadOnlyList<LaunchWrapper>? effectiveWrappers = null;
 
@@ -922,7 +923,11 @@ public partial class MainWindowViewModel
                     epicLaunch.Environment);
             }
 
-            var launchResult = await _launcherService.LaunchAsync(
+            phase = "Execution";
+            previewItem = GetCurrentSelectedItem();
+            previewContent = SelectedNodeContent;
+            interruptedTrack = _audioService.StopMusicAndGetTrack();
+            launchResult = await _launcherService.LaunchAsync(
                 item,
                 emulator,
                 nodePath,
@@ -931,6 +936,7 @@ public partial class MainWindowViewModel
                 additionalLaunchArguments: epicLaunch?.Arguments,
                 usePlaylistForMultiDisc: emulator?.UsePlaylistForMultiDisc == true,
                 recordStatistics: recordStatistics);
+            phase = "Completion";
             ViewLastLaunchLogCommand.NotifyCanExecuteChanged();
 
             if (!launchResult.IsStarted)
@@ -980,7 +986,7 @@ public partial class MainWindowViewModel
 
             // A delegated store handoff has no reliable game-exit boundary. Do
             // not restart preview music while the external game is still opening.
-            if (!delegatedLaunchSucceeded && ReferenceEquals(GetCurrentSelectedItem(), item))
+            if (launchResult.IsStarted && !delegatedLaunchSucceeded && ReferenceEquals(GetCurrentSelectedItem(), item))
             {
                 var contextNode = GetSelectionMusicContextNode(item);
                 await PlaySelectionMusicAsync(item, contextNode);
@@ -1017,15 +1023,68 @@ public partial class MainWindowViewModel
 
             return launchResult;
         }
+        catch (OperationCanceledException)
+        {
+            return launchResult;
+        }
         catch (Exception ex)
         {
-            Debug.WriteLine($"[Error] PlayMedia failed: {ex.Message}");
-            return null;
+            ReportUnexpectedLaunchIssue(item, phase, ex, launchResult);
+            return launchResult;
         }
         finally
         {
-            IsDelegatedLaunchPending = false;
-            IsLaunchInProgress = false;
+            if (ownsLaunchGuard)
+            {
+                try
+                {
+                    if (interruptedTrack != null && launchResult?.IsStarted != true &&
+                        _currentSettings.EnableSelectionMusicPreview && FullScreenContent == null &&
+                        ReferenceEquals(previewContent, SelectedNodeContent) &&
+                        ReferenceEquals(previewItem, GetCurrentSelectedItem()))
+                    {
+                        await _audioService.PlayMusicAsync(interruptedTrack);
+                    }
+                }
+                catch (OperationCanceledException) { }
+                catch (Exception ex)
+                {
+                    ReportUnexpectedLaunchIssue(item, "RestoreSelectionMusic", ex, launchResult, showNotice: false);
+                }
+                finally
+                {
+                    IsDelegatedLaunchPending = false;
+                    IsLaunchInProgress = false;
+                }
+            }
+        }
+    }
+
+    private void ReportUnexpectedLaunchIssue(MediaItem item, string phase, Exception exception,
+        LaunchResult? result, bool showNotice = true)
+    {
+        var context = new Dictionary<string, string>
+        {
+            ["Phase"] = phase,
+            ["ExceptionType"] = exception.GetType().Name
+        };
+        if (Guid.TryParse(item.Id, out var itemId))
+            context["ItemId"] = itemId.ToString("D");
+        if (result != null)
+            context["Outcome"] = result.Outcome.ToString();
+
+        var message = result?.IsStarted == true
+            ? T("Launch.UnexpectedCompletionFailure", "The game started, but Retromind could not finish processing the launch. See the error log for details.")
+            : T("Launch.UnexpectedStartFailure", "Retromind encountered an unexpected problem while starting the game. See the error log for details.");
+        try
+        {
+            _errorService.Report(new ErrorReport("Desktop.LaunchWorkflowFailed", ErrorSeverity.Warning,
+                nameof(MainWindowViewModel), "An unexpected error interrupted the desktop launch workflow.", Context: context),
+                notifyUser: showNotice && CurrentWindow is { } owner ? () => ShowInfoDialog(owner, message) : null);
+        }
+        catch (Exception reportFailure)
+        {
+            Debug.WriteLine($"[Launch] Could not record the workflow failure: {reportFailure.GetType().Name}");
         }
     }
 

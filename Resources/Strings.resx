@@ -1864,4 +1864,10 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Launch.ParentalBlocked" xml:space="preserve">
     <value>Parental control blocks this game from starting.</value>
   </data>
+  <data name="Launch.UnexpectedStartFailure" xml:space="preserve">
+    <value>Retromind encountered an unexpected problem while starting the game. See the error log for details.</value>
+  </data>
+  <data name="Launch.UnexpectedCompletionFailure" xml:space="preserve">
+    <value>The game started, but Retromind could not finish processing the launch. See the error log for details.</value>
+  </data>
 </root>

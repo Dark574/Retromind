@@ -1866,4 +1866,10 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Launch.ParentalBlocked" xml:space="preserve">
     <value>Die Kindersicherung verhindert den Start dieses Spiels.</value>
   </data>
+  <data name="Launch.UnexpectedStartFailure" xml:space="preserve">
+    <value>Beim Spielstart ist ein unerwarteter Fehler aufgetreten. Weitere Informationen stehen im Fehlerprotokoll.</value>
+  </data>
+  <data name="Launch.UnexpectedCompletionFailure" xml:space="preserve">
+    <value>Das Spiel wurde gestartet, aber die Nachbereitung konnte nicht abgeschlossen werden. Weitere Informationen stehen im Fehlerprotokoll.</value>
+  </data>
 </root>

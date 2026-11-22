@@ -26,6 +26,7 @@ public class AudioService
     private readonly Func<ProcessStartInfo, IAudioProcess?> _startProcess;
     private IAudioProcess? _currentProcess;
     private string? _currentPlayer;
+    private string? _currentTrackPath;
 
     // Incrementing playback id to identify the currently active process.
     private int _playbackId;
@@ -179,6 +180,7 @@ public class AudioService
                     else
                     {
                         _currentPlaybackId = playbackId;
+                        _currentTrackPath = filePath;
                         startedProcess = _currentProcess;
                     }
                 }
@@ -201,17 +203,22 @@ public class AudioService
     /// <summary>
     /// Stops the currently playing music process if it exists.
     /// </summary>
-    public void StopMusic()
+    public void StopMusic() => StopMusicAndGetTrack();
+
+    internal string? StopMusicAndGetTrack()
     {
         var errors = new List<ErrorReport>();
+        string? track;
         lock (_processLock)
         {
+            track = _currentTrackPath;
             _playbackCts?.Cancel(); // Cancel pending starts
             _playbackCts?.Dispose();
             _playbackCts = null;
             StopMusicInternal(errors);
         }
         ReportErrors(errors);
+        return track;
     }
 
     /// <summary>
@@ -302,6 +309,7 @@ public class AudioService
         finally
         {
             _currentProcess = null;
+            _currentTrackPath = null;
         }
     }
 
