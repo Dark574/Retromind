@@ -49,7 +49,7 @@ internal sealed partial class DesktopDownloadWorkflow
         return null;
     }
 
-    private void SetExcluded(MediaItem item, bool excluded)
+    internal void SetExcluded(MediaItem item, bool excluded)
     {
         if (workspace.FindParentNode(item) == null)
             return;
@@ -59,5 +59,11 @@ internal sealed partial class DesktopDownloadWorkflow
         else
             item.CustomFields.Remove(CustomFieldKeyHelper.StoreAutomaticUpdatesExcluded);
         workspace.MarkLibraryDirtyAndSaveSoon();
+        manager.SetAutomaticUpdateExcluded(item.Id, excluded);
+        if (!excluded && item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreAvailableRevision, out var revision) &&
+            !string.IsNullOrWhiteSpace(revision))
+        {
+            EnqueueKnownUpdate(item, revision);
+        }
     }
 }

@@ -33,7 +33,7 @@ internal sealed partial class DesktopDownloadWorkflow(
         _running = true;
         var settings = workspace.Settings.Downloads;
         _automaticUpdateMode = settings?.AutomaticUpdates ?? AutomaticUpdateMode.Disabled;
-        manager.Start(settings, ExecuteAsync);
+        manager.Start(settings, ExecuteAsync, AllItems().Where(IsExcluded).Select(item => item.Id));
         gog.UpdateFound += EnqueueKnownUpdate;
         epic.UpdateFound += EnqueueKnownUpdate;
         StartChecks();
@@ -191,7 +191,10 @@ internal sealed partial class DesktopDownloadWorkflow(
             if (gameId == null || job.StoreGameId != null && job.StoreGameId != gameId)
                 return new DownloadOutcome(DownloadState.Failed, DownloadReason.GameUnavailable);
             if (job.Automatic && IsExcluded(item))
+            {
+                manager.SetAutomaticUpdateExcluded(item.Id, true);
                 return new DownloadOutcome(DownloadState.Paused, DownloadReason.Excluded);
+            }
             ct.ThrowIfCancellationRequested();
             return job.Store == DownloadStore.Gog
                 ? await gog.RunQueuedDownloadAsync(gogDownloads, item, execution, ct)

@@ -91,6 +91,19 @@ public sealed class DesktopDownloadWorkflowTests
                 downloads.SettingsChanged();
 
                 Assert.Equal(2, manager.Snapshot().Length);
+
+                var epicJobId = manager.Snapshot().Single(row => row.Job.ItemId == epicGame.Id).Job.Id;
+                downloads.SetExcluded(epicGame, true);
+                var paused = manager.Snapshot().Single(row => row.Job.Id == epicJobId).Job;
+                Assert.Equal(DownloadState.Paused, paused.State);
+                Assert.Equal(DownloadReason.Excluded, paused.Reason);
+
+                downloads.SetExcluded(epicGame, false);
+                Assert.Equal(DownloadReason.None, manager.Snapshot().Single(row => row.Job.Id == epicJobId).Job.Reason);
+                Assert.Equal(2, manager.Snapshot().Length);
+
+                downloads.SetExcluded(excluded, false);
+                Assert.Single(manager.Snapshot(), row => row.Job.ItemId == excluded.Id);
             });
         }
         finally

@@ -281,6 +281,103 @@ public sealed class DownloadManagerTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticExclusion_PausesActiveDownloadAndResumesTheSameJob(bool includeWhileUnwinding)
+    {
+        using var temp = new TemporaryDirectory();
+        var errors = new RecordingErrorService();
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), errors, TimeProvider.System);
+        var entered = new TaskCompletionSource<Guid>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var resumed = new TaskCompletionSource<Guid>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var interrupted = Signal();
+        var allowUnwind = Signal();
+        var paused = Signal();
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot().Any(row => row.Job is { State: DownloadState.Paused, Reason: DownloadReason.Excluded }))
+                paused.TrySetResult();
+        };
+        manager.Start(new DownloadSettings { AutomaticUpdates = AutomaticUpdateMode.DownloadOnly }, async (work, ct) =>
+        {
+            if (entered.TrySetResult(work.Job.Id))
+            {
+                try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    interrupted.SetResult();
+                    await allowUnwind.Task;
+                    throw;
+                }
+            }
+            else
+            {
+                resumed.SetResult(work.Job.Id);
+            }
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+
+        try
+        {
+            Assert.True(manager.Enqueue("game", DownloadStore.Gog, DownloadKind.Update, automatic: true));
+            var id = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            manager.SetAutomaticUpdateExcluded("game", true);
+            await interrupted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(manager.Enqueue("game", DownloadStore.Gog, DownloadKind.Update, automatic: true));
+
+            if (includeWhileUnwinding)
+                manager.SetAutomaticUpdateExcluded("game", false);
+
+            allowUnwind.SetResult();
+            if (!includeWhileUnwinding)
+            {
+                await paused.Task.WaitAsync(TimeSpan.FromSeconds(5));
+                Assert.False(manager.Change(id, DownloadAction.Resume));
+                manager.SetAutomaticUpdateExcluded("game", false);
+            }
+
+            Assert.Equal(id, await resumed.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        finally
+        {
+            allowUnwind.TrySetResult();
+            await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            manager.Release();
+        }
+
+        Assert.Equal(DownloadState.Completed, Assert.Single(manager.Snapshot()).Job.State);
+        Assert.Empty(errors.Reports);
+    }
+
+    [Fact]
+    public async Task Restart_ReconcilesSavedExclusionPausesWithTheLibrary()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([
+                Job("excluded", DownloadState.Queued),
+                Job("included", DownloadState.Paused) with { Reason = DownloadReason.Excluded },
+                Job("manual-pause", DownloadState.Paused),
+            ]);
+        }
+
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException("Automatic updates are disabled."),
+            excludedItemIds: ["excluded"]);
+        await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        manager.Release();
+
+        using var restored = new DownloadQueueStore(path);
+        Assert.Equal(
+            [(DownloadState.Paused, DownloadReason.Excluded), (DownloadState.Queued, DownloadReason.None),
+                (DownloadState.Paused, DownloadReason.None)],
+            restored.Load().Select(job => (job.State, job.Reason)));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task Cancel_QueuedInstallationCanBeRequestedAgain(bool isGog)

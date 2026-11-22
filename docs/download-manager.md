@@ -12,6 +12,10 @@ Retromind is open. Closing the download manager window keeps the pause in effect
 queue** restores normal scheduling and keeps individually paused jobs paused. An installation
 already in progress, including a combined Epic download and update, runs to completion.
 
+Excluding a game from automatic updates pauses its queued or active automatic download.
+Removing the exclusion resumes jobs paused for this reason and queues any known update that
+was skipped. Manually queued downloads and installations already in progress are unaffected.
+
 The **Download manager** tab in Settings offers three automatic update modes. **Disabled** is the
 default. Switching to an active mode immediately queues known GOG and Epic base-game updates and
 requests a check for missing revisions. The daily window uses local time and may cross midnight.

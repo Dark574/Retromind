@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- pause automatic updates when excluding a game and resume those updates when including it again
 - restore resizing in the download manager and make its close button work after repeated opening clicks
 - keep GOG installers selected for retention in the offline installer archive and clear staging after a successful installation
 - free download staging space after successfully archiving GOG offline installers

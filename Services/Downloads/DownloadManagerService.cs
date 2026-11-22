@@ -19,6 +19,7 @@ public sealed class DownloadManagerService
     private readonly TimeProvider _time;
     private readonly Dictionary<Guid, DateTimeOffset> _blockedUntil = new();
     private readonly Dictionary<Guid, DownloadProgress> _progress = new();
+    private readonly HashSet<string> _automaticUpdateExclusions = new(StringComparer.Ordinal);
     private List<DownloadJob> _jobs = [];
     private DownloadSettings _settings = new();
     private ExecuteDownloadAsync? _execute;
@@ -60,7 +61,8 @@ public sealed class DownloadManagerService
             return _jobs.Select(job => (job, _progress.GetValueOrDefault(job.Id))).ToArray();
     }
 
-    internal void Start(DownloadSettings? settings, ExecuteDownloadAsync execute)
+    internal void Start(DownloadSettings? settings, ExecuteDownloadAsync execute,
+        IEnumerable<string>? excludedItemIds = null)
     {
         lock (_gate)
         {
@@ -70,14 +72,14 @@ public sealed class DownloadManagerService
             _settings = settings ?? new();
             _execute = execute;
             _stopping = false;
+            _automaticUpdateExclusions.Clear();
+            if (excludedItemIds != null)
+                _automaticUpdateExclusions.UnionWith(excludedItemIds);
             if (!_loaded)
             {
                 try
                 {
-                    var saved = _store.Load();
-                    _jobs = saved.Select(Recover).ToList();
-                    if (!_jobs.SequenceEqual(saved))
-                        _store.Save(_jobs);
+                    _jobs = _store.Load().ToList();
                     _loaded = true;
                 }
                 catch (Exception ex)
@@ -87,6 +89,10 @@ public sealed class DownloadManagerService
                     return;
                 }
             }
+
+            var recovered = _jobs.Select(job => ApplyAutomaticUpdateExclusion(Recover(job))).ToList();
+            if (!_jobs.SequenceEqual(recovered) && !Save(recovered))
+                return;
 
             _worker = Task.Run(RunAsync);
             Notify();
@@ -102,7 +108,7 @@ public sealed class DownloadManagerService
                 _jobs.Any(IsWaitingForAutomaticEpicInstallation))
             {
                 Save(_jobs.Select(job => IsWaitingForAutomaticEpicInstallation(job)
-                    ? job with { State = DownloadState.Queued, Reason = DownloadReason.None }
+                    ? ApplyAutomaticUpdateExclusion(job with { State = DownloadState.Queued, Reason = DownloadReason.None })
                     : job).ToList());
             }
             Notify();
@@ -111,6 +117,43 @@ public sealed class DownloadManagerService
 
     private static bool IsWaitingForAutomaticEpicInstallation(DownloadJob job) =>
         job.Automatic && job.State == DownloadState.InstallationPending && job.Reason == DownloadReason.EpicCombinedUpdate;
+
+    internal void SetAutomaticUpdateExcluded(string itemId, bool excluded)
+    {
+        lock (_gate)
+        {
+            if (!_loaded || _stopping || _persistenceFailed)
+                return;
+
+            var changed = excluded ? _automaticUpdateExclusions.Add(itemId) : _automaticUpdateExclusions.Remove(itemId);
+            if (!changed)
+                return;
+
+            if (excluded && _active is { Installing: false } active && active.Job.ItemId == itemId &&
+                active.Job is { Automatic: true, Kind: DownloadKind.Update } &&
+                (active.InterruptedJob == null || IsWaiting(active.InterruptedJob.State)))
+            {
+                active.InterruptedJob = active.Job with { State = DownloadState.Paused, Reason = DownloadReason.Excluded };
+            }
+
+            var next = _jobs.Select(job => job.ItemId == itemId ? ApplyAutomaticUpdateExclusion(job) : job).ToList();
+            if (_jobs.SequenceEqual(next))
+                Notify();
+            else
+                Save(next);
+        }
+    }
+
+    private DownloadJob ApplyAutomaticUpdateExclusion(DownloadJob job)
+    {
+        if (job is not { Automatic: true, Kind: DownloadKind.Update })
+            return job;
+        if (_automaticUpdateExclusions.Contains(job.ItemId))
+            return IsWaiting(job.State) ? job with { State = DownloadState.Paused, Reason = DownloadReason.Excluded } : job;
+        if (job is { State: DownloadState.Paused, Reason: DownloadReason.Excluded })
+            return job with { State = DownloadState.Queued, Reason = DownloadReason.None };
+        return job;
+    }
 
     internal void ToggleQueuePause()
     {
@@ -133,7 +176,7 @@ public sealed class DownloadManagerService
         lock (_gate)
         {
             if (!_loaded || _stopping || _persistenceFailed ||
-                automatic && _settings.AutomaticUpdates == AutomaticUpdateMode.Disabled)
+                automatic && (_settings.AutomaticUpdates == AutomaticUpdateMode.Disabled || _automaticUpdateExclusions.Contains(itemId)))
                 return false;
 
             var job = new DownloadJob(Guid.NewGuid(), itemId, store, kind, revision, automatic,
@@ -218,7 +261,7 @@ public sealed class DownloadManagerService
                     next[index] = job with { State = DownloadState.Queued, Reason = DownloadReason.None,
                         Automatic = false, OverrideWindow = true };
                     break;
-                case DownloadAction.Resume when job.State == DownloadState.Paused:
+                case DownloadAction.Resume when job.State == DownloadState.Paused && job.Reason != DownloadReason.Excluded:
                 case DownloadAction.Retry when job.State == DownloadState.Failed || IsWaiting(job.State):
                     next[index] = job with { State = DownloadState.Queued, Reason = DownloadReason.None };
                     break;
@@ -375,6 +418,7 @@ public sealed class DownloadManagerService
         {
             _active = null;
             var finished = active.InterruptedJob ?? (job with { State = outcome.State, Reason = outcome.Reason });
+            finished = ApplyAutomaticUpdateExclusion(finished);
             if (finished is { State: DownloadState.InstallationPending, InstallRequested: true })
                 finished = RestorePendingInstallation(finished);
             if (finished.State is DownloadState.WaitingForSpace or DownloadState.WaitingForGame)
@@ -411,7 +455,8 @@ public sealed class DownloadManagerService
         lock (_gate)
         {
             if (_queuePaused || _stopping || _persistenceFailed || active.InterruptedJob != null || token.IsCancellationRequested ||
-                job.Automatic && _settings.AutomaticUpdates != AutomaticUpdateMode.DownloadAndInstall ||
+                job.Automatic && (_settings.AutomaticUpdates != AutomaticUpdateMode.DownloadAndInstall ||
+                                  _automaticUpdateExclusions.Contains(job.ItemId)) ||
                 job.Store == DownloadStore.Epic && !job.OverrideWindow && !IsWindowOpen(_settings))
                 return false;
 
