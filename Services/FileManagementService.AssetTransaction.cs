@@ -11,6 +11,89 @@ namespace Retromind.Services;
 public partial class FileManagementService
 {
     public sealed record AssetImportRequest(string SourceFilePath, AssetType Type);
+    internal sealed record AssetRemoval(string Path, AssetType Type, long Length, DateTime LastWriteTimeUtc);
+
+    internal static AssetRemoval? CaptureAssetRemoval(MediaAsset asset)
+    {
+        if (string.IsNullOrWhiteSpace(asset.RelativePath))
+            return null;
+        var path = RequireSafeAssetMutationPath(asset.RelativePath);
+        var file = new FileInfo(path);
+        return file.Exists ? new AssetRemoval(path, asset.Type, file.Length, file.LastWriteTimeUtc) : null;
+    }
+
+    internal void RemoveUnreferencedEditorAssets(
+        IReadOnlyList<AssetRemoval> removals, IEnumerable<MediaNode> roots)
+    {
+        var items = new List<MediaItem>();
+        var nodeAssets = new List<MediaAsset>();
+        var pending = new Stack<MediaNode>(roots);
+        var seen = new HashSet<MediaNode>(ReferenceEqualityComparer.Instance);
+        while (pending.TryPop(out var node))
+        {
+            if (!seen.Add(node))
+                continue;
+            items.AddRange(node.Items);
+            nodeAssets.AddRange(node.Assets);
+            foreach (var child in node.Children)
+                pending.Push(child);
+        }
+
+        var references = CountAssetPathReferences(items, nodeAssets);
+        foreach (var removal in removals.DistinctBy(candidate => candidate.Path, FileSystemPathIdentity.Comparer))
+        {
+            if (references.ContainsKey(removal.Path))
+                continue;
+            try
+            {
+                var path = RequireSafeAssetMutationPath(removal.Path);
+                var file = new FileInfo(path);
+                if (!file.Exists || file.Length != removal.Length || file.LastWriteTimeUtc != removal.LastWriteTimeUtc)
+                    continue;
+
+                TryInvalidateImageCache(path);
+                File.Delete(path);
+            }
+            catch (Exception ex)
+            {
+                ReportAssetFailure("FileManagement.AssetCleanupFailed", ErrorSeverity.Diagnostic,
+                    "DeleteSavedEditorAsset", removal.Type, ex, removal.Path);
+            }
+        }
+    }
+
+    internal async Task<MediaAsset> PrepareEditorAssetRenameAsync(PreparedAssetTransaction transaction,
+        MediaItem item, string newTitle, List<string> nodePath, MediaAsset asset, List<AssetRemoval> removals)
+    {
+        string? destination = null;
+        try
+        {
+            var original = CaptureAssetRemoval(asset);
+            if (original == null)
+                return asset;
+            var nodeFolder = RequireSafeAssetMutationPath(ResolveNodeFolder(nodePath));
+            destination = ResolveItemAssetRenameDestination(item, newTitle, nodeFolder, asset.Type, original.Path);
+            if (destination == null)
+                return asset;
+
+            var renamed = new MediaAsset
+            {
+                Id = asset.Id,
+                Type = asset.Type,
+                RelativePath = Path.GetRelativePath(AppPaths.DataRoot, destination)
+            };
+            await CopyAssetAtomicallyAsync(original.Path, destination, asset.Type).ConfigureAwait(false);
+            transaction.TrackCreatedAsset(renamed);
+            removals.Add(original);
+            return renamed;
+        }
+        catch (Exception ex)
+        {
+            ReportAssetFailure("FileManagement.AssetRenameFailed", ErrorSeverity.Warning,
+                "PrepareEditorAssetRename", asset.Type, ex, asset.RelativePath, destination);
+            return asset;
+        }
+    }
 
     /// <summary>
     /// Prepared file changes for an editor save. Until <see cref="Commit"/> is called,

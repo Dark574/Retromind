@@ -512,10 +512,10 @@ change the caller's return/throw/recovery policy; no additional services are mig
   files and the collection assignment back, while assets shared with another item or node are copied instead
   of removing the shared source. An incomplete filesystem rollback preserves conflicting or sole remaining
   files in place and surfaces their affected locations to the user
-- media-editor and node-settings artwork changes remain detached until Save; imports are copied first and
-  item deletions are quarantined until the model update succeeds, so Cancel and failed file operations leave
-  the original files and assignments intact when rollback succeeds. Failed restoration retains the quarantined
-  originals for recovery rather than discarding them
+- media-editor and node-settings artwork changes remain detached until Save. Media-editor imports and
+  renamed files are copied first. Original paths stay in place during the library write. Cleanup runs only
+  after the current library snapshot is confirmed and checks the complete live tree for remaining item and
+  category references. Failed or superseded saves can leave unreferenced originals for the library health check.
 
 ### Asset import and editor transactions
 
@@ -535,7 +535,9 @@ cleanup revalidate containment and symbolic-link/reparse-point components. Selec
 external and are read only, as before. These are managed path checks, not descriptor-relative filesystem
 operations: a concurrent external replacement of path components between validation and IO remains a race.
 
-`PreparedAssetTransaction` retains its quarantine-until-commit contract. Rollback removes imports before
+`PreparedAssetTransaction` retains its quarantine-until-commit contract for callers supplying immediate
+deletions. The media editor uses it to stage new copies and keeps original files in place until the
+library save completes. Rollback removes imports before
 restoring originals, never overwrites a conflicting original path, and removes only successful steps from
 its pending work. If a step fails, `Rollback()` reports and throws an aggregate exception, keeps the transaction
 unfinished and its remaining quarantine intact, and permits a later explicit `Rollback()` retry. `Commit()`

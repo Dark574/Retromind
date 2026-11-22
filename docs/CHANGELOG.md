@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- keep original and shared artwork files when saving media edits, including when the library write fails
 - protect restored libraries against overlapping saves and roll back a full restore when writing settings fails
 - preserve current settings and runner registrations when runner changes and desktop saves overlap
 - require all installer parts and validate the destination of authenticated GOG downlink requests

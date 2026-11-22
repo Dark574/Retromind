@@ -240,6 +240,24 @@ public class LibraryChangeTracker
     public Task SaveIfDirtyAsync(bool force, int? expectedVersion = null)
         => _saveSequencer.RunAsync(() => SaveIfDirtyCoreAsync(force, expectedVersion));
 
+    internal async Task<bool> SaveAndConfirmAsync(Action afterSave)
+    {
+        var confirmed = false;
+        await _saveSequencer.RunAsync(async () =>
+        {
+            await SaveIfDirtyCoreAsync(force: false, expectedVersion: null).ConfigureAwait(false);
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                // Check against the live tree before another save can replace the snapshot.
+                if (_trackedRoots == null || IsDirty)
+                    return;
+                afterSave();
+                confirmed = true;
+            }).ConfigureAwait(false);
+        }).ConfigureAwait(false);
+        return confirmed;
+    }
+
     internal Task RunRestoreAsync(Func<Task> restore, bool flushCurrentChanges) =>
         _saveSequencer.RunAsync(async () =>
         {

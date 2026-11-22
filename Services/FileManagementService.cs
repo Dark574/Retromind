@@ -193,35 +193,9 @@ public partial class FileManagementService
                 if (!File.Exists(fullPath))
                     continue;
 
-                var extension = Path.GetExtension(fullPath);
-                if (string.IsNullOrEmpty(extension))
-                    extension = ".bin";
-
-                var fileName = Path.GetFileName(fullPath);
-                var match = AssetRegex.Match(fileName);
-
-                string targetFileName;
-                var targetPrefix = BuildItemAssetPrefixForRename(item, asset.Type, newTitle, match.Success ? match.Groups[1].Value : Path.GetFileNameWithoutExtension(fileName));
-                if (match.Success)
-                {
-                    var number = match.Groups[3].Value;
-                    targetFileName = $"{targetPrefix}_{asset.Type}_{number}{extension}";
-                }
-                else
-                {
-                    targetFileName = Path.GetFileName(GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true));
-                }
-
-                var targetFolder = Path.Combine(nodeFolder, asset.Type.ToString());
-                targetFullPath = Path.Combine(targetFolder, targetFileName);
-
-                targetFullPath = RequireSafeAssetMutationPath(targetFullPath);
-
-                if (FileSystemPathIdentity.Equals(fullPath, targetFullPath))
+                targetFullPath = ResolveItemAssetRenameDestination(item, newTitle, nodeFolder, asset.Type, fullPath);
+                if (targetFullPath == null)
                     continue;
-
-                if (File.Exists(targetFullPath))
-                    targetFullPath = GetNextAssetFileName(nodeFolder, targetPrefix, asset.Type, extension, prefixIsSanitized: true);
 
                 var targetDir = Path.GetDirectoryName(targetFullPath);
                 if (!string.IsNullOrWhiteSpace(targetDir) && !Directory.Exists(targetDir))
@@ -244,6 +218,29 @@ public partial class FileManagementService
             RaiseLibraryChanged();
 
         return anyRenamed;
+    }
+
+    private string? ResolveItemAssetRenameDestination(MediaItem item, string newTitle, string nodeFolder,
+        AssetType type, string sourcePath)
+    {
+        var extension = Path.GetExtension(sourcePath);
+        if (string.IsNullOrEmpty(extension))
+            extension = ".bin";
+
+        var match = AssetRegex.Match(Path.GetFileName(sourcePath));
+        var prefix = BuildItemAssetPrefixForRename(item, type, newTitle,
+            match.Success ? match.Groups[1].Value : Path.GetFileNameWithoutExtension(sourcePath));
+        if (match.Success)
+        {
+            var path = RequireSafeAssetMutationPath(
+                Path.Combine(nodeFolder, type.ToString(), $"{prefix}_{type}_{match.Groups[3].Value}{extension}"));
+            if (FileSystemPathIdentity.Equals(sourcePath, path))
+                return null;
+            if (!File.Exists(path))
+                return path;
+        }
+
+        return GetNextAssetFileName(nodeFolder, prefix, type, extension, prefixIsSanitized: true);
     }
     
     /// <summary>

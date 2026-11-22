@@ -69,7 +69,7 @@ public class MediaDataService
             Directory.CreateDirectory(AppPaths.DataRoot);
 
             // 1) Write to temp first
-            await File.WriteAllTextAsync(TempPath, json).ConfigureAwait(false);
+            await WriteTemporaryLibraryAsync(json).ConfigureAwait(false);
 
             // 2) Backup current file (best effort)
             if (File.Exists(FilePath))
@@ -146,7 +146,7 @@ public class MediaDataService
             if (hadLibrary)
                 File.Copy(FilePath, rollbackPath);
 
-            await File.WriteAllTextAsync(TempPath, json).ConfigureAwait(false);
+            await WriteTemporaryLibraryAsync(json).ConfigureAwait(false);
             File.Move(TempPath, FilePath, overwrite: true);
             try
             {
@@ -191,6 +191,16 @@ public class MediaDataService
         try { File.Delete(path); }
         catch (IOException) { }
         catch (UnauthorizedAccessException) { }
+    }
+
+    private async Task WriteTemporaryLibraryAsync(string json)
+    {
+        await using var file = new FileStream(TempPath, FileMode.Create, FileAccess.Write, FileShare.None,
+            64 * 1024, FileOptions.Asynchronous);
+        await using var writer = new StreamWriter(file);
+        await writer.WriteAsync(json).ConfigureAwait(false);
+        await writer.FlushAsync().ConfigureAwait(false);
+        file.Flush(flushToDisk: true);
     }
 
     internal static void ValidateSerializedLibrary(string json)

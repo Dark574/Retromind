@@ -53,15 +53,24 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
     }
 
     // Settings credential changes depend on the actual settings write, even during a partial save.
-    internal async Task<(bool AllSaved, bool SettingsSaved)> SaveAsync()
+    internal Task<(bool AllSaved, bool SettingsSaved)> SaveAsync() => SaveAsync(null);
+
+    internal async Task<(bool AllSaved, bool SettingsSaved)> SaveAsync(Action? afterLibrarySave)
     {
         var librarySaved = false;
         if (!_libraryLoadFailed() && _libraryTracker.IsTracking)
         {
             try
             {
-                await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
-                librarySaved = _libraryTracker.IsTracking && !_libraryTracker.IsDirty;
+                if (afterLibrarySave == null)
+                {
+                    await _libraryTracker.SaveIfDirtyAsync(force: false).ConfigureAwait(false);
+                    librarySaved = _libraryTracker.IsTracking && !_libraryTracker.IsDirty;
+                }
+                else
+                {
+                    librarySaved = await _libraryTracker.SaveAndConfirmAsync(afterLibrarySave).ConfigureAwait(false);
+                }
             }
             catch
             {

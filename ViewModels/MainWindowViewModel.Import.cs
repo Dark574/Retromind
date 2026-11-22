@@ -600,7 +600,10 @@ public partial class MainWindowViewModel
         if (result == true)
         {
             _libraryTracker.MarkDirty();
-            await SaveData();
+            Action? cleanupAssets = editVm.SavedAssetRemovals.Count == 0
+                ? null
+                : () => _fileService.RemoveUnreferencedEditorAssets(editVm.SavedAssetRemovals, RootItems);
+            await _persistence.SaveAsync(cleanupAssets);
 
             if (parentNode != null)
                 await RefreshItemPresentationAsync(parentNode);

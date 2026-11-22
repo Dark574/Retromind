@@ -12,21 +12,8 @@ public partial class EditMediaViewModel
 {
     private void Save()
     {
-        // 1. Write metadata back to the original item
-        var oldTitle = _originalItem.Title;
-        var newTitle = Title;
-
-        if (!string.Equals(oldTitle, newTitle, StringComparison.Ordinal))
-        {
-            var renamed = _fileService.RenameItemAssets(_originalItem, oldTitle, newTitle, _nodePath);
-            if (renamed)
-            {
-                _originalItem.ResetActiveAssets();
-                _originalItem.NotifyAssetPathsChanged();
-            }
-        }
-
-        _originalItem.Title = newTitle;
+        // File changes are prepared before publishing the edited metadata.
+        _originalItem.Title = Title;
         _originalItem.Publisher = NormalizeOptionalText(Publisher);
         _originalItem.Platform = NormalizeOptionalText(Platform);
         _originalItem.GameSystemId = GameSystemCatalog.NormalizeId(SelectedGameSystem?.Id);

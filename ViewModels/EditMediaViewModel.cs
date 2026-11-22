@@ -1136,11 +1136,17 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         }
     }
 
+    internal IReadOnlyList<FileManagementService.AssetRemoval> SavedAssetRemovals { get; private set; } = [];
+
     private async Task SaveAndCloseCoreAsync(Window? window)
     {
         SaveErrorMessage = null;
 
-        if (!HasAssetChanges)
+        var newTitle = Title;
+        var renameAssets = _originalItem.Assets.Count > 0 && !FileSystemPathIdentity.Equals(
+            FileManagementService.BuildItemAssetPrefix(_originalItem),
+            FileManagementService.BuildItemAssetPrefix(newTitle, _originalItem.Id));
+        if (!HasAssetChanges && !renameAssets)
         {
             try
             {
@@ -1178,11 +1184,19 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
         try
         {
+            // Leave old paths intact so both the live and the last saved library remain usable.
+            var removals = new List<FileManagementService.AssetRemoval>();
+            foreach (var asset in deletedAssets)
+            {
+                if (FileManagementService.CaptureAssetRemoval(asset) is { } removal)
+                    removals.Add(removal);
+            }
+
             using var transaction = await _fileService.PrepareAssetTransactionAsync(
-                _originalItem,
+                new MediaItem(newTitle) { Id = _originalItem.Id },
                 _nodePath,
                 importRequests,
-                deletedAssets);
+                []);
 
             var retainedById = originalAssets.ToDictionary(asset => asset.Id);
             var importedAssets = new Queue<MediaAsset>(transaction.ImportedAssets);
@@ -1196,7 +1210,10 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
                 }
                 else if (retainedById.TryGetValue(editedAsset.Id, out var retainedAsset))
                 {
-                    committedAssets.Add(retainedAsset);
+                    committedAssets.Add(renameAssets
+                        ? await _fileService.PrepareEditorAssetRenameAsync(transaction, _originalItem,
+                            newTitle, _nodePath, retainedAsset, removals)
+                        : retainedAsset);
                 }
             }
 
@@ -1208,6 +1225,8 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
 
                 Save();
                 transaction.Commit();
+                SavedAssetRemovals = removals;
+                _originalItem.ResetActiveAssets();
                 _originalItem.ClearTransientAssetPreviews();
             }
             catch
