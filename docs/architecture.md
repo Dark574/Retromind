@@ -140,9 +140,10 @@ handling remains in place when settings were not written.
 
 Callers distinguish durable completion from applied in-memory or filesystem work:
 
-- Media moves and category moves between parents return the save result. A failed save does not undo
-  the completed asset move or category assignment; retry saves the changed library. Reordering within
-  one parent retains its existing in-memory acceptance and debounced-save behavior.
+- Media moves, category moves between parents and category renames stage the new asset paths with the old
+  paths still available. Once the current library snapshot is confirmed, cleanup checks live references and
+  the replacement files before releasing originals. Failed saves retain both paths, and a later save
+  persists the applied model. Reordering within one parent retains its debounced-save behavior.
 - Imports, edits, scraping, statistics and bulk edits retain their applied changes on a failed save.
   They rely on the central persistence notice rather than claiming durable success or adding dialogs.
 - Existing deletion and runner-removal gates still require confirmed persistence before subsequent
@@ -508,10 +509,11 @@ change the caller's return/throw/recovery policy; no additional services are mig
 - GOG uninstall removes a separate prefix only when it is a non-shared subdirectory inside `LibraryRoot`
   without symbolic-link traversal; external prefixes and the shared `Library/Prefixes` or `Library/Games`
   roots are preserved together with their metadata for manual cleanup
-- moving an item between nodes transfers its referenced assets through a staging transaction; failures roll
-  files and the collection assignment back, while assets shared with another item or node are copied instead
-  of removing the shared source. An incomplete filesystem rollback preserves conflicting or sole remaining
-  files in place and surfaces their affected locations to the user
+- moving an item between nodes stages its referenced assets and rolls back the staged files and collection
+  assignment if publication fails. Desktop item and category relocations use hard links where supported and
+  fall back to copies. A failed or interrupted save can leave an extra path. A linked source and destination
+  share in-place changes made by an external program until the source is released. An incomplete filesystem
+  rollback retains conflicting or sole remaining files and surfaces their locations
 - media-editor and node-settings artwork changes remain detached until Save. Media-editor imports and
   renamed files are copied first. Original paths stay in place during the library write. Cleanup runs only
   after the current library snapshot is confirmed and checks the complete live tree for remaining item and

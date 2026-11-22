@@ -11,35 +11,13 @@ namespace Retromind.Services;
 public partial class FileManagementService
 {
     public sealed record AssetImportRequest(string SourceFilePath, AssetType Type);
-    internal sealed record AssetRemoval(string Path, AssetType Type, long Length, DateTime LastWriteTimeUtc);
+    internal static AssetRemoval? CaptureAssetRemoval(MediaAsset asset) =>
+        AssetRemoval.Capture(asset.RelativePath, asset.Type);
 
-    internal static AssetRemoval? CaptureAssetRemoval(MediaAsset asset)
-    {
-        if (string.IsNullOrWhiteSpace(asset.RelativePath))
-            return null;
-        var path = RequireSafeAssetMutationPath(asset.RelativePath);
-        var file = new FileInfo(path);
-        return file.Exists ? new AssetRemoval(path, asset.Type, file.Length, file.LastWriteTimeUtc) : null;
-    }
-
-    internal void RemoveUnreferencedEditorAssets(
+    internal void RemoveUnreferencedAssets(
         IReadOnlyList<AssetRemoval> removals, IEnumerable<MediaNode> roots)
     {
-        var items = new List<MediaItem>();
-        var nodeAssets = new List<MediaAsset>();
-        var pending = new Stack<MediaNode>(roots);
-        var seen = new HashSet<MediaNode>(ReferenceEqualityComparer.Instance);
-        while (pending.TryPop(out var node))
-        {
-            if (!seen.Add(node))
-                continue;
-            items.AddRange(node.Items);
-            nodeAssets.AddRange(node.Assets);
-            foreach (var child in node.Children)
-                pending.Push(child);
-        }
-
-        var references = CountAssetPathReferences(items, nodeAssets);
+        var references = CountLibraryAssetReferences(roots, excludedSubtree: null);
         foreach (var removal in removals.DistinctBy(candidate => candidate.Path, FileSystemPathIdentity.Comparer))
         {
             if (references.ContainsKey(removal.Path))
@@ -50,6 +28,12 @@ public partial class FileManagementService
                 var file = new FileInfo(path);
                 if (!file.Exists || file.Length != removal.Length || file.LastWriteTimeUtc != removal.LastWriteTimeUtc)
                     continue;
+                if (removal.ReplacementPath != null)
+                {
+                    var replacement = new FileInfo(RequireSafeAssetMutationPath(removal.ReplacementPath));
+                    if (!replacement.Exists || replacement.Length != removal.Length)
+                        continue;
+                }
 
                 TryInvalidateImageCache(path);
                 File.Delete(path);
@@ -57,9 +41,30 @@ public partial class FileManagementService
             catch (Exception ex)
             {
                 ReportAssetFailure("FileManagement.AssetCleanupFailed", ErrorSeverity.Diagnostic,
-                    "DeleteSavedEditorAsset", removal.Type, ex, removal.Path);
+                    "DeleteSavedAsset", removal.Type, ex, removal.Path);
             }
         }
+    }
+
+    internal static IReadOnlySet<string> GetAssetPathsOutsideCategory(IEnumerable<MediaNode> roots, MediaNode category) =>
+        CountLibraryAssetReferences(roots, category).Keys.ToHashSet(FileSystemPathIdentity.Comparer);
+
+    private static Dictionary<string, int> CountLibraryAssetReferences(IEnumerable<MediaNode> roots, MediaNode? excludedSubtree)
+    {
+        var items = new List<MediaItem>();
+        var nodeAssets = new List<MediaAsset>();
+        var pending = new Stack<MediaNode>(roots);
+        var seen = new HashSet<MediaNode>(ReferenceEqualityComparer.Instance);
+        while (pending.TryPop(out var node))
+        {
+            if (ReferenceEquals(node, excludedSubtree) || !seen.Add(node))
+                continue;
+            items.AddRange(node.Items);
+            nodeAssets.AddRange(node.Assets);
+            foreach (var child in node.Children)
+                pending.Push(child);
+        }
+        return CountAssetPathReferences(items, nodeAssets);
     }
 
     internal async Task<MediaAsset> PrepareEditorAssetRenameAsync(PreparedAssetTransaction transaction,
@@ -84,7 +89,7 @@ public partial class FileManagementService
             };
             await CopyAssetAtomicallyAsync(original.Path, destination, asset.Type).ConfigureAwait(false);
             transaction.TrackCreatedAsset(renamed);
-            removals.Add(original);
+            removals.Add(original with { ReplacementPath = destination });
             return renamed;
         }
         catch (Exception ex)

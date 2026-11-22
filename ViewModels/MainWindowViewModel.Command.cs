@@ -762,7 +762,10 @@ public partial class MainWindowViewModel
         if (saved)
         {
             _libraryTracker.MarkDirty();
-            await SaveData();
+            if (vm.LastNodeAssetOperation is { Success: true } move)
+                await SaveDataAndReleaseAssetsAsync(move.OriginalAssets, () => CleanRelocatedCategoryFolders(move));
+            else
+                await SaveData();
             NotifyNodeCommandsCanExecuteChanged();
             
             if (wasSelected)
@@ -1735,16 +1738,27 @@ public partial class MainWindowViewModel
         }
         var previousSelection = SelectedNode;
         var previousExpanded = targetNode.IsExpanded;
-        LastNodeAssetOperation = NodeAssetFolderHelper.MoveAndUpdateAssetPaths(sourceNode, oldPathSegments, newPathSegments,
+        var move = NodeAssetFolderHelper.MoveAndUpdateAssetPaths(sourceNode, oldPathSegments, newPathSegments,
             ApplyTreeChange, () =>
             {
                 snapshot.Restore();
                 targetNode.IsExpanded = previousExpanded;
                 Select(previousSelection);
-            }, NodeAssetFileOperations ?? new NodeAssetFileOperations());
-        NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Move", sourceNode.Id);
-        if (!LastNodeAssetOperation.Success) return false;
-        return save != null ? await save() : await SaveData().ConfigureAwait(false);
+            }, NodeAssetFileOperations ?? new NodeAssetFileOperations(),
+            retainedSourcePaths: FileManagementService.GetAssetPathsOutsideCategory(RootItems, sourceNode));
+        LastNodeAssetOperation = move;
+        NodeAssetDiagnostics.Report(_errorService, move, "Move", sourceNode.Id);
+        if (!move.Success)
+            return false;
+        if (save == null)
+            return await SaveDataAndReleaseAssetsAsync(move.OriginalAssets, () => CleanRelocatedCategoryFolders(move));
+
+        if (!await save())
+            return false;
+        if (move.OriginalAssets.Count > 0)
+            _fileService.RemoveUnreferencedAssets(move.OriginalAssets, RootItems);
+        CleanRelocatedCategoryFolders(move);
+        return true;
     }
 
     private List<string> BuildNodePathSegments(MediaNode? parent, string nodeName)

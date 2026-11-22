@@ -81,7 +81,7 @@ public sealed class EditMediaViewModelAssetTests
         var tracker = new LibraryChangeTracker(data, (_, _) => { });
         try
         {
-            IReadOnlyList<FileManagementService.AssetRemoval> removals = [];
+            IReadOnlyList<AssetRemoval> removals = [];
             await UiThreadHelper.InvokeAsync(async () =>
             {
                 tracker.Initialize(roots);
@@ -95,7 +95,7 @@ public sealed class EditMediaViewModelAssetTests
 
             Assert.Single(removals);
             Assert.True(File.Exists(path));
-            Assert.True(await tracker.SaveAndConfirmAsync(() => files.RemoveUnreferencedEditorAssets(removals, roots)));
+            Assert.True(await tracker.SaveAndConfirmAsync(() => files.RemoveUnreferencedAssets(removals, roots)));
             Assert.Equal(reference != "none", File.Exists(path));
             Assert.Equal(reference == "same-item" ? 1 : 0,
                 (await data.LoadAsync()).Single().Items[0].Assets.Count);
@@ -185,7 +185,7 @@ public sealed class EditMediaViewModelAssetTests
                 tracker.Initialize(roots);
                 tracker.MarkDirty();
             });
-            void Cleanup() => files.RemoveUnreferencedEditorAssets([removal], roots);
+            void Cleanup() => files.RemoveUnreferencedAssets([removal], roots);
             var firstSave = tracker.SaveAndConfirmAsync(Cleanup);
             try
             {

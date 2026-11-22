@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services;
 using Retromind.Views;
 
 namespace Retromind.ViewModels;
@@ -114,7 +115,8 @@ public partial class MainWindowViewModel
             sourcePath,
             targetPath,
             allItems,
-            nodeAssetReferences);
+            nodeAssetReferences,
+            preserveSourcesUntilSave: true);
         if (!assetMove.Success)
         {
             targetNode.Items.Remove(item);
@@ -172,9 +174,10 @@ public partial class MainWindowViewModel
             _currentSettings.LastSelectedMediaId = null;
 
         _audioService.StopMusic();
-        var saved = await SaveData();
+        var saved = await SaveDataAndReleaseAssetsAsync(assetMove.OriginalAssets,
+            () => FileManagementService.CleanupOldItemAssetFolders(PathHelper.ResolveNodeFolder(sourcePath, AppPaths.LibraryRoot)));
         RefreshContentAfterMediaCollectionChange();
-        return saved; // The move remains applied and dirty if persistence failed; never roll its files back here.
+        return saved;
     }
 
     private static void CollectNodeAssetReferencesRecursive(MediaNode node, ICollection<MediaAsset> target)

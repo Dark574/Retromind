@@ -14,6 +14,8 @@ public static partial class NodeAssetFolderHelper
     {
         public required string SourcePath { get; init; }
         public required string TargetPath { get; init; }
+        public required AssetType Type { get; init; }
+        public AssetRemoval? Original { get; set; }
         public string? StagingPath { get; set; }
         public bool StagingCompleted { get; set; }
         public bool CommitAttempted { get; set; }
@@ -64,9 +66,10 @@ public static partial class NodeAssetFolderHelper
 
     internal static NodeAssetOperationResult MoveAndUpdateAssetPaths(
         MediaNode node, List<string> oldSegments, List<string> newSegments,
-        Action applyCategoryChange, Action rollbackCategoryChange, NodeAssetFileOperations io) =>
+        Action applyCategoryChange, Action rollbackCategoryChange, NodeAssetFileOperations io,
+        IReadOnlySet<string>? retainedSourcePaths = null) =>
         RunAssetMove(node, oldSegments, newSegments, new Dictionary<string, string>(StringComparer.Ordinal),
-            applyCategoryChange, rollbackCategoryChange, io, updatePaths: true);
+            applyCategoryChange, rollbackCategoryChange, io, updatePaths: true, retainedSourcePaths);
 
     public static bool HasAnyAssetFolders(string nodeFolder)
     {
@@ -95,7 +98,7 @@ public static partial class NodeAssetFolderHelper
     private static NodeAssetOperationResult RunAssetMove(
         MediaNode node, List<string> oldSegments, List<string> newSegments,
         Dictionary<string, string> renamedFiles, Action applyCategoryChange, Action rollbackCategoryChange,
-        NodeAssetFileOperations io, bool updatePaths)
+        NodeAssetFileOperations io, bool updatePaths, IReadOnlySet<string>? retainedSourcePaths = null)
     {
         var result = new NodeAssetOperationResult();
         if (!TrySnapshotNodes(new[] { node }, result, out var nodes)) return result;
@@ -128,15 +131,27 @@ public static partial class NodeAssetFolderHelper
         }
 
         TryExecutePlannedMoves(plannedMoves, plannedRenames, renamedFiles, result, io, paths,
-            applyCategoryChange, rollbackCategoryChange);
-        if (result.Success)
-            foreach (var oldFolder in oldFolders.AsEnumerable().Reverse())
-            {
-                foreach (var type in AssetFolderTypes)
-                    CleanupEmptyDirectory(Path.Combine(oldFolder, type.ToString()), result, io);
-                CleanupEmptyDirectory(oldFolder, result, io);
-            }
+            applyCategoryChange, rollbackCategoryChange, retainedSourcePaths);
+        if (!result.Success)
+            return result;
+
+        if (retainedSourcePaths != null)
+            result.OriginalAssets.AddRange(plannedMoves.Select(move => move.Original).OfType<AssetRemoval>());
+        foreach (var oldFolder in oldFolders.AsEnumerable().Reverse())
+        {
+            foreach (var type in AssetFolderTypes)
+                FinishOriginalFolder(Path.Combine(oldFolder, type.ToString()));
+            FinishOriginalFolder(oldFolder);
+        }
         return result;
+
+        void FinishOriginalFolder(string path)
+        {
+            if (retainedSourcePaths != null)
+                result.OriginalFolders.Add(path);
+            else
+                CleanupEmptyDirectory(path, result, io);
+        }
     }
 
     internal static string RelativeLocation(string path) =>

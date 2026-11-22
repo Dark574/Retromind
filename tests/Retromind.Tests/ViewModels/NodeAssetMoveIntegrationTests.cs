@@ -20,6 +20,8 @@ public sealed class NodeAssetMoveIntegrationTests
         state.Source.Items.Add(item);
         var nodeAsset = state.AddAsset(state.Source, "Logo", "Node_Logo_01.png");
         var itemAsset = state.AddAsset(item, "Cover", "Game_Cover_01.png");
+        var originalNodeLogo = nodeAsset.AbsolutePath;
+        var originalItemCover = itemAsset.AbsolutePath;
         var vm = state.Editor();
         vm.Name = "Renamed";
         bool? closed = null;
@@ -33,6 +35,9 @@ public sealed class NodeAssetMoveIntegrationTests
         Assert.Equal("Library/Renamed/Cover/Game_Cover_01.png", itemAsset.RelativePath);
         Assert.True(File.Exists(nodeAsset.AbsolutePath));
         Assert.True(File.Exists(itemAsset.AbsolutePath));
+        Assert.True(File.Exists(originalNodeLogo));
+        Assert.True(File.Exists(originalItemCover));
+        Assert.Equal(2, vm.LastNodeAssetOperation!.OriginalAssets.Count);
         Assert.Empty(state.Errors.Reports);
     }
 
@@ -86,10 +91,10 @@ public sealed class NodeAssetMoveIntegrationTests
         {
             MoveFile = (source, target) =>
             {
-                if (source.Contains("/Renamed/")) throw new IOException("Fixture rollback blocked");
                 File.Move(source, target);
                 if (target.Contains("/Renamed/")) retained = target;
             },
+            DeleteFile = _ => throw new IOException("Fixture rollback blocked"),
             AfterFilesMoved = () => throw new IOException("Fixture publication blocked")
         };
 
@@ -115,14 +120,37 @@ public sealed class NodeAssetMoveIntegrationTests
         child.Assets.Add(new MediaAsset { Type = AssetType.Logo, RelativePath = NodeAssetFolderHelper.RelativeLocation(full) });
         var vm = state.Main();
         var saved = 0;
-        var moved = await state.Move(vm, save: () => { saved++; return Task.FromResult(true); });
+        var moved = await state.Move(vm, save: () =>
+        {
+            Assert.Equal("child", File.ReadAllText(full));
+            saved++;
+            return Task.FromResult(true);
+        });
         Assert.True(moved);
         Assert.Equal(1, saved);
         Assert.DoesNotContain(state.Source, state.Roots);
         Assert.Contains(state.Source, state.Target.Children);
         Assert.Equal("Library/Target/Old/Child/Logo/Child_Logo_01.png", child.Assets[0].RelativePath);
         Assert.True(File.Exists(child.Assets[0].AbsolutePath));
+        Assert.False(File.Exists(full));
         Assert.Empty(state.Errors.Reports);
+    }
+
+    [Fact]
+    public async Task Move_AfterSaveRetainsAnOriginalReferencedOutsideTheMovedCategory()
+    {
+        using var state = new State();
+        var asset = state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
+        var original = asset.AbsolutePath;
+        state.Target.Assets.Add(new MediaAsset { Type = asset.Type, RelativePath = asset.RelativePath });
+
+        Assert.True(await state.Move(state.Main()));
+
+        Assert.NotEqual(original, asset.AbsolutePath);
+        Assert.Equal("ours", File.ReadAllText(original));
+        Assert.Equal("ours", File.ReadAllText(asset.AbsolutePath));
+        await File.WriteAllTextAsync(asset.AbsolutePath, "independent");
+        Assert.Equal("ours", File.ReadAllText(original));
     }
 
     [Fact]
@@ -146,18 +174,19 @@ public sealed class NodeAssetMoveIntegrationTests
         using var state = new State();
         var asset = state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
         var vm = state.Main();
-        vm.NodeAssetFileOperations = new NodeAssetFileOperations { MoveFile = (source, target) =>
+        vm.NodeAssetFileOperations = new NodeAssetFileOperations
         {
-            if (target.StartsWith(state.Temp.GetPath("Library", "Target")))
-                throw new IOException("Fixture commit failed");
-            if (blockRollback && source.Contains(".retromind_asset_move_staging") &&
-                target.StartsWith(state.Temp.GetPath("Library", "Old")))
+            MoveFile = (_, _) => throw new IOException("Fixture commit failed"),
+            DeleteFile = path =>
             {
-                if (failManifest) Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(source)!, "recovery.json"));
-                throw new IOException("Fixture rollback blocked");
+                if (blockRollback)
+                {
+                    if (failManifest) Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(path)!, "recovery.json"));
+                    throw new IOException("Fixture rollback blocked");
+                }
+                File.Delete(path);
             }
-            File.Move(source, target);
-        } };
+        };
         Assert.False(await state.Move(vm));
         var reportCount = state.Errors.Reports.Count;
         var noticeChanges = 0;
@@ -225,11 +254,12 @@ public sealed class NodeAssetMoveIntegrationTests
         var original = asset.AbsolutePath;
         var vm = state.Main();
         var published = state.Temp.GetPath("Library", "Target", "Old", "Cover", "Game_Cover_01.png");
+        var replacement = state.Temp.CreateFile("competing.png", "competing file");
         vm.NodeAssetFileOperations = new NodeAssetFileOperations { MoveFile = (source, target) =>
         {
             File.Move(source, target);
             if (target != published) return;
-            File.WriteAllText(original, "competing file");
+            File.Move(replacement, original, overwrite: true);
             throw new IOException("Fixture commit threw after moving");
         } };
 
@@ -256,11 +286,7 @@ public sealed class NodeAssetMoveIntegrationTests
         vm.NodeAssetFileOperations = new NodeAssetFileOperations
         {
             AfterFilesMoved = () => throw new IOException("Fixture publication failed"),
-            MoveFile = (source, target) =>
-            {
-                if (source.Contains("/Target/")) throw new IOException("Fixture rollback blocked");
-                File.Move(source, target);
-            }
+            DeleteFile = _ => throw new IOException("Fixture rollback blocked")
         };
         Assert.False(await state.Move(vm));
         vm.ShowNodeMoveRecoveryIfNeeded();
@@ -337,12 +363,24 @@ public sealed class NodeAssetMoveIntegrationTests
     {
         using var state = new State();
         var asset = state.AddAsset(state.Source, "Cover", "Game_Cover_01.png");
+        var original = asset.AbsolutePath;
+        var data = new MediaDataService();
+        await data.SaveJsonAsync(data.Serialize(state.Roots));
+        state.Temp.CreateDirectory("retromind_tree.tmp");
         var vm = state.Main();
-        Assert.False(await state.Move(vm, save: () => Task.FromResult(false)));
+        Assert.False(await state.Move(vm, save: async () =>
+        {
+            var error = await Record.ExceptionAsync(() => data.SaveJsonAsync(data.Serialize(state.Roots)));
+            Assert.True(error is IOException or UnauthorizedAccessException);
+            return false;
+        }));
         Assert.True(vm.LastNodeAssetOperation!.Success);
         Assert.Contains(state.Source, state.Target.Children);
         Assert.StartsWith("Library/Target/Old/", asset.RelativePath);
         Assert.True(File.Exists(asset.AbsolutePath));
+        var reloaded = Assert.Single(await data.LoadAsync(), node => node.Name == "Old");
+        Assert.Equal(original, Assert.Single(reloaded.Assets).AbsolutePath);
+        Assert.Equal("ours", File.ReadAllText(original));
         Assert.Empty(state.Errors.Reports); // Persistence owns its separate existing diagnosis/notice.
     }
 
@@ -407,6 +445,8 @@ public sealed class NodeAssetMoveIntegrationTests
             var vm = (MainWindowViewModel)RuntimeHelpers.GetUninitializedObject(typeof(MainWindowViewModel));
             typeof(MainWindowViewModel).GetField("_rootItems", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, Roots);
             typeof(MainWindowViewModel).GetField("_errorService", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(vm, Errors);
+            typeof(MainWindowViewModel).GetField("_fileService", BindingFlags.Instance | BindingFlags.NonPublic)!.SetValue(
+                vm, new FileManagementService(AppPaths.LibraryRoot, Errors));
             return vm;
         }
         public Task<bool> Move(MainWindowViewModel vm, Func<Task<bool>>? save = null, Action<MediaNode?>? select = null, MediaNode? target = null) =>

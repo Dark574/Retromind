@@ -871,6 +871,26 @@ public partial class MainWindowViewModel : ViewModelBase
     private Task<(bool AllSaved, bool SettingsSaved)> SaveDataWithStatusAsync()
         => _persistence.SaveAsync();
 
+    private async Task<bool> SaveDataAndReleaseAssetsAsync(IReadOnlyList<AssetRemoval>? originals, Action? cleanupFolders = null)
+    {
+        if (originals is not { Count: > 0 } && cleanupFolders == null)
+            return await SaveData().ConfigureAwait(false);
+
+        var saved = await _persistence.SaveAsync(() =>
+        {
+            if (originals is { Count: > 0 })
+                _fileService.RemoveUnreferencedAssets(originals, RootItems);
+            cleanupFolders?.Invoke();
+        }).ConfigureAwait(false);
+        return saved.AllSaved;
+    }
+
+    private void CleanRelocatedCategoryFolders(NodeAssetOperationResult move)
+    {
+        foreach (var path in move.OriginalFolders)
+            NodeAssetFolderHelper.DeleteDirectoryIfEmpty(path);
+    }
+
     private void SaveSettingsOnly() => _ = _persistence.ScheduleSettingsSave();
 
     private async Task<bool> TryShowPersistenceSaveFailureAsync(string message)

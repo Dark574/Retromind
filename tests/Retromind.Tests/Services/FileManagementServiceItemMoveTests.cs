@@ -7,6 +7,60 @@ namespace Retromind.Tests.Services;
 
 public sealed class FileManagementServiceItemMoveTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MoveItemAssets_KeepsTheLastPersistedPathUntilLibrarySave(bool saveSucceeds)
+    {
+        AvaloniaTestDispatcher.EnsureStarted();
+        using var temp = new TemporaryDirectory();
+        using var environment = UseDataRoot(temp.RootPath);
+        var original = CreateAsset(temp, "Source", "Game__12345678_Cover_01.jpg");
+        var item = CreateItemWithCover(original);
+        var source = new MediaNode("Source");
+        source.Items.Add(item);
+        var target = new MediaNode("Target");
+        var roots = new System.Collections.ObjectModel.ObservableCollection<MediaNode> { source, target };
+        var service = new FileManagementService(AppPaths.LibraryRoot, new RecordingErrorService());
+        var data = new MediaDataService();
+        await data.SaveJsonAsync(data.Serialize(roots));
+        if (!saveSucceeds)
+            temp.CreateDirectory("retromind_tree.tmp");
+        var tracker = new LibraryChangeTracker(data, (_, _) => { });
+        try
+        {
+            var move = await UiThreadHelper.InvokeAsync(() =>
+            {
+                tracker.Initialize(roots);
+                source.Items.Remove(item);
+                target.Items.Add(item);
+                return service.MoveItemAssets(item, ["Source"], ["Target"], [item], preserveSourcesUntilSave: true);
+            });
+            Assert.True(move.Success);
+            Assert.Single(move.OriginalAssets!);
+            var relocated = item.Assets[0].AbsolutePath;
+            Assert.True(File.Exists(original));
+            Assert.True(File.Exists(relocated));
+            void Release() => service.RemoveUnreferencedAssets(move.OriginalAssets!, roots);
+
+            if (saveSucceeds)
+            {
+                Assert.True(await tracker.SaveAndConfirmAsync(Release));
+                Assert.False(File.Exists(original));
+                Assert.Equal(relocated, (await data.LoadAsync()).Single(node => node.Name == "Target").Items[0].Assets[0].AbsolutePath);
+            }
+            else
+            {
+                var error = await Record.ExceptionAsync(() => tracker.SaveAndConfirmAsync(Release));
+                Assert.True(error is IOException or UnauthorizedAccessException);
+                Assert.Equal(original, (await data.LoadAsync()).Single(node => node.Name == "Source").Items[0].Assets[0].AbsolutePath);
+                Assert.True(File.Exists(original));
+                Assert.True(File.Exists(relocated));
+            }
+        }
+        finally { await UiThreadHelper.InvokeAsync(tracker.StopTracking); }
+    }
+
     [Fact]
     public void MoveItemAssets_MovesUniqueAssetAndUpdatesPortablePath()
     {

@@ -1358,7 +1358,8 @@ public partial class NodeSettingsViewModel : ViewModelBase
             LastNodeAssetOperation = NodeAssetFolderHelper.MoveAndUpdateAssetPaths(_node, oldSegments, newSegments,
                 () => { _node.Name = newName; RefreshPaths(); },
                 () => { _node.Name = oldName; RefreshPaths(); },
-                AssetFileOperations ?? new NodeAssetFileOperations());
+                AssetFileOperations ?? new NodeAssetFileOperations(),
+                retainedSourcePaths: FileManagementService.GetAssetPathsOutsideCategory(_rootNodes, _node));
             NodeAssetDiagnostics.Report(_errorService, LastNodeAssetOperation, "Rename", _node.Id);
             return (LastNodeAssetOperation.Success, false);
         }

@@ -1141,7 +1141,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         }
     }
 
-    internal IReadOnlyList<FileManagementService.AssetRemoval> SavedAssetRemovals { get; private set; } = [];
+    internal IReadOnlyList<AssetRemoval> SavedAssetRemovals { get; private set; } = [];
 
     private async Task SaveAndCloseCoreAsync(Window? window)
     {
@@ -1190,7 +1190,7 @@ public partial class EditMediaViewModel : ViewModelBase, IDisposable
         try
         {
             // Leave old paths intact so both the live and the last saved library remain usable.
-            var removals = new List<FileManagementService.AssetRemoval>();
+            var removals = new List<AssetRemoval>();
             foreach (var asset in deletedAssets)
             {
                 if (FileManagementService.CaptureAssetRemoval(asset) is { } removal)

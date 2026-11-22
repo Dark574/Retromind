@@ -14,7 +14,8 @@ internal sealed record ItemAssetMoveResult(
     int CopiedFileCount,
     string? ErrorMessage = null,
     bool RollbackComplete = true,
-    IReadOnlyList<string>? RollbackAffectedPaths = null);
+    IReadOnlyList<string>? RollbackAffectedPaths = null,
+    IReadOnlyList<AssetRemoval>? OriginalAssets = null);
 
 internal sealed record ItemAssetRollbackResult(
     bool Complete,
@@ -29,6 +30,8 @@ public partial class FileManagementService
         public required bool CopySource { get; init; }
         public required List<MediaAsset> Assets { get; init; }
         public string? StagingPath { get; set; }
+        public AssetRemoval? Original { get; set; }
+        public bool PreservesSource => CopySource || Original != null;
     }
 
     internal ItemAssetMoveResult MoveItemAssets(
@@ -36,7 +39,8 @@ public partial class FileManagementService
         IReadOnlyList<string> sourceNodePath,
         IReadOnlyList<string> targetNodePath,
         IEnumerable<MediaItem> allItems,
-        IEnumerable<MediaAsset>? additionalAssetReferences = null)
+        IEnumerable<MediaAsset>? additionalAssetReferences = null,
+        bool preserveSourcesUntilSave = false)
     {
         ArgumentNullException.ThrowIfNull(item);
         ArgumentNullException.ThrowIfNull(sourceNodePath);
@@ -131,7 +135,13 @@ public partial class FileManagementService
                 var stagingPath = Path.Combine(stagingRoot, $"{index:D6}{extension}");
                 stagingPath = RequireSafeAssetMutationPath(stagingPath);
 
-                if (transfer.CopySource)
+                if (preserveSourcesUntilSave && !transfer.CopySource)
+                {
+                    transfer.Original = AssetRemoval.Capture(transfer.SourcePath, transfer.Assets[0].Type, transfer.TargetPath)
+                        ?? throw new IOException("The asset relocation source disappeared.");
+                    AssetRelocation.Stage(transfer.SourcePath, stagingPath);
+                }
+                else if (transfer.CopySource)
                     File.Copy(transfer.SourcePath, stagingPath, overwrite: false);
                 else
                     File.Move(transfer.SourcePath, stagingPath);
@@ -169,13 +179,15 @@ public partial class FileManagementService
 
             item.ResetActiveAssets();
             item.NotifyAssetPathsChanged();
-            CleanupOldItemAssetFolders(sourceNodeFolder);
+            if (!preserveSourcesUntilSave)
+                CleanupOldItemAssetFolders(sourceNodeFolder);
             RaiseLibraryChanged();
 
             return new ItemAssetMoveResult(
                 true,
                 transfers.Count(transfer => !transfer.CopySource),
-                transfers.Count(transfer => transfer.CopySource));
+                transfers.Count(transfer => transfer.CopySource),
+                OriginalAssets: transfers.Select(transfer => transfer.Original).OfType<AssetRemoval>().ToArray());
         }
         catch (Exception ex)
         {
@@ -337,7 +349,7 @@ public partial class FileManagementService
 
                 RequireSafeAssetMutationPath(transfer.TargetPath);
 
-                if (transfer.CopySource)
+                if (transfer.PreservesSource)
                 {
                     // Never delete the committed copy if the original source disappeared.
                     // The target may be the only remaining copy of the asset.
@@ -398,7 +410,7 @@ public partial class FileManagementService
 
                 RequireSafeAssetMutationPath(transfer.StagingPath);
 
-                if (transfer.CopySource)
+                if (transfer.PreservesSource)
                 {
                     // As in the committed phase, retain the staged copy if it became
                     // the only remaining copy while the transaction was in progress.
@@ -472,7 +484,7 @@ public partial class FileManagementService
             affectedPaths.Add(path);
     }
 
-    private static void CleanupOldItemAssetFolders(string sourceNodeFolder)
+    internal static void CleanupOldItemAssetFolders(string sourceNodeFolder)
     {
         foreach (var assetType in Enum.GetValues<AssetType>())
         {

@@ -142,7 +142,8 @@ public static partial class NodeAssetFolderHelper
                 plannedMoves.Add(new PlannedFileMove
                 {
                     SourcePath = file,
-                    TargetPath = targetPath
+                    TargetPath = targetPath,
+                    Type = type
                 });
             }
         }
@@ -153,7 +154,8 @@ public static partial class NodeAssetFolderHelper
     private static void TryExecutePlannedMoves(
         List<PlannedFileMove> plannedMoves, IReadOnlyDictionary<string, string> plannedRenamedFiles,
         Dictionary<string, string> renamedFiles, NodeAssetOperationResult result, NodeAssetFileOperations io,
-        PreparedPathUpdates? paths, Action applyCategoryChange, Action rollbackCategoryChange)
+        PreparedPathUpdates? paths, Action applyCategoryChange, Action rollbackCategoryChange,
+        IReadOnlySet<string>? retainedSourcePaths)
     {
         var stagingRoot = Path.Combine(AppPaths.LibraryRoot, ".retromind_asset_move_staging", Guid.NewGuid().ToString("N"));
         var staged = new List<PlannedFileMove>();
@@ -176,7 +178,16 @@ public static partial class NodeAssetFolderHelper
                     throw new IOException("Unsafe asset staging location.");
                 move.StagingPath = stage;
                 staged.Add(move); // Also track an interrupted cross-filesystem copy or a move that throws after IO.
-                io.MoveFile(move.SourcePath, stage);
+                if (retainedSourcePaths != null)
+                {
+                    move.Original = AssetRemoval.Capture(move.SourcePath, move.Type, move.TargetPath)
+                        ?? throw new IOException("The asset relocation source disappeared.");
+                    io.StageSource(move.SourcePath, stage, !retainedSourcePaths.Contains(move.SourcePath));
+                }
+                else
+                {
+                    io.MoveFile(move.SourcePath, stage);
+                }
                 move.StagingCompleted = true;
             }
             phase = "CommitFiles";
@@ -246,6 +257,8 @@ public static partial class NodeAssetFolderHelper
             }
             else
             {
+                if (move.Original != null && File.Exists(move.SourcePath) && !File.Exists(move.StagingPath))
+                    continue;
                 // Even staging can throw after IO (or after a partial cross-filesystem copy).
                 // Neither an existing source nor a staging file proves a complete original survived.
                 result.RollbackComplete = false;
@@ -262,6 +275,14 @@ public static partial class NodeAssetFolderHelper
                 if (!AppPaths.TryResolveDataPathForMutation(retained, out _) ||
                     !AppPaths.TryResolveDataPathForMutation(move.SourcePath, out _))
                     throw new IOException("Unsafe rollback location.");
+                if (move.Original is { } original)
+                {
+                    var current = new FileInfo(move.SourcePath);
+                    if (!current.Exists || current.Length != original.Length || current.LastWriteTimeUtc != original.LastWriteTimeUtc)
+                        throw new IOException("The original asset changed during relocation.");
+                    io.DeleteFile(retained);
+                    return;
+                }
                 // No overwrite: a conflicting source (including a newly created one) must survive unchanged.
                 Directory.CreateDirectory(Path.GetDirectoryName(move.SourcePath)!);
                 io.MoveFile(retained, move.SourcePath);

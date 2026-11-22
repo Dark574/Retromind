@@ -20,6 +20,8 @@ public sealed class NodeAssetOperationResult
     public string? RecoveryManifest { get; internal set; }
     public List<NodeAssetRecoveryFile> RecoveryFiles { get; } = new();
     public List<string> CleanupFailures { get; } = new();
+    internal List<AssetRemoval> OriginalAssets { get; } = new();
+    internal List<string> OriginalFolders { get; } = new();
 
     internal void Fail(string code, Exception? exception = null)
     {
@@ -35,6 +37,8 @@ public sealed record NodeAssetRecoveryFile(string OriginalPath, string RetainedP
 internal sealed class NodeAssetFileOperations
 {
     public Action<string, string> MoveFile { get; init; } = (source, target) => File.Move(source, target);
+    public Action<string, string, bool> StageSource { get; init; } = AssetRelocation.Stage;
+    public Action<string> DeleteFile { get; init; } = File.Delete;
     public Action<string> DeleteDirectory { get; init; } = path => Directory.Delete(path);
     public Action? AfterFilesMoved { get; init; }
 }
