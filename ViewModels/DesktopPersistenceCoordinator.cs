@@ -25,7 +25,6 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
     private readonly Func<string, Task<bool>> _tryShowSaveFailure;
 
     private readonly object _stateLock = new();
-    private readonly SemaphoreSlim _settingsSaveGate = new(1, 1);
     private CancellationTokenSource? _settingsSaveCancellation;
     private int _settingsDirtyVersion;
     private int _settingsSaveFailureVersion;
@@ -149,13 +148,9 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
         }
     }
 
-    private async Task SaveSettingsSnapshotAsync(int saveVersion, CancellationToken token = default)
-    {
-        // Serialize snapshot capture as well as writing to prevent stale snapshots from overtaking newer saves.
-        await _settingsSaveGate.WaitAsync(token).ConfigureAwait(false);
-        try
+    private Task SaveSettingsSnapshotAsync(int saveVersion, CancellationToken token = default) =>
+        _settingsService.RunSavePipelineAsync(async () =>
         {
-            token.ThrowIfCancellationRequested();
             int failureVersion;
             lock (_stateLock) failureVersion = _settingsSaveFailureVersion;
             var json = await _captureSettings().ConfigureAwait(false);
@@ -168,12 +163,7 @@ internal sealed class DesktopPersistenceCoordinator : IDisposable
                     TryClearSaveFailureNotice();
                 }
             }
-        }
-        finally
-        {
-            _settingsSaveGate.Release();
-        }
-    }
+        }, token);
 
     private void OnLibrarySaveFailed(Exception exception)
     {

@@ -152,10 +152,9 @@ public sealed class DesktopMetadataBackupCoordinatorTests
         var backup = await state.CreateRestoreSourceAsync();
         var blockedPath = state.Temp.CreateDirectory("app_settings.json.tmp");
 
-        // The obstruction prevents both the settings replacement and the settings rollback.
-        var error = await Assert.ThrowsAsync<AggregateException>(() => UiThreadHelper.InvokeAsync(
+        var error = await Record.ExceptionAsync(() => UiThreadHelper.InvokeAsync(
             () => state.Coordinator.RestoreAsync(backup, MetadataRestoreMode.LibraryAndSettings)));
-        Assert.Equal(2, error.InnerExceptions.Count);
+        Assert.True(error is IOException or UnauthorizedAccessException);
         Assert.Equal("Current library", Assert.Single(await state.Library.LoadAsync()).Name);
         Assert.Equal(111, (await state.SettingsService.LoadAsync()).ItemWidth);
         Assert.False(state.Coordinator.RequiresRestart);
@@ -165,6 +164,63 @@ public sealed class DesktopMetadataBackupCoordinatorTests
         state.Settings.ItemWidth = 345;
         await state.SettingsService.SaveAsync(state.Settings);
         Assert.Equal(345, (await state.SettingsService.LoadAsync()).ItemWidth);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FullRestore_SettingsLoadAndWriteFailureRestoresPreviousLibraryState(bool hadLibrary)
+    {
+        using var state = new BackupState();
+        var path = state.Temp.GetPath("retromind_tree.json");
+        if (hadLibrary)
+            await state.Library.SaveJsonAsync(state.Library.Serialize(state.Roots));
+        var previous = hadLibrary ? await File.ReadAllBytesAsync(path) : null;
+        var settingsPath = state.Temp.CreateDirectory("app_settings.json");
+        await Assert.ThrowsAsync<SettingsLoadException>(() => state.SettingsService.LoadAsync());
+        var backup = await state.CreateRestoreSourceAsync();
+
+        var error = await Record.ExceptionAsync(() => UiThreadHelper.InvokeAsync(
+            () => state.Coordinator.RestoreAsync(backup, MetadataRestoreMode.LibraryAndSettings)));
+
+        Assert.True(error is IOException or UnauthorizedAccessException);
+        Assert.False(state.Coordinator.RequiresRestart);
+        Assert.True(state.Tracker.IsTracking);
+        Assert.True(Directory.Exists(settingsPath));
+        Assert.True(state.SettingsService.HasLoadFailure);
+        if (hadLibrary)
+            Assert.Equal(previous, await File.ReadAllBytesAsync(path));
+        else
+            Assert.False(File.Exists(path));
+    }
+
+    [Fact]
+    public async Task RestoreBoundary_KeepsLateStatisticsSaveBehindTrackingShutdown()
+    {
+        using var state = new BackupState();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var finish = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        await state.SaveCurrentMetadataAsync();
+
+        var restore = state.Tracker.RunRestoreAsync(async () =>
+        {
+            await state.Library.RestoreJsonAsync(state.Library.Serialize([new MediaNode("Replacement")]));
+            entered.SetResult();
+            await finish.Task;
+            await UiThreadHelper.InvokeAsync(state.Tracker.StopTracking);
+        }, flushCurrentChanges: true);
+        Task lateSave;
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await UiThreadHelper.InvokeAsync(state.Tracker.MarkDirty);
+            lateSave = state.Tracker.SaveIfDirtyAsync(force: false);
+            Assert.False(lateSave.IsCompleted);
+        }
+        finally { finish.SetResult(); }
+
+        await Task.WhenAll(restore, lateSave).WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("Replacement", Assert.Single(await state.Library.LoadAsync()).Name);
     }
 
     private sealed class BackupState : IDisposable

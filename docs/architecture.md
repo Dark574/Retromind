@@ -115,8 +115,9 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 ### Explicit save results and callers
 
 `DesktopPersistenceCoordinator` coordinates explicit saves, the settings debounce, and the final flush.
-It serializes each settings snapshot and its write as one operation so an older snapshot cannot
-overwrite a newer one.
+Settings snapshots and direct runner changes share one save pipeline. Runner changes read and patch
+the persisted settings and publish the corresponding change to live settings before the next desktop
+snapshot is taken.
 The main window view model supplies settings snapshots on the UI thread and handles dialogs and the
 window lifecycle. Library change tracking and writes remain with `LibraryChangeTracker`.
 
@@ -310,6 +311,9 @@ keyring writers are coordinated across multiple Retromind processes.
 - a settings restore scope drains active writes and rejects all regular settings saves before capturing
   the pre-restore state, including direct runner-registration saves. Restore and rollback writes remain
   available; failure releases the block, while success retains it until the application restarts
+- the library save sequencer stays locked from the initial flush through restoration and tracking shutdown.
+  During a full restore, Retromind retains the previous library file for rollback if writing the settings
+  fails, including when settings could not be loaded or the library file was absent
 - library-only restore commits the current settings while regular saves are blocked and before writing
   the library. A failed settings write aborts the restore. Settings files protected after a load failure
   are skipped so the library can still be recovered independently.

@@ -16,6 +16,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- protect restored libraries against overlapping saves and roll back a full restore when writing settings fails
+- preserve current settings and runner registrations when runner changes and desktop saves overlap
 - pause automatic updates when excluding a game and resume those updates when including it again
 - keep the latest settings when manual and delayed saves overlap
 - restore resizing in the download manager and make its close button work after repeated opening clicks

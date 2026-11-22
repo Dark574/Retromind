@@ -501,28 +501,19 @@ public partial class SettingsViewModel
             throw new InvalidOperationException("The downloaded runner could not be registered.");
 
         var runnerConfig = runner.ToModel();
-        UpsertRunnerVersion(_targetSettings.RunnerVersions, runnerConfig);
-
-        // Save a disk snapshot so unsaved changes elsewhere in the settings
-        // dialog do not become persistent merely because a runner was downloaded.
-        var persistedSettings = await _settingsService.LoadAsync().ConfigureAwait(false);
-        UpsertRunnerVersion(persistedSettings.RunnerVersions, runnerConfig);
-        await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
+        await PersistRunnerChangeAsync(settings => UpsertRunnerVersion(settings.RunnerVersions, runnerConfig))
+            .ConfigureAwait(false);
     }
 
-    private async Task PersistRunnerRemovalAsync(RunnerVersionRow removed, string? replacementId)
-    {
-        // Save a disk snapshot so this completed removal is retained without
-        // persisting unrelated edits that are still open in the dialog.
-        var persistedSettings = await _settingsService.LoadAsync().ConfigureAwait(false);
-        RemoveRunnerVersion(persistedSettings.RunnerVersions, removed);
-        RemapEmulatorRunnerDefaults(persistedSettings.Emulators, removed.Id, replacementId);
-        await _settingsService.SaveAsync(persistedSettings).ConfigureAwait(false);
+    private Task PersistRunnerRemovalAsync(RunnerVersionRow removed, string? replacementId) =>
+        PersistRunnerChangeAsync(settings =>
+        {
+            RemoveRunnerVersion(settings.RunnerVersions, removed);
+            RemapEmulatorRunnerDefaults(settings.Emulators, removed.Id, replacementId);
+        });
 
-        // Publish the removal to the live settings only after it is durable.
-        RemoveRunnerVersion(_targetSettings.RunnerVersions, removed);
-        RemapEmulatorRunnerDefaults(_targetSettings.Emulators, removed.Id, replacementId);
-    }
+    private Task PersistRunnerChangeAsync(Action<AppSettings> update) =>
+        _settingsService.UpdateStoredSettingsAsync(update, () => UiThreadHelper.InvokeAsync(() => update(_targetSettings)));
 
     private static void RemapEmulatorRunnerDefaults(
         IEnumerable<EmulatorConfig> emulators,

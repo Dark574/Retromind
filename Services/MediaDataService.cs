@@ -133,6 +133,66 @@ public class MediaDataService
         await SaveJsonAsync(json).ConfigureAwait(false);
     }
 
+    internal async Task RestoreWithSettingsAsync(string json, Func<Task> restoreSettings)
+    {
+        ValidateSerializedLibrary(json);
+        await _ioGate.WaitAsync().ConfigureAwait(false);
+        var rollbackPath = FilePath + $".{Guid.NewGuid():N}.rollback";
+        var retainRollback = false;
+        try
+        {
+            Directory.CreateDirectory(AppPaths.DataRoot);
+            var hadLibrary = File.Exists(FilePath);
+            if (hadLibrary)
+                File.Copy(FilePath, rollbackPath);
+
+            await File.WriteAllTextAsync(TempPath, json).ConfigureAwait(false);
+            File.Move(TempPath, FilePath, overwrite: true);
+            try
+            {
+                await restoreSettings().ConfigureAwait(false);
+            }
+            catch (Exception restoreFailure)
+            {
+                try
+                {
+                    if (hadLibrary)
+                        File.Move(rollbackPath, FilePath, overwrite: true);
+                    else
+                        File.Delete(FilePath);
+                }
+                catch (Exception rollbackFailure)
+                {
+                    retainRollback = true;
+                    throw new AggregateException("The metadata restore failed and the previous library could not be restored.",
+                        restoreFailure, rollbackFailure);
+                }
+                throw;
+            }
+
+            if (hadLibrary)
+            {
+                try { File.Move(rollbackPath, BackupPath, overwrite: true); }
+                catch (IOException) { retainRollback = true; }
+                catch (UnauthorizedAccessException) { retainRollback = true; }
+            }
+        }
+        finally
+        {
+            TryDeleteRestoreFile(TempPath);
+            if (!retainRollback)
+                TryDeleteRestoreFile(rollbackPath);
+            _ioGate.Release();
+        }
+    }
+
+    private static void TryDeleteRestoreFile(string path)
+    {
+        try { File.Delete(path); }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
     internal static void ValidateSerializedLibrary(string json)
     {
         if (string.IsNullOrWhiteSpace(json))

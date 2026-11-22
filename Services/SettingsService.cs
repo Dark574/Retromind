@@ -29,6 +29,7 @@ public class SettingsService
     
     // Serialize settings IO to avoid concurrent temp/backup/replace races.
     private readonly SemaphoreSlim _ioGate = new(1, 1);
+    private readonly SemaphoreSlim _savePipelineGate = new(1, 1);
     private SettingsLoadException? _loadFailure;
     private bool _regularSavesBlocked;
 
@@ -47,6 +48,30 @@ public class SettingsService
         var json = Serialize(settings);
         await SaveJsonAsync(json, cancellationToken).ConfigureAwait(false);
     }
+
+    internal async Task RunSavePipelineAsync(Func<Task> save, CancellationToken cancellationToken = default)
+    {
+        await _savePipelineGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            ThrowIfRegularSaveDisallowed();
+            await save().ConfigureAwait(false);
+        }
+        finally
+        {
+            _savePipelineGate.Release();
+        }
+    }
+
+    internal Task UpdateStoredSettingsAsync(Action<AppSettings> update, Func<Task> publish) =>
+        RunSavePipelineAsync(async () =>
+        {
+            var persistedSettings = await LoadAsync().ConfigureAwait(false);
+            update(persistedSettings);
+            await SaveJsonCoreAsync(Serialize(persistedSettings), ThrowIfRegularSaveDisallowed, publish: publish)
+                .ConfigureAwait(false);
+        });
 
     /// <summary>
     /// Drains any active settings write and blocks regular saves while metadata is restored.
@@ -385,7 +410,8 @@ public class SettingsService
     private async Task SaveJsonCoreAsync(
         string json,
         Action? ensureSaveAllowed,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Func<Task>? publish = null)
     {
         ArgumentNullException.ThrowIfNull(json);
         cancellationToken.ThrowIfCancellationRequested();
@@ -420,6 +446,8 @@ public class SettingsService
 
             // 3) Atomic replace (no "delete then move" gap)
             File.Move(TempPath, FilePath, overwrite: true);
+            if (publish != null)
+                await publish().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {

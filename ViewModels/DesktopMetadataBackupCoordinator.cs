@@ -88,55 +88,35 @@ internal sealed class DesktopMetadataBackupCoordinator
         _cancelPendingSettingsSave();
         using var settingsRestore = await _settingsService.BeginRestoreAsync();
 
-        MetadataBackupContent? current = null;
-        if (!_libraryLoadFailed() && !_settingsService.HasLoadFailure)
+        var libraryLoaded = !_libraryLoadFailed();
+        await _libraryTracker.RunRestoreAsync(async () =>
         {
-            current = await CaptureCurrentMetadataAsync();
-            if (ShouldCreateAutomaticBackup(MetadataBackupReason.BeforeRestore))
+            if (libraryLoaded && !_settingsService.HasLoadFailure && ShouldCreateAutomaticBackup(MetadataBackupReason.BeforeRestore))
+            {
+                var current = await CaptureCurrentMetadataAsync();
                 await _backupService.CreateBackupAsync(current, MetadataBackupReason.BeforeRestore);
-        }
+            }
 
-        // A library-only restore closes the app without the usual settings flush.
-        if (restoreMode == MetadataRestoreMode.LibraryOnly && !_settingsService.HasLoadFailure)
-            await settingsRestore.SaveCurrentSettingsAsync(await CaptureCurrentSettingsAsync());
-
-        // Drain the library sequencer before replacing its persisted data as well.
-        if (!_libraryLoadFailed())
-            await _libraryTracker.SaveIfDirtyAsync(force: false);
-
-        try
-        {
-            await _dataService.RestoreJsonAsync(restored.LibraryJson);
             if (restoreMode == MetadataRestoreMode.LibraryAndSettings)
-                await _settingsService.RestoreJsonAsync(restored.SettingsJson);
-        }
-        catch (Exception restoreException)
-        {
-            if (current == null)
-                throw;
-
-            try
             {
-                await _dataService.RestoreJsonAsync(current.LibraryJson);
-                if (restoreMode == MetadataRestoreMode.LibraryAndSettings)
-                    await _settingsService.RestoreJsonAsync(current.SettingsJson);
+                await _dataService.RestoreWithSettingsAsync(restored.LibraryJson,
+                    () => _settingsService.RestoreJsonAsync(restored.SettingsJson));
             }
-            catch (Exception rollbackException)
+            else
             {
-                throw new AggregateException(
-                    "The metadata restore failed and Retromind could not fully restore the preceding state.",
-                    restoreException,
-                    rollbackException);
+                // Library-only restores skip the normal shutdown flush.
+                if (!_settingsService.HasLoadFailure)
+                    await settingsRestore.SaveCurrentSettingsAsync(await CaptureCurrentSettingsAsync());
+                await _dataService.RestoreJsonAsync(restored.LibraryJson);
             }
 
-            throw;
-        }
-
-        // The in-memory models still represent the preceding state. The normal shutdown save
-        // must therefore be skipped or it would immediately overwrite the restored files.
-        settingsRestore.Complete();
-        RequiresRestart = true;
-        _libraryTracker.StopTracking();
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                settingsRestore.Complete();
+                RequiresRestart = true;
+                _libraryTracker.StopTracking();
+            });
+        }, flushCurrentChanges: libraryLoaded);
     }
 
     internal bool ShouldCreateAutomaticBackup(MetadataBackupReason reason)

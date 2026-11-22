@@ -242,6 +242,29 @@ public sealed class DesktopPersistenceCoordinatorTests
     }
 
     [Fact]
+    public async Task RunnerPatch_WaitsForAnInFlightDesktopSnapshotAndPreservesNewSettings()
+    {
+        using var state = new PersistenceState();
+        var settings = new AppSettings { SavedSearchTerms = ["latest search"] };
+        var runner = new RunnerVersionConfig { Id = "removed" };
+        settings.RunnerVersions.Add(runner);
+        var snapshot = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        state.CaptureSettings = () => snapshot.Task;
+        var desktopSave = state.Save();
+        var patch = state.Settings.UpdateStoredSettingsAsync(
+            persisted => persisted.RunnerVersions.RemoveAll(entry => entry.Id == runner.Id),
+            () => { settings.RunnerVersions.Remove(runner); return Task.CompletedTask; });
+        try { Assert.False(patch.IsCompleted); }
+        finally { snapshot.SetResult(state.Settings.Serialize(settings)); }
+
+        await Task.WhenAll(desktopSave, patch).WaitAsync(TimeSpan.FromSeconds(5));
+        var persisted = await state.Settings.LoadAsync();
+        Assert.Equal(["latest search"], persisted.SavedSearchTerms);
+        Assert.Empty(persisted.RunnerVersions);
+        Assert.Empty(settings.RunnerVersions);
+    }
+
+    [Fact]
     public async Task SaveData_CancellationKeepsLibraryDirtyWithoutErrorDialog()
     {
         using var state = new PersistenceState();

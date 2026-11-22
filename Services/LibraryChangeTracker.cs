@@ -240,6 +240,14 @@ public class LibraryChangeTracker
     public Task SaveIfDirtyAsync(bool force, int? expectedVersion = null)
         => _saveSequencer.RunAsync(() => SaveIfDirtyCoreAsync(force, expectedVersion));
 
+    internal Task RunRestoreAsync(Func<Task> restore, bool flushCurrentChanges) =>
+        _saveSequencer.RunAsync(async () =>
+        {
+            if (flushCurrentChanges)
+                await SaveIfDirtyCoreAsync(force: false, expectedVersion: null).ConfigureAwait(false);
+            await restore().ConfigureAwait(false);
+        });
+
     private async Task SaveIfDirtyCoreAsync(bool force, int? expectedVersion)
     {
         // Re-check after waiting: a newer queued save may already have persisted
