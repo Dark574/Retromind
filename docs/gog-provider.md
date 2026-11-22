@@ -82,6 +82,8 @@ Implemented (OAuth V1 core + library/node linking + install workflow with resume
     - free space is checked before base-game, update, reinstall and DLC downloads; resumable staging data is credited and uncertain installed-size estimates require confirmation
     - `https://api.gog.com/products/{id}?expand=downloads`
     - `https://api.gog.com/products/{id}/downlink/...`
+    - Retromind resolves every declared installer part before accepting the package. Bearer-authenticated
+      downlink requests are restricted to `https://api.gog.com`.
   - installer download now supports retry reuse:
     - completed installer files are reused
     - partial downloads are persisted as `.part` files and resumed with HTTP Range when supported

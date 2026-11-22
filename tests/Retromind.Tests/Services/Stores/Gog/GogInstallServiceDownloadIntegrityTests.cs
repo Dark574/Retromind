@@ -15,6 +15,79 @@ public sealed class GogInstallServiceDownloadIntegrityTests
     private static readonly Uri DownloadUri = new("https://cdn.gog.test/setup_game.sh");
     private static readonly Uri ChecksumUri = new("https://cdn.gog.test/setup_game.sh.xml");
 
+    [Theory]
+    [InlineData("http://api.gog.com/part")]
+    [InlineData("https://cdn.gog.test/part")]
+    [InlineData("https://api.gog.com:8443/part")]
+    [InlineData("https://user@api.gog.com/part")]
+    public async Task ResolveInstallerPackage_RejectsUnexpectedBearerDestination(string endpoint)
+    {
+        using var client = new HttpClient(new StubHandler(request => request.RequestUri!.Host switch
+        {
+            "auth.gog.com" => TokenResponse(),
+            "api.gog.com" when request.RequestUri.AbsolutePath == "/products/123" => ProductResponse(endpoint),
+            _ => throw new InvalidOperationException("The request must stop before sending the bearer token.")
+        }));
+        var service = await CreateAuthenticatedServiceAsync(client);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            service.ResolveInstallerPackageAsync("123", GogInstallPlatform.Linux));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ResolveInstallerPackage_RequiresEveryPart(bool secondAvailable)
+    {
+        using var client = new HttpClient(new StubHandler(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/token" => TokenResponse(),
+            "/products/123" => ProductResponse("https://api.gog.com/first", "https://api.gog.com/second"),
+            "/first" => JsonResponse("{\"downlink\":\"https://cdn.gog.test/setup.sh\"}"),
+            "/second" when secondAvailable => JsonResponse("{\"downlink\":\"https://cdn.gog.test/setup.bin\"}"),
+            "/second" => new HttpResponseMessage(HttpStatusCode.ServiceUnavailable),
+            _ => throw new InvalidOperationException("Unexpected endpoint.")
+        }));
+        var service = await CreateAuthenticatedServiceAsync(client);
+
+        if (secondAvailable)
+        {
+            var package = await service.ResolveInstallerPackageAsync("123", GogInstallPlatform.Linux);
+            Assert.Equal(["setup.sh", "setup.bin"], package!.Files.Select(file => file.FileName));
+        }
+        else
+        {
+            var exception = await Assert.ThrowsAsync<HttpRequestException>(() =>
+                service.ResolveInstallerPackageAsync("123", GogInstallPlatform.Linux));
+            Assert.Equal(HttpStatusCode.ServiceUnavailable, exception.StatusCode);
+        }
+    }
+
+    private static async Task<GogInstallService> CreateAuthenticatedServiceAsync(HttpClient client)
+    {
+        var secrets = new InMemorySecretStore();
+        await secrets.SetAsync(new SecretKey("retromind:gog", "default"), "test-refresh");
+        var auth = new GogAuthService(secrets, new GogOAuthClient(client), new GogPkceService(), new RecordingErrorService());
+        return new GogInstallService(auth, client, client);
+    }
+
+    private static HttpResponseMessage ProductResponse(params string[] endpoints) => JsonResponse(
+        System.Text.Json.JsonSerializer.Serialize(new
+        {
+            downloads = new { installers = new[] { new
+            {
+                os = "linux", files = endpoints.Select(downlink => new { downlink, size = 4 })
+            } } }
+        }));
+
+    private static HttpResponseMessage TokenResponse() => JsonResponse(
+        """{"access_token":"test-access","refresh_token":"test-refresh","user_id":"test-user","expires_in":3600}""");
+
+    private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
+    {
+        Content = new StringContent(json, Encoding.UTF8, "application/json")
+    };
+
     [Fact]
     public void ParseResolvedDownlink_PreservesChecksumUrl()
     {

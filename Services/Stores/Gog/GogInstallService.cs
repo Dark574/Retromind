@@ -201,11 +201,11 @@ public sealed class GogInstallService
             index++;
             var downlinkEndpoint = GetString(file, "downlink");
             if (string.IsNullOrWhiteSpace(downlinkEndpoint))
-                continue;
+                throw new InvalidDataException($"GOG installer part {index} is missing its download link.");
 
             var resolvedLink = await ResolveDownlinkAsync(downlinkEndpoint, accessToken, ct).ConfigureAwait(false);
             if (resolvedLink == null)
-                continue;
+                throw new InvalidDataException($"GOG installer part {index} could not be resolved.");
 
             var fallbackName = $"installer_part_{index:D2}";
             var fileName = ResolveFileName(resolvedLink.DownloadUrl, fallbackName);
@@ -697,16 +697,20 @@ public sealed class GogInstallService
         string accessToken,
         CancellationToken ct)
     {
-        if (!Uri.TryCreate(downlinkEndpoint, UriKind.Absolute, out var downlinkUri))
-            return null;
+        if (!Uri.TryCreate(downlinkEndpoint, UriKind.Absolute, out var downlinkUri) ||
+            downlinkUri.Scheme != Uri.UriSchemeHttps || !downlinkUri.IsDefaultPort ||
+            !string.Equals(downlinkUri.IdnHost, ApiBaseUri.IdnHost, StringComparison.OrdinalIgnoreCase) ||
+            downlinkUri.UserInfo.Length != 0)
+        {
+            throw new InvalidDataException("The installer download link does not point to the GOG API.");
+        }
 
         using var request = CreateAuthorizedRequest(downlinkUri, accessToken);
         using var response = await _httpClient
             .SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct)
             .ConfigureAwait(false);
 
-        if (!response.IsSuccessStatusCode)
-            return null;
+        response.EnsureSuccessStatusCode();
 
         var mediaType = response.Content.Headers.ContentType?.MediaType ?? string.Empty;
         var looksLikeJson = mediaType.IndexOf("json", StringComparison.OrdinalIgnoreCase) >= 0;
