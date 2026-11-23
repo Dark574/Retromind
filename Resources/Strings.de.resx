@@ -1788,6 +1788,9 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Downloads.State.InstallationPending" xml:space="preserve">
     <value>Installation ausstehend</value>
   </data>
+  <data name="Downloads.InstallationReadyBadge" xml:space="preserve">
+    <value>Heruntergeladen und im Download-Manager zur Installation bereit</value>
+  </data>
   <data name="Downloads.State.Installing" xml:space="preserve">
     <value>Wird installiert</value>
   </data>

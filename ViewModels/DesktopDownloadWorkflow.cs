@@ -79,7 +79,9 @@ internal sealed partial class DesktopDownloadWorkflow(
         remove => manager.Changed -= value;
     }
 
-    internal (DownloadState? Activity, bool NeedsRepair) GetQueueStatus() => manager.GetQueueStatus();
+    internal (DownloadState? Activity, bool NeedsRepair,
+        IReadOnlySet<(string ItemId, string? StoreGameId)> PendingGogInstallations) GetQueueStatus() =>
+        manager.GetQueueStatus();
     internal bool IsInstalling => manager.IsInstalling;
     internal bool HasStoreActivity => IsInstalling || gog.HasForegroundOperation || epic.HasForegroundOperation;
 

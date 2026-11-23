@@ -44,6 +44,24 @@
                 M2 9H8V15H2Z M4 11V13H6V11H4Z M11 11H22V13H11Z
                 M2 16H8V22H2Z M4 18V20H6V18H4Z M11 18H22V20H11Z
             </Geometry>
+            <Geometry x:Key="IconDownloads">
+                M11,2 H13 V11 L16,8 L17.5,9.5 L12,15 L6.5,9.5 L8,8 L11,11 Z M4,15 H6 V19 H18 V15 H20 V21 H4 Z
+            </Geometry>
+            <ControlTheme x:Key="GogInstallationReadyBadge" TargetType="ContentControl">
+                <Setter Property="HorizontalAlignment" Value="Right" />
+                <Setter Property="VerticalAlignment" Value="Bottom" />
+                <Setter Property="Margin" Value="8" />
+                <Setter Property="Template">
+                    <ControlTemplate>
+                        <Border Width="20" Height="20" CornerRadius="10"
+                                Background="#F5B940" BorderBrush="White" BorderThickness="1.5">
+                            <PathIcon Data="{StaticResource IconDownloads}" Width="12" Height="12"
+                                      HorizontalAlignment="Center" VerticalAlignment="Center"
+                                      Foreground="#221806" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter>
+            </ControlTheme>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="TileFallbackTitleBrush" Color="#1A1A1A" />

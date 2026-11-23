@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -21,6 +22,8 @@ public sealed class DownloadManagerService
     private readonly Dictionary<Guid, DownloadProgress> _progress = new();
     private readonly HashSet<string> _automaticUpdateExclusions = new(StringComparer.Ordinal);
     private List<DownloadJob> _jobs = [];
+    private ImmutableHashSet<(string ItemId, string? StoreGameId)> _pendingGogInstallations =
+        ImmutableHashSet<(string, string?)>.Empty;
     private DownloadSettings _settings = new();
     private ExecuteDownloadAsync? _execute;
     private Task _worker = Task.CompletedTask;
@@ -44,14 +47,15 @@ public sealed class DownloadManagerService
     internal bool PersistenceFailed { get { lock (_gate) return _persistenceFailed; } }
     internal bool IsInstalling { get { lock (_gate) return _active?.Installing == true; } }
     internal bool IsQueuePaused { get { lock (_gate) return _queuePaused; } }
-    internal (DownloadState? Activity, bool NeedsRepair) GetQueueStatus()
+    internal (DownloadState? Activity, bool NeedsRepair,
+        IReadOnlySet<(string ItemId, string? StoreGameId)> PendingGogInstallations) GetQueueStatus()
     {
         lock (_gate)
         {
             var activity = _persistenceFailed
                 ? null
                 : _jobs.Find(job => job.State is DownloadState.Downloading or DownloadState.Installing)?.State;
-            return (activity, _jobs.Exists(job => job.State == DownloadState.RepairRequired));
+            return (activity, _jobs.Exists(job => job.State == DownloadState.RepairRequired), _pendingGogInstallations);
         }
     }
 
@@ -79,7 +83,7 @@ public sealed class DownloadManagerService
             {
                 try
                 {
-                    _jobs = _store.Load().ToList();
+                    SetJobs(_store.Load().ToList());
                     _loaded = true;
                 }
                 catch (Exception ex)
@@ -529,7 +533,7 @@ public sealed class DownloadManagerService
         try
         {
             _store.Save(next);
-            _jobs = next;
+            SetJobs(next);
             var ids = next.Select(job => job.Id).ToHashSet();
             foreach (var id in _progress.Keys.Where(id => !ids.Contains(id)).ToArray())
                 _progress.Remove(id);
@@ -541,6 +545,20 @@ public sealed class DownloadManagerService
             FailPersistence(ex);
             return false;
         }
+    }
+
+    private void SetJobs(List<DownloadJob> jobs)
+    {
+        _jobs = jobs;
+        var pending = jobs.Where(job => job is
+            {
+                Store: DownloadStore.Gog, Kind: DownloadKind.Update,
+                State: DownloadState.InstallationPending, PayloadReady: true
+            })
+            .Select(job => (job.ItemId, job.StoreGameId))
+            .ToImmutableHashSet();
+        if (!_pendingGogInstallations.SetEquals(pending))
+            _pendingGogInstallations = pending;
     }
 
     private void FailPersistence(Exception ex)

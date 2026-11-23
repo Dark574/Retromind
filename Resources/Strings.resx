@@ -1786,6 +1786,9 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Downloads.State.InstallationPending" xml:space="preserve">
     <value>Installation pending</value>
   </data>
+  <data name="Downloads.InstallationReadyBadge" xml:space="preserve">
+    <value>Downloaded and ready to install in the download manager</value>
+  </data>
   <data name="Downloads.State.Installing" xml:space="preserve">
     <value>Installing</value>
   </data>

@@ -113,6 +113,15 @@ public static class ObjectConverters
                    EpicMediaItemStateHelper.HasUpdateAvailable(item);
         });
 
+    public static readonly IMultiValueConverter GogInstallationReadyBadgeVisible =
+        new FuncMultiValueConverter<object?, bool>(values =>
+        {
+            var inputs = values.Take(2).Select(UnwrapValue).ToArray();
+            return inputs is [MediaItem item, IReadOnlySet<(string, string?)> pending] &&
+                   GogMediaItemStateHelper.TryGetGameId(item) is { } gameId &&
+                   (pending.Contains((item.Id, gameId)) || pending.Contains((item.Id, null)));
+        });
+
     /// <summary>
     /// Returns true for linked GOG or Epic items that still require installation.
     /// </summary>

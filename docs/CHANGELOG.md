@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.5-alpha] - unreleased
 
 ### Added
+- mark GOG games that are ready to install with a download icon in the library and search results
 - queue GOG and Epic updates in the desktop download manager, set daily download hours and a GOG speed limit, and archive GOG offline installers for later use
 - pause and resume the entire download queue while Retromind is open
 

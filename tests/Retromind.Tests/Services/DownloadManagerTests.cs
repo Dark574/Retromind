@@ -27,7 +27,10 @@ public sealed class DownloadManagerTests
 
         Assert.Equal([DownloadState.Queued, DownloadState.RepairRequired],
             manager.Snapshot().Select(row => row.Job.State));
-        Assert.Equal((null, true), manager.GetQueueStatus());
+        var status = manager.GetQueueStatus();
+        Assert.Null(status.Activity);
+        Assert.True(status.NeedsRepair);
+        Assert.Empty(status.PendingGogInstallations);
         manager.Release();
         using var restored = new DownloadQueueStore(path);
         Assert.Equal(DownloadReason.InstallInterrupted, restored.Load()[1].Reason);
@@ -407,10 +410,18 @@ public sealed class DownloadManagerTests
         try
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            var awaitingInstallation = manager.GetQueueStatus().PendingGogInstallations;
+            if (isGog)
+                Assert.Equal(("game", null), Assert.Single(awaitingInstallation));
+            else
+                Assert.Empty(awaitingInstallation);
+
             Assert.True(manager.Change(job.Id, DownloadAction.Install));
+            Assert.Empty(manager.GetQueueStatus().PendingGogInstallations);
             Assert.True(manager.Change(job.Id, DownloadAction.Cancel));
 
             AssertInstallReady(manager.Snapshot()[1].Job, job.Id, reason, payloadReady: isGog);
+            Assert.Equal(isGog, manager.GetQueueStatus().PendingGogInstallations.Contains(("game", null)));
             Assert.True(manager.Change(job.Id, DownloadAction.Install));
             Assert.Equal(DownloadState.Queued, manager.Snapshot()[1].Job.State);
         }
@@ -563,7 +574,8 @@ public sealed class DownloadManagerTests
         var latestRevision = new string('B', 64);
         var original = Job("game", DownloadState.InstallationPending) with
         {
-            Automatic = false, Revision = previousRevision, PayloadReady = true, PayloadRevision = previousRevision
+            Automatic = false, Revision = previousRevision, PayloadReady = true, PayloadRevision = previousRevision,
+            StoreGameId = "gog-game"
         };
         using (var store = new DownloadQueueStore(path))
         {
@@ -606,10 +618,12 @@ public sealed class DownloadManagerTests
             await waiting.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(1, executions);
             Assert.Equal(DownloadReason.GogPayloadChanged, Assert.Single(manager.Snapshot()).Job.Reason);
+            Assert.Empty(manager.GetQueueStatus().PendingGogInstallations);
 
             manager.UpdateSettings(new DownloadSettings());
             await ready.Task.WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(2, executions);
+            Assert.Equal(("game", "gog-game"), Assert.Single(manager.GetQueueStatus().PendingGogInstallations));
         }
         finally
         {

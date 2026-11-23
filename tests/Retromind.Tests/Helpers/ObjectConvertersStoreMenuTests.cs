@@ -35,6 +35,23 @@ public sealed class ObjectConvertersStoreMenuTests
     }
 
     [Fact]
+    public void InstallationReadyBadge_RequiresTheQueuedGogItem()
+    {
+        var item = CreateStoreItem(StoreProviderIds.Gog, "gog-id");
+        var pending = new HashSet<(string, string?)> { (item.Id, "gog-id") };
+        var converter = RetromindObjectConverters.GogInstallationReadyBadgeVisible;
+
+        bool IsBadgeVisible() => (bool)converter.Convert([item, pending], typeof(bool), null, CultureInfo.InvariantCulture)!;
+
+        Assert.True(IsBadgeVisible());
+        item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "another-gog-id";
+        Assert.False(IsBadgeVisible());
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = StoreProviderIds.Epic;
+        pending.Add((item.Id, null));
+        Assert.False(IsBadgeVisible());
+    }
+
+    [Fact]
     public void LegacyHeroicItem_OffersEpicMigrationAndGogSwitch()
     {
         var item = new MediaItem("Legacy Heroic game")

@@ -21,6 +21,7 @@ public static class DownloadStrings
     public static string Cancel => Get("Cancel", "Cancel");
     public static string Retry => Get("Retry", "Retry");
     public static string Install => Get("Install", "Install");
+    public static string InstallationReadyBadge => Get("InstallationReadyBadge", "Downloaded and ready to install in the download manager");
     public static string Repair => Get("Repair", "Repair");
     public static string Earlier => Get("Earlier", "Move up");
     public static string Later => Get("Later", "Move down");
