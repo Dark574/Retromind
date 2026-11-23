@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:Retromind.ViewModels"
+        xmlns:p="clr-namespace:Retromind.Resources"
         x:Class="Retromind.Views.GogDlcDialogView"
         x:DataType="vm:GogDlcDialogViewModel"
         Title="{Binding DialogTitleText}"
@@ -152,11 +153,11 @@
             <StackPanel Margin="0,0,0,8"
                         Spacing="2"
                         IsVisible="{Binding CanInstallDlcs}">
-                <CheckBox Content="{Binding DeleteStagingAfterSuccessLabel}"
-                          IsChecked="{Binding DeleteStagingAfterSuccess, Mode=TwoWay}"
+                <CheckBox Content="{x:Static p:DownloadStrings.KeepInstallers}"
+                          IsChecked="{Binding KeepOfflineInstallers, Mode=TwoWay}"
                           IsEnabled="{Binding IsInteractionEnabled}" />
                 <TextBlock Margin="24,0,0,0"
-                           Text="{Binding DeleteStagingAfterSuccessHint}"
+                           Text="{Binding KeepOfflineInstallersHint}"
                            TextWrapping="Wrap"
                            Opacity="0.7" />
             </StackPanel>

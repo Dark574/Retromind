@@ -16,6 +16,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- keep GOG DLC offline installers in the configured archive when the same checkbox used for the main game is checked
 - preserve spaces and tabs inside quoted game launch arguments
 - preserve the previous asset paths until the library saves a media or category move or a category rename
 - keep selection music during launch checks, restore it after a failed start, and report unexpected launch errors

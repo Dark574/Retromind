@@ -22,8 +22,9 @@ requests a check for missing revisions. The daily window uses local time and may
 Equal start and end times allow downloads throughout the day. A global numeric speed limit applies to GOG HTTP transfers. A value of
 zero allows full speed. The archive path can be absolute or relative to the Retromind data directory.
 A blank path selects `GogOfflineInstallers` below that directory. The setting to keep installers is
-the default in the GOG installation dialog. Changing it there applies to that installation and any
-DLCs reinstalled with it. Retromind clears the temporary installer staging after a successful
+the default in the GOG installation and DLC dialogs. Changing it in the installation dialog applies
+to the game and any DLCs reinstalled with it. In the DLC dialog the choice applies to the selected
+DLCs. Retromind clears the temporary installer staging after a successful
 installation and keeps it available if the requested archive could not be saved.
 
 ## Runtime and storage

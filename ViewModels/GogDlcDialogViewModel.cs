@@ -69,7 +69,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     private string _statusMessage = string.Empty;
 
     [ObservableProperty]
-    private bool _deleteStagingAfterSuccess = true;
+    private bool _keepOfflineInstallers;
 
     public RangeObservableCollection<GogDlcCatalogEntry> FilteredDlcs { get; } = new();
     public IReadOnlyList<GogDlcFilterOption> FilterOptions { get; }
@@ -90,12 +90,9 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
     public string MainGameRequiredText => T(
         "Gog.Dlc.MainGameRequired",
         "Install the main game before installing DLCs.");
-    public string DeleteStagingAfterSuccessLabel => T(
-        "Gog.Dlc.DeleteStagingAfterSuccessLabel",
-        "Delete downloaded DLC installer files after successful installation");
-    public string DeleteStagingAfterSuccessHint => T(
-        "Gog.Dlc.DeleteStagingAfterSuccessHint",
-        "Disable this to keep the offline installer files for backup or reuse.");
+    public string KeepOfflineInstallersHint => T(
+        "Gog.Dlc.KeepOfflineInstallersHint",
+        "Stores the installers for the selected DLCs in the configured GOG archive.");
 
     public bool HasError => !string.IsNullOrWhiteSpace(ErrorMessage);
     public bool HasStatusMessage => !string.IsNullOrWhiteSpace(StatusMessage);
@@ -132,7 +129,8 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
         GogInstallPlatform? installedPlatform = null,
         IEnumerable<GogDlcInstallationState>? installedDlcs = null,
         Func<IReadOnlyList<GogDlcCatalogEntry>, bool, CancellationToken, Task<GogDlcInstallBatchResult>>? installAsync = null,
-        Action<bool>? updateAvailabilityChanged = null)
+        Action<bool>? updateAvailabilityChanged = null,
+        bool keepOfflineInstallers = false)
     {
         _gogInstallService = gogInstallService ?? throw new ArgumentNullException(nameof(gogInstallService));
         if (string.IsNullOrWhiteSpace(gameId))
@@ -142,6 +140,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
         _installedPlatform = installedPlatform;
         _installAsync = installAsync;
         _updateAvailabilityChanged = updateAvailabilityChanged;
+        _keepOfflineInstallers = keepOfflineInstallers;
         _installedDlcs = installedDlcs?
             .Where(static state => !string.IsNullOrWhiteSpace(state.ProductId))
             .GroupBy(static state => state.ProductId.Trim(), StringComparer.Ordinal)
@@ -261,7 +260,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
         {
             var result = await _installAsync(
                 selected,
-                DeleteStagingAfterSuccess,
+                KeepOfflineInstallers,
                 _lifetimeCts.Token);
             foreach (var productId in result.InstalledProductIds)
             {
