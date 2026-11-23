@@ -598,6 +598,7 @@ Legendary removes the files belonging to this DLC from the shared game folder. T
     <data name="Gog.Dlc.FilterWindows" xml:space="preserve"><value>Windows installer</value></data>
     <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Currently no Linux/Windows installer</value></data>
     <data name="Gog.Dlc.NoSeparateInstaller" xml:space="preserve"><value>Currently no Linux/Windows offline installer</value></data>
+    <data name="Gog.Dlc.InstallerDetailsUnavailable" xml:space="preserve"><value>Installer details unavailable</value></data>
     <data name="Gog.Dlc.LoadFailedFormat" xml:space="preserve"><value>DLCs could not be loaded: {0}</value></data>
     <data name="Gog.Dlc.SelectAllFiltered" xml:space="preserve"><value>Select all available</value></data>
     <data name="Gog.Dlc.ClearSelection" xml:space="preserve"><value>Clear selection</value></data>

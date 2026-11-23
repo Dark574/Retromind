@@ -60,6 +60,7 @@ public sealed record GogDlcCatalogItem(
     IReadOnlyList<GogDlcInstallerMetadata>? InstallerMetadata = null)
 {
     public bool HasInstaller => AvailableInstallerPlatforms.Count > 0;
+    public bool DetailsUnavailable { get; init; }
 
     public GogDlcInstallerMetadata? GetInstallerMetadata(GogInstallPlatform platform) =>
         InstallerMetadata?.FirstOrDefault(metadata => metadata.Platform == platform);
@@ -345,7 +346,65 @@ public sealed class GogInstallService
 
         using var productJson = JsonDocument.Parse(productBody);
         using var ownedProductsJson = JsonDocument.Parse(ownedProductsBody);
-        return ParseOwnedDlcCatalog(productJson.RootElement, ownedProductsJson.RootElement);
+        var product = productJson.RootElement;
+        var ownedProductIds = ExtractOwnedProductIds(ownedProductsJson.RootElement);
+        var catalog = ParseOwnedDlcCatalog(product, ownedProductIds);
+        if (ownedProductIds.Count == 0 ||
+            !product.TryGetProperty("dlcs", out var dlcs) || dlcs.ValueKind != JsonValueKind.Object ||
+            !dlcs.TryGetProperty("products", out var references) || references.ValueKind != JsonValueKind.Array)
+        {
+            return catalog;
+        }
+
+        var catalogIds = catalog.Select(static item => item.ProductId).ToHashSet(StringComparer.Ordinal);
+        foreach (var reference in references.EnumerateArray())
+        {
+            if (reference.ValueKind != JsonValueKind.Object ||
+                GetString(reference, "id") is not { Length: > 0 } productId ||
+                !ownedProductIds.Contains(productId) ||
+                !productId.All(char.IsAsciiDigit) ||
+                !catalogIds.Add(productId))
+            {
+                continue;
+            }
+
+            var details = await GetDlcDetailsAsync(productId, accessToken, ct).ConfigureAwait(false);
+            catalog.Add(details ?? new GogDlcCatalogItem(productId, GetDlcTitle(reference, productId), [])
+            {
+                DetailsUnavailable = true
+            });
+        }
+
+        return catalog;
+    }
+
+    private async Task<GogDlcCatalogItem?> GetDlcDetailsAsync(
+        string productId,
+        string accessToken,
+        CancellationToken ct)
+    {
+        var uri = new Uri(ApiBaseUri, $"products/{productId}?expand=downloads");
+        using var request = CreateAuthorizedRequest(uri, accessToken);
+        try
+        {
+            using var response = await _httpClient.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode)
+                return null;
+
+            await using var body = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            using var json = await JsonDocument.ParseAsync(body, cancellationToken: ct).ConfigureAwait(false);
+            var product = json.RootElement;
+            return product.ValueKind == JsonValueKind.Object &&
+                   string.Equals(GetString(product, "id"), productId, StringComparison.Ordinal)
+                ? CreateDlcCatalogItem(product, productId)
+                : null;
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested &&
+                                   ex is HttpRequestException or IOException or JsonException or OperationCanceledException)
+        {
+            // A missing DLC detail must not hide the rest of the catalog.
+            return null;
+        }
     }
 
     public async Task UninstallGogGameAsync(
@@ -1366,38 +1425,49 @@ public sealed class GogInstallService
             .ToArray();
     }
 
-    internal static IReadOnlyList<GogDlcCatalogItem> ParseOwnedDlcCatalog(
+    internal static List<GogDlcCatalogItem> ParseOwnedDlcCatalog(
         JsonElement productRoot,
-        JsonElement ownedProductsRoot)
+        IReadOnlySet<string> ownedProductIds)
     {
-        var ownedProductIds = ExtractOwnedProductIds(ownedProductsRoot);
+        var catalog = new List<GogDlcCatalogItem>();
         if (ownedProductIds.Count == 0 ||
             !productRoot.TryGetProperty("expanded_dlcs", out var dlcs) ||
             dlcs.ValueKind != JsonValueKind.Array)
         {
-            return Array.Empty<GogDlcCatalogItem>();
+            return catalog;
         }
 
-        var catalog = new List<GogDlcCatalogItem>();
+        var catalogIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var dlc in dlcs.EnumerateArray())
         {
-            var productId = GetString(dlc, "id");
-            if (string.IsNullOrWhiteSpace(productId) || !ownedProductIds.Contains(productId))
+            if (dlc.ValueKind != JsonValueKind.Object ||
+                GetString(dlc, "id") is not { Length: > 0 } productId ||
+                !ownedProductIds.Contains(productId) ||
+                !catalogIds.Add(productId))
+            {
                 continue;
+            }
 
-            var title = GetString(dlc, "title");
-            if (string.IsNullOrWhiteSpace(title))
-                title = $"GOG DLC {productId}";
-
-            var installerMetadata = ExtractDlcInstallerMetadata(dlc);
-            catalog.Add(new GogDlcCatalogItem(
-                productId,
-                title,
-                installerMetadata.Select(static metadata => metadata.Platform).ToArray(),
-                installerMetadata));
+            catalog.Add(CreateDlcCatalogItem(dlc, productId));
         }
 
         return catalog;
+    }
+
+    private static GogDlcCatalogItem CreateDlcCatalogItem(JsonElement product, string productId)
+    {
+        var installerMetadata = ExtractDlcInstallerMetadata(product);
+        return new GogDlcCatalogItem(
+            productId,
+            GetDlcTitle(product, productId),
+            installerMetadata.Select(static metadata => metadata.Platform).ToArray(),
+            installerMetadata);
+    }
+
+    private static string GetDlcTitle(JsonElement product, string productId)
+    {
+        var title = GetString(product, "title");
+        return string.IsNullOrWhiteSpace(title) ? $"GOG DLC {productId}" : title;
     }
 
     private static IReadOnlyList<GogDlcInstallerMetadata> ExtractDlcInstallerMetadata(JsonElement productRoot)

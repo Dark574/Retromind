@@ -182,6 +182,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
             var linuxText = T("Gog.Install.PlatformLinux", "Linux");
             var windowsText = T("Gog.Install.PlatformWindows", "Windows");
             var noInstallerText = T("Gog.Dlc.NoSeparateInstaller", "Currently no Linux/Windows offline installer");
+            var detailsUnavailableText = T("Gog.Dlc.InstallerDetailsUnavailable", "Installer details unavailable");
 
             foreach (var entry in _allEntries)
                 entry.SelectionChanged -= OnEntrySelectionChanged;
@@ -192,7 +193,7 @@ public partial class GogDlcDialogViewModel : ViewModelBase, IDisposable
                     dlc,
                     linuxText,
                     windowsText,
-                    noInstallerText,
+                    dlc.DetailsUnavailable ? detailsUnavailableText : noInstallerText,
                     UpToDateText,
                     UpdateAvailableText,
                     UpdateUnknownText,

@@ -595,6 +595,7 @@ Legendary entfernt die zu diesem DLC gehörenden Dateien aus dem gemeinsamen Spi
     <data name="Gog.Dlc.FilterWindows" xml:space="preserve"><value>Windows-Installer</value></data>
     <data name="Gog.Dlc.FilterWithoutInstaller" xml:space="preserve"><value>Aktuell kein Linux-/Windows-Installer</value></data>
     <data name="Gog.Dlc.NoSeparateInstaller" xml:space="preserve"><value>Aktuell kein Linux-/Windows-Offline-Installer</value></data>
+    <data name="Gog.Dlc.InstallerDetailsUnavailable" xml:space="preserve"><value>Installerdaten nicht verfügbar</value></data>
     <data name="Gog.Dlc.LoadFailedFormat" xml:space="preserve"><value>DLCs konnten nicht geladen werden: {0}</value></data>
     <data name="Gog.Dlc.SelectAllFiltered" xml:space="preserve"><value>Alle verfügbaren auswählen</value></data>
     <data name="Gog.Dlc.ClearSelection" xml:space="preserve"><value>Auswahl aufheben</value></data>
