@@ -534,18 +534,30 @@
                                                     Margin="8"
                                                     ToolTip.Tip="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).StoreUpdateAvailableBadgeTooltip}"
                                                     IsVisible="{Binding StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreUpdateBadgeVisible}}" />
+                                            <ContentControl Theme="{StaticResource GogInstallationReadyBadge}"
+                                                            ToolTip.Tip="{x:Static p:DownloadStrings.InstallationReadyBadge}"
+                                                            AutomationProperties.Name="{x:Static p:DownloadStrings.InstallationReadyBadge}">
+                                                <ContentControl.IsVisible>
+                                                    <MultiBinding Converter="{x:Static helpers:ObjectConverters.GogInstallationReadyBadgeVisible}">
+                                                        <Binding Path="StorePresentationState" />
+                                                        <Binding Path="$parent[Window].((vm:MainWindowViewModel)DataContext).PendingGogInstallations" />
+                                                    </MultiBinding>
+                                                </ContentControl.IsVisible>
+                                            </ContentControl>
                                         </Grid>
 
-                                        <ContentControl Theme="{StaticResource GogInstallationReadyBadge}"
-                                                        ToolTip.Tip="{x:Static p:DownloadStrings.InstallationReadyBadge}"
-                                                        AutomationProperties.Name="{x:Static p:DownloadStrings.InstallationReadyBadge}">
-                                            <ContentControl.IsVisible>
-                                                <MultiBinding Converter="{x:Static helpers:ObjectConverters.GogInstallationReadyBadgeVisible}">
-                                                    <Binding Path="StorePresentationState" />
-                                                    <Binding Path="$parent[Window].((vm:MainWindowViewModel)DataContext).PendingGogInstallations" />
-                                                </MultiBinding>
-                                            </ContentControl.IsVisible>
-                                        </ContentControl>
+                                        <Grid IsVisible="{Binding PrimaryCoverPath, Converter={x:Static StringConverters.IsNullOrEmpty}}">
+                                            <ContentControl Theme="{StaticResource GogInstallationReadyBadge}"
+                                                            ToolTip.Tip="{x:Static p:DownloadStrings.InstallationReadyBadge}"
+                                                            AutomationProperties.Name="{x:Static p:DownloadStrings.InstallationReadyBadge}">
+                                                <ContentControl.IsVisible>
+                                                    <MultiBinding Converter="{x:Static helpers:ObjectConverters.GogInstallationReadyBadgeVisible}">
+                                                        <Binding Path="StorePresentationState" />
+                                                        <Binding Path="$parent[Window].((vm:MainWindowViewModel)DataContext).PendingGogInstallations" />
+                                                    </MultiBinding>
+                                                </ContentControl.IsVisible>
+                                            </ContentControl>
+                                        </Grid>
 
                                         <CheckBox HorizontalAlignment="Left"
                                                   VerticalAlignment="Top"

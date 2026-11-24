@@ -17,6 +17,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Changed
 
 ### Fixed
+- keep the yellow installation icon inside the cover, aligned with the blue update indicator
 - show owned GOG DLCs referenced by the game even when GOG omits them from its detailed DLC list
 - keep GOG DLC offline installers in the configured archive when the same checkbox used for the main game is checked
 - preserve spaces and tabs inside quoted game launch arguments

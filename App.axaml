@@ -50,7 +50,8 @@
             <ControlTheme x:Key="GogInstallationReadyBadge" TargetType="ContentControl">
                 <Setter Property="HorizontalAlignment" Value="Right" />
                 <Setter Property="VerticalAlignment" Value="Bottom" />
-                <Setter Property="Margin" Value="8" />
+                <!-- Match the center of the 14px blue badge with its 8px bottom inset. -->
+                <Setter Property="Margin" Value="8,8,8,5" />
                 <Setter Property="Template">
                     <ControlTemplate>
                         <Border Width="20" Height="20" CornerRadius="10"
