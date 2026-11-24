@@ -102,6 +102,45 @@ public sealed class WinetricksServiceTests : IDisposable
     }
 
     [Fact]
+    public void PrepareExecution_UsesTheNestedTreeUnderAnExplicitUmuOverride()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var stored = temp.GetPath("Library", "Stored");
+        var root = temp.CreateDirectory("Override");
+        var nested = temp.CreateDirectory("Override", "pfx", "drive_c");
+        var service = new WinetricksService(library, new RecordingErrorService());
+
+        var plan = service.PrepareExecution(new WinetricksRequest(stored, "corefonts",
+            new Dictionary<string, string> { ["WINEPREFIX"] = root }, IsProton: true, IsUmu: true, UmuRunnerPath: "umu-run"));
+
+        Assert.True(plan.UsesUmu);
+        Assert.Equal(Path.GetDirectoryName(nested), plan.WinePrefix);
+        Assert.Equal(root, plan.Environment["WINEPREFIX"]);
+        Assert.Equal(root, plan.Environment["STEAM_COMPAT_DATA_PATH"]);
+        Assert.False(Directory.Exists(stored));
+        Assert.False(Directory.Exists(Path.Combine(Path.GetDirectoryName(nested)!, "dosdevices")));
+    }
+
+    [Fact]
+    public void PrepareExecution_RejectsConflictingPrefixOverridesBeforeWriting()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var stored = temp.GetPath("Library", "stored");
+        var overridePath = temp.GetPath("override");
+        var service = new WinetricksService(library, new RecordingErrorService());
+
+        Assert.Throws<InvalidOperationException>(() => service.PrepareExecution(new WinetricksRequest(stored, "corefonts",
+            new Dictionary<string, string>
+            {
+                ["WINEPREFIX"] = overridePath, ["STEAM_COMPAT_DATA_PATH"] = temp.GetPath("other")
+            }, IsProton: true, IsUmu: true, UmuRunnerPath: "umu-run")));
+        Assert.False(Directory.Exists(stored));
+        Assert.False(Directory.Exists(overridePath));
+    }
+
+    [Fact]
     public void ResolvePrefixPaths_UsesExistingRootStyleProtonPrefix()
     {
         using var temp = new TemporaryDirectory();

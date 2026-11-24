@@ -9,6 +9,8 @@ using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Models.Stores;
+using Retromind.Services;
+using Retromind.Services.Stores;
 using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
@@ -150,6 +152,16 @@ internal sealed partial class DesktopGogWorkflow
         if (!await ValidateGogInstallRuntimeRequirementsAsync(owner, installRequest))
             return false;
 
+        PrefixResolution? windowsPrefix = null;
+        if (installRequest.Platform == GogInstallPlatform.Windows)
+        {
+            var (confirmed, prefix) = await ConfirmGogPrefixOverrideAsync(owner, item,
+                installRequest.Runner?.Kind == RunnerVersionKind.Proton ? WinePrefixRuntime.Umu : WinePrefixRuntime.Wine);
+            if (!confirmed)
+                return false;
+            windowsPrefix = prefix;
+        }
+
         GogInstallerPackage? installerPackage;
         try
         {
@@ -270,7 +282,8 @@ internal sealed partial class DesktopGogWorkflow
                     UseTemporaryLinuxDestination: true,
                     RequireLinuxPayloadChange: false,
                     DownloadSettings: downloadSettings,
-                    RequireCachedPayload: queuedPayload != null),
+                    RequireCachedPayload: queuedPayload != null,
+                    ResolvedPrefix: windowsPrefix),
                 line => AppendProcessLog(progressLogVm, line),
                 progressLogVm.Token,
                 installationStarted);
@@ -429,7 +442,8 @@ internal sealed partial class DesktopGogWorkflow
                     installedDlcsToReapply,
                     owner,
                     progressLogVm,
-                    downloadSettings);
+                    downloadSettings,
+                    windowsPrefix);
             }
         }
         finally
@@ -446,6 +460,37 @@ internal sealed partial class DesktopGogWorkflow
         }
 
         return true;
+    }
+
+    private async Task<(bool Confirmed, PrefixResolution? Prefix)> ConfirmGogPrefixOverrideAsync(
+        Window owner, MediaItem item, WinePrefixRuntime? selectedRuntime = null)
+    {
+        var emulator = string.IsNullOrWhiteSpace(item.EmulatorId)
+            ? string.IsNullOrWhiteSpace(item.LauncherPath) && !selectedRuntime.HasValue
+                ? Workspace.FindInheritedEmulator(item) : null
+            : Workspace.Settings.Emulators.FirstOrDefault(candidate => candidate.Id == item.EmulatorId);
+        var overrides = LaunchInheritanceResolver.ResolveEnvironmentOverrides(Workspace.Settings, emulator,
+            Workspace.FindParentNode(item), Workspace.GetRootItems(), item.EnvironmentOverrides, item.RunnerVersionId,
+            matchNodesById: true);
+        var runtime = selectedRuntime ?? WinePrefixService.RuntimeForExecutable(item.LauncherPath ?? emulator?.Path) ??
+            (LaunchRuntimeHelper.ContainsUmuHints(overrides) ? WinePrefixRuntime.Umu :
+                LaunchRuntimeHelper.ContainsProtonHints(overrides) ? WinePrefixRuntime.Proton : WinePrefixRuntime.Wine);
+        var prefix = WinePrefixService.ResolveExplicitOverride(runtime, overrides, out var specified);
+        if (!specified)
+            return (true, null);
+        if (prefix is not { CanPrepare: true, ResolvedWindowsPrefix: { } target } ||
+            StoreInstallPathSafety.IsDangerousInstallPath(prefix.CompatRoot) ||
+            StoreInstallPathSafety.IsDangerousInstallPath(target))
+        {
+            await ShowInfoDialog(owner, T("Gog.Install.PrefixOverrideInvalid",
+                "The environment override does not select a usable Windows prefix. Check the paths in the media editor."));
+            return (false, null);
+        }
+
+        var confirmed = await ShowConfirmDialog(owner, string.Format(
+            T("Gog.Install.PrefixOverrideConfirm", "The launch environment selects this Windows prefix:\n\n{0}\n\nUse it for this GOG installation?"),
+            target));
+        return (confirmed, confirmed ? prefix : null);
     }
 
     private async Task<bool> PrepareGogInstallDirectoryAsync(

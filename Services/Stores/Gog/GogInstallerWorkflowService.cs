@@ -39,7 +39,8 @@ internal sealed record GogInstallerWorkflowRequest(
     bool UseTemporaryLinuxDestination,
     bool RequireLinuxPayloadChange,
     DownloadSettings? DownloadSettings = null,
-    bool RequireCachedPayload = false);
+    bool RequireCachedPayload = false,
+    PrefixResolution? ResolvedPrefix = null);
 
 internal sealed record GogInstallerWorkflowResult(
     bool Success,
@@ -285,6 +286,21 @@ public sealed class GogInstallerWorkflowService
     {
         try
         {
+            var windowsPrefix = request.Platform == GogInstallPlatform.Windows
+                ? request.ResolvedPrefix ?? _executionService.ResolveWindowsPrefix(
+                    request.StoreGameId, request.Item.Title, request.Item.PrefixPath)
+                : null;
+            if (windowsPrefix is { } windows && (!windows.CanPrepare ||
+                windows.FromOverride && !WinePrefixService.StillSelectsSameTree(windows)))
+                return ExecutionFailure("The Windows prefix could not be safely selected. Check the prefix layout and overrides.");
+            if (request.CleanInstall && windowsPrefix?.ResolvedWindowsPrefix is { } prefixPath)
+            {
+                var installPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.InstallPath));
+                if (IsSubPathOfOrEqual(prefixPath, installPath) ||
+                    IsSubPathOfOrEqual(windowsPrefix.CompatRoot, installPath))
+                    return ExecutionFailure("The Windows prefix is inside the game directory. A clean installation would delete it.");
+            }
+
             Directory.CreateDirectory(request.InstallPath);
             Directory.CreateDirectory(downloadedPackage.StagingDirectory);
 
@@ -335,11 +351,11 @@ public sealed class GogInstallerWorkflowService
                 if (string.IsNullOrWhiteSpace(winePath))
                     return ExecutionFailure("Windows installation requires a system wine version.");
 
-                var repairedPrefixPath = request.Item.PrefixPath;
-                var prefixRepair = _protonPrefixRelocationService.Repair(request.Item);
+                foreach (var line in WinePrefixService.Describe(windowsPrefix!))
+                    AppendInstallerLog($"[Windows prefix] {line}");
+                var prefixRepair = _protonPrefixRelocationService.Repair(request.Item, windowsPrefix);
                 if (prefixRepair.IsProtonManagedPrefix)
                 {
-                    repairedPrefixPath = prefixRepair.PrefixPath ?? repairedPrefixPath;
                     if (prefixRepair.RepairedLinks > 0)
                     {
                         AppendInstallerLog(
@@ -370,13 +386,14 @@ public sealed class GogInstallerWorkflowService
                         new GogWindowsInstallerExecutionRequest(
                             request.StoreGameId,
                             request.Item.Title,
-                            repairedPrefixPath,
+                            request.Item.PrefixPath,
                             request.InstallPath,
                             winePath,
                             downloadedPackage,
                             request.WindowsInstallerPreference,
                             request.CreateDesktopShortcut,
-                            request.CreateStartMenuShortcuts),
+                            request.CreateStartMenuShortcuts,
+                            windowsPrefix),
                         AppendInstallerLog,
                         cancellationToken)
                     .ConfigureAwait(false);

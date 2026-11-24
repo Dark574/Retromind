@@ -259,6 +259,102 @@ public sealed class LauncherServiceTests
     }
 
     [Fact]
+    public async Task LaunchAsync_UsesFinalWinePrefixWithoutPreparingConfiguredOrOverridePath()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var configured = temp.GetPath("Library", "Prefixes", "Configured");
+        var effective = temp.CreateDirectory("Override");
+        var profile = temp.CreateDirectory("Override", "drive_c", "users", "steamuser");
+        var documents = temp.CreateDirectory("Documents");
+        Directory.CreateSymbolicLink(Path.Combine(profile, "Documents"), documents);
+        var wine = temp.CreateFile("wine", "#!/bin/sh\nprintf '%s' \"$WINEPREFIX\"\nexit 23\n");
+        File.SetUnixFileMode(wine, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Override game")
+        {
+            LauncherPath = wine, PrefixPath = configured, MediaType = MediaType.Emulator,
+            Files = [new() { Path = temp.CreateFile("game.exe") }],
+            EnvironmentOverrides = new() { ["WINEPREFIX"] = effective, ["PROTONPATH"] = temp.GetPath("unused") }
+        };
+        var logs = new LaunchLogService(temp.GetPath("logs"));
+        var launcher = new LauncherService(library, new AppSettings(), logs);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Contains(effective, result.ConsoleOutput);
+        Assert.False(Directory.Exists(configured));
+        Assert.False(Directory.Exists(Path.Combine(effective, "dosdevices")));
+        Assert.Equal(configured, item.PrefixPath);
+        var log = await logs.TryReadAsync(item.Id);
+        Assert.Contains($"Windows prefix (planned): {effective}", log);
+        Assert.Contains($"steamuser/Documents → {documents}", log);
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DirectProtonRepairsRuntimeLinksInItsActualTreeAndLeavesProfileLinksAlone()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var root = temp.CreateDirectory("Library", "Prefixes", "Proton");
+        var windows = temp.CreateDirectory("Library", "Prefixes", "Proton", "pfx", "drive_c", "windows");
+        var user = temp.CreateDirectory("Library", "Prefixes", "Proton", "pfx", "drive_c", "users", "steamuser");
+        var systemDll = Path.Combine(windows, "runtime.dll");
+        var oldDll = temp.GetPath("old", "files", "runtime.dll");
+        File.CreateSymbolicLink(systemDll, oldDll);
+        var documents = Path.Combine(user, "Documents");
+        var oldDocuments = temp.GetPath("old", "files", "Documents");
+        Directory.CreateSymbolicLink(documents, oldDocuments);
+        await File.WriteAllTextAsync(Path.Combine(root, "tracked_files"), "drive_c/windows/runtime.dll\ndrive_c/users/steamuser/Documents\n");
+        await File.WriteAllTextAsync(Path.Combine(root, "version"), "11.0-100");
+        var replacement = temp.CreateFile("runner/files/runtime.dll");
+        temp.CreateDirectory("runner", "files", "Documents");
+        temp.CreateFile("other-runner/files/runtime.dll");
+        var proton = temp.CreateFile("runner/proton", "#!/bin/sh\nprintf '%s' \"$STEAM_COMPAT_DATA_PATH\"\nexit 23\n");
+        File.SetUnixFileMode(proton, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Proton")
+        {
+            LauncherPath = proton, PrefixPath = root, MediaType = MediaType.Emulator,
+            Files = [new() { Path = temp.CreateFile("game.exe") }],
+            EnvironmentOverrides = new() { ["PROTONPATH"] = temp.GetPath("other-runner") }
+        };
+        var launcher = new LauncherService(library, new AppSettings(), new LaunchLogService(temp.GetPath("logs")));
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.Equal(LaunchOutcome.ExitedEarly, result.Outcome);
+        Assert.Contains(root, result.ConsoleOutput);
+        Assert.Equal(replacement, new FileInfo(systemDll).LinkTarget);
+        Assert.Equal(oldDocuments, new DirectoryInfo(documents).LinkTarget);
+        Assert.False(Directory.Exists(Path.Combine(root, "drive_c")));
+    }
+
+    [Fact]
+    public async Task LaunchAsync_DirectProtonCannotCreateASecondTreeBesideLegacyWineData()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var root = temp.CreateDirectory("Library", "Prefixes", "Legacy");
+        var save = temp.CreateFile("Library/Prefixes/Legacy/drive_c/save.dat", "keep");
+        var proton = temp.CreateFile("proton", "#!/bin/sh\nexit 0\n");
+        File.SetUnixFileMode(proton, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Legacy")
+        {
+            LauncherPath = proton, PrefixPath = root,
+            Files = [new() { Path = temp.CreateFile("game.exe") }]
+        };
+        var logs = new LaunchLogService(temp.GetPath("logs"));
+        var launcher = new LauncherService(library, new AppSettings(), logs);
+
+        var result = await launcher.LaunchAsync(item, recordStatistics: false);
+
+        Assert.False(result.IsStarted);
+        Assert.False(Directory.Exists(Path.Combine(root, "pfx")));
+        Assert.Equal("keep", await File.ReadAllTextAsync(save));
+        Assert.Contains($"Windows prefix (planned): {Path.Combine(root, "pfx")}", await logs.TryReadAsync(item.Id));
+    }
+
+    [Fact]
     public async Task LaunchAsync_ReturnsFailureWhenExecutableDoesNotExist()
     {
         using var temp = new TemporaryDirectory();

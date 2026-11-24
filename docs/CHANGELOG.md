@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.5-alpha] - unreleased
 
 ### Added
+- show the planned Wine or Proton prefix, detected layout and external Windows profile folders in the media editor and launch log
 - mark GOG games that are ready to install with a download icon in the library and search results
 - queue GOG and Epic updates in the desktop download manager, set daily download hours and a GOG speed limit, and archive GOG offline installers for later use
 - pause and resume the entire download queue, with the pause remembered across restarts
@@ -18,6 +19,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
+- use the effective Wine or Proton prefix consistently for launch, setup and Winetricks, and prevent known starts from creating a second Windows tree or replacing custom UMU prefix links
 - reuse GOG offline installers only for the matching revision and archive new versions alongside existing files if installer names collide
 - allow manually starting downloaded GOG installations with DLC reinstallation while other queued downloads stay paused
 - complete matching download-manager updates after manual GOG or Epic installation, update or repair, and clear stale installation notices

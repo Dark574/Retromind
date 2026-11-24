@@ -169,16 +169,19 @@ public sealed class GogInstallerExecutionServiceTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RunWindowsAsync_PreparesRequiredDrivesBeforeWineAndReusesIncompletePrefix(bool incompletePrefix)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task RunWindowsAsync_PreparesRequiredDrivesBeforeWineAndReusesIncompletePrefix(
+        bool incompletePrefix, bool nested)
     {
         using var temporaryDirectory = new TemporaryDirectory();
         var installPath = temporaryDirectory.CreateDirectory("windows-game");
         var stagingPath = temporaryDirectory.CreateDirectory("windows-staging");
         var installerPath = Path.Combine(stagingPath, "setup_game_x64.exe");
         File.WriteAllText(installerPath, "installer");
-        var prefixPath = Path.Combine(temporaryDirectory.RootPath, "Library", "Prefixes", "gog_789_Test_Game");
+        var compatRoot = Path.Combine(temporaryDirectory.RootPath, "Library", "Prefixes", "gog_789_Test_Game");
+        var prefixPath = nested ? Path.Combine(compatRoot, "pfx") : compatRoot;
         if (incompletePrefix)
         {
             var dosdevices = Directory.CreateDirectory(Path.Combine(prefixPath, "dosdevices")).FullName;
@@ -190,6 +193,7 @@ public sealed class GogInstallerExecutionServiceTests
             "fake-wine.sh",
             $"""
             #!/bin/sh
+            printf 'Windows prefix: %s\n' "$WINEPREFIX"
             printf 'C mapping before Wine: %s\n' "$(readlink "$WINEPREFIX/dosdevices/c:")"
             printf 'Z mapping before Wine: %s\n' "$(readlink "$WINEPREFIX/dosdevices/z:")"
             [ -d "$WINEPREFIX/dosdevices/c:" ] && echo 'C drive accessible before Wine'
@@ -215,6 +219,9 @@ public sealed class GogInstallerExecutionServiceTests
             output.Enqueue);
 
         Assert.True(result.Success, result.ErrorMessage);
+        Assert.Contains($"Windows prefix: {prefixPath}", output);
+        if (nested)
+            Assert.False(Directory.Exists(Path.Combine(compatRoot, "drive_c")));
         Assert.Contains("C mapping before Wine: ../drive_c", output);
         Assert.Contains("Z mapping before Wine: /", output);
         Assert.Contains("C drive accessible before Wine", output);
@@ -223,13 +230,7 @@ public sealed class GogInstallerExecutionServiceTests
         Assert.True(File.Exists(Path.Combine(installPath, "game.exe")));
         Assert.True(Directory.Exists(
             Path.Combine(temporaryDirectory.RootPath, "Library", "Prefixes", "gog_789_Test_Game")));
-        Assert.NotNull(new DirectoryInfo(Path.Combine(
-            temporaryDirectory.RootPath,
-            "Library",
-            "Prefixes",
-            "gog_789_Test_Game",
-            "dosdevices",
-            "r:")).LinkTarget);
+        Assert.NotNull(new DirectoryInfo(Path.Combine(prefixPath, "dosdevices", "r:")).LinkTarget);
         Assert.Contains("/DIR=Z:\\", string.Join('\n', output), StringComparison.Ordinal);
     }
 

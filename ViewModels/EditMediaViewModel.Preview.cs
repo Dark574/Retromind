@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using Retromind.Helpers;
@@ -20,6 +21,36 @@ public partial class EditMediaViewModel
 
     public string PreviewText => FormatLaunchPreview(includeNotes: true);
 
+    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
+    {
+        base.OnPropertyChanged(e);
+        if (e.PropertyName == nameof(PreviewText))
+            OnPropertyChanged(nameof(PrefixDiagnosis));
+    }
+
+    public string PrefixDiagnosis
+    {
+        get
+        {
+            try
+            {
+                if (BuildLaunchPreview() is not { } preview)
+                    return string.Empty;
+                if (preview.Prefix is { } prefix)
+                    return LaunchSecretRedactor.Redact(string.Join("\n", WinePrefixService.Describe(prefix, T)), preview.Overrides)
+                           ?? string.Empty;
+                return !string.IsNullOrWhiteSpace(PrefixPath) ||
+                       preview.Overrides.ContainsKey("WINEPREFIX") || preview.Overrides.ContainsKey("STEAM_COMPAT_DATA_PATH")
+                    ? T("Launch.Prefix.UnresolvedTarget", "The Windows prefix link could not be resolved.")
+                    : string.Empty;
+            }
+            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.IO.IOException or UnauthorizedAccessException)
+            {
+                return T("Launch.Preview.Unavailable", "The current launch configuration could not be prepared.");
+            }
+        }
+    }
+
     private string FormatLaunchPreview(bool includeNotes)
     {
         try
@@ -28,7 +59,7 @@ public partial class EditMediaViewModel
             if (preview == null)
                 return string.Empty;
 
-            var (startInfo, overrides, playlistRequested, playlistPlanned, epicManaged) = preview.Value;
+            var (startInfo, overrides, playlistRequested, playlistPlanned, epicManaged, _) = preview.Value;
             var environment = LaunchLogBuilder.CaptureEnvironment(startInfo, overrides);
             var secrets = environment.Concat(overrides);
             var command = LaunchSecretRedactor.Redact(LaunchProcessService.BuildCommandDisplay(startInfo), secrets);
@@ -86,7 +117,7 @@ public partial class EditMediaViewModel
     }
 
     private (ProcessStartInfo StartInfo, Dictionary<string, string> Overrides,
-        bool PlaylistRequested, bool PlaylistPlanned, bool EpicManaged)? BuildLaunchPreview()
+        bool PlaylistRequested, bool PlaylistPlanned, bool EpicManaged, PrefixResolution? Prefix)? BuildLaunchPreview()
     {
         var item = new MediaItem(Title) { Id = _originalItem.Id, CustomFields = _originalItem.CustomFields };
         ApplyLaunchConfiguration(item);
@@ -103,7 +134,7 @@ public partial class EditMediaViewModel
                 return null;
 
             var (command, _) = LauncherService.PrepareCommandStartInfo(item, configuredOverrides, environmentService);
-            return (command, overrides, false, false, epicManaged);
+            return (command, overrides, false, false, epicManaged, null);
         }
 
         var playlistRequested = LaunchPlaylistService.UsesPlaylist(item, _nodePath, emulator?.UsePlaylistForMultiDisc == true);
@@ -118,10 +149,10 @@ public partial class EditMediaViewModel
 
         var wrappers = LaunchInheritanceResolver.ResolveNativeWrappers(
             emulator, _parentNode, _rootNodes, item.NativeWrappersOverride, matchNodesById: true);
-        var (startInfo, _) = LauncherService.PrepareNativeOrEmulatorStartInfo(item, emulator, wrappers, launchPath,
+        var (startInfo, prefix) = LauncherService.PrepareNativeOrEmulatorStartInfo(item, emulator, wrappers, launchPath,
             configuredOverrides, environmentService, new WinePrefixService(AppPaths.LibraryRoot, _settings),
             preview: true, plannedPlaylist: playlistPath != null);
-        return (startInfo, overrides, playlistRequested, playlistPath != null, epicManaged);
+        return (startInfo, overrides, playlistRequested, playlistPath != null, epicManaged, prefix);
     }
 
     private static string QuotePreviewValue(string value) =>

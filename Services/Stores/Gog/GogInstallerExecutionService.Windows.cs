@@ -24,7 +24,8 @@ internal sealed record GogWindowsInstallerExecutionRequest(
     GogDownloadedInstallerPackage DownloadedPackage,
     GogWindowsInstallerPreference InstallerPreference,
     bool CreateDesktopShortcut,
-    bool CreateStartMenuShortcuts);
+    bool CreateStartMenuShortcuts,
+    PrefixResolution? ResolvedPrefix = null);
 
 public sealed partial class GogInstallerExecutionService
 {
@@ -42,10 +43,12 @@ public sealed partial class GogInstallerExecutionService
         if (string.IsNullOrWhiteSpace(request.WinePath))
             return Fail("Windows installation requires a system wine version.");
 
+        var prefix = request.ResolvedPrefix ?? ResolveWindowsPrefix(request.StoreGameId, request.ItemTitle, request.PrefixPath);
+        if (!prefix.CanPrepare || prefix.FromOverride && !WinePrefixService.StillSelectsSameTree(prefix))
+            return Fail("The Windows prefix could not be safely selected. Check the prefix layout and overrides.");
+        var prefixRoot = prefix.ResolvedWindowsPrefix!;
         Directory.CreateDirectory(request.InstallPath);
         Directory.CreateDirectory(request.DownloadedPackage.StagingDirectory);
-
-        var prefixRoot = ResolveOrCreatePrefixRoot(request);
         var prefixDrivePath = Path.Combine(prefixRoot, "drive_c");
         var dosdevicesPath = Path.Combine(prefixRoot, "dosdevices");
         var windowsInstallDestinationPath = ToWineWindowsAbsolutePath(request.InstallPath);
@@ -65,7 +68,7 @@ public sealed partial class GogInstallerExecutionService
         }
 
         PrefixPathHelper.EnsurePortableGamesDriveMapping(
-            prefixRoot,
+            prefix.CompatRoot,
             dosdevicesPath,
             _libraryRoot);
 
@@ -311,24 +314,23 @@ public sealed partial class GogInstallerExecutionService
         return $@"Z:\{windowsSlashes.TrimStart('\\')}";
     }
 
-    private string ResolveOrCreatePrefixRoot(GogWindowsInstallerExecutionRequest request)
+    internal PrefixResolution ResolveWindowsPrefix(string gameId, string itemTitle, string? prefixPath)
     {
         string absolutePrefixPath;
-        if (!string.IsNullOrWhiteSpace(request.PrefixPath))
+        if (!string.IsNullOrWhiteSpace(prefixPath))
         {
-            absolutePrefixPath = PrefixPathHelper.ResolveAbsolutePrefixPath(request.PrefixPath, _libraryRoot);
+            absolutePrefixPath = PrefixPathHelper.ResolveAbsolutePrefixPath(prefixPath, _libraryRoot);
         }
         else
         {
-            var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(request.ItemTitle);
+            var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(itemTitle);
             var folderName = string.IsNullOrWhiteSpace(safeTitle)
-                ? $"gog_{request.StoreGameId}"
-                : $"gog_{request.StoreGameId}_{safeTitle}";
+                ? $"gog_{gameId}"
+                : $"gog_{gameId}_{safeTitle}";
             absolutePrefixPath = Path.Combine(_libraryRoot, "Prefixes", folderName);
         }
 
-        Directory.CreateDirectory(absolutePrefixPath);
-        return absolutePrefixPath;
+        return WinePrefixService.ResolveConfigured(absolutePrefixPath, WinePrefixRuntime.Wine);
     }
 
     private static IReadOnlyList<WindowsInstallerArgumentProfile> BuildWindowsInstallerArgumentProfiles(

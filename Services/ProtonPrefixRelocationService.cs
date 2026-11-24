@@ -38,8 +38,18 @@ public sealed class ProtonPrefixRelocationService
     {
         ArgumentNullException.ThrowIfNull(item);
 
-        var prefixPath = ResolveExistingWinePrefixPath(item.PrefixPath);
-        var protonMetadataRoot = prefixPath == null ? null : ResolveProtonMetadataRoot(prefixPath);
+        var prefix = string.IsNullOrWhiteSpace(item.PrefixPath) ? null : WinePrefixService.ResolveConfigured(
+            PrefixPathHelper.ResolveAbsolutePrefixPath(item.PrefixPath, _libraryRootPath), WinePrefixRuntime.Wine);
+        return Repair(item, prefix, effectiveProtonPath);
+    }
+
+    internal ProtonPrefixRepairResult Repair(MediaItem item, PrefixResolution? prefix,
+        string? effectiveProtonPath = null, bool allowRunnerFallback = true)
+    {
+        var prefixPath = prefix?.ResolvedWindowsPrefix;
+        var protonMetadataRoot = prefix is { CanRepair: true } && WinePrefixService.IsInsideLibrary(prefix, _libraryRootPath)
+            ? ResolveProtonMetadataRoot(prefix)
+            : null;
         if (prefixPath == null || protonMetadataRoot == null)
         {
             return new ProtonPrefixRepairResult(
@@ -51,7 +61,8 @@ public sealed class ProtonPrefixRelocationService
                 0);
         }
 
-        var protonRoot = ResolveProtonRoot(item, effectiveProtonPath);
+        var protonRoot = allowRunnerFallback ? ResolveProtonRoot(item, effectiveProtonPath)
+            : ResolveProtonRootPath(effectiveProtonPath);
         if (protonRoot == null)
         {
             return new ProtonPrefixRepairResult(
@@ -85,6 +96,7 @@ public sealed class ProtonPrefixRelocationService
             try
             {
                 if (!TryGetAbsoluteProtonRuntimeLink(
+                        prefixPath,
                         linkPath,
                         oldTarget,
                         out var resolvedOldTarget,
@@ -137,28 +149,6 @@ public sealed class ProtonPrefixRelocationService
             failed);
     }
 
-    internal string? ResolveExistingWinePrefixPath(string? storedPrefixPath)
-    {
-        if (string.IsNullOrWhiteSpace(storedPrefixPath))
-            return null;
-
-        string prefixRoot;
-        try
-        {
-            prefixRoot = PrefixPathHelper.ResolveAbsolutePrefixPath(storedPrefixPath, _libraryRootPath);
-        }
-        catch
-        {
-            return null;
-        }
-
-        if (PrefixPathHelper.IsWinePrefixInitialized(prefixRoot))
-            return prefixRoot;
-
-        var nestedPfx = Path.Combine(prefixRoot, "pfx");
-        return PrefixPathHelper.IsWinePrefixInitialized(nestedPfx) ? nestedPfx : prefixRoot;
-    }
-
     private string? ResolveProtonRoot(MediaItem item, string? effectiveProtonPath)
     {
         var explicitRoot = ResolveProtonRootPath(effectiveProtonPath);
@@ -199,12 +189,13 @@ public sealed class ProtonPrefixRelocationService
         return Path.GetFullPath(resolvedPath);
     }
 
-    private static string? ResolveProtonMetadataRoot(string prefixPath)
+    private static string? ResolveProtonMetadataRoot(PrefixResolution prefix)
     {
+        var prefixPath = prefix.ResolvedWindowsPrefix!;
         if (HasProtonMetadata(prefixPath))
             return prefixPath;
 
-        if (!PrefixPathHelper.IsPfxPath(prefixPath))
+        if (prefix.Layout != PrefixLayout.Nested)
             return null;
 
         var parentPath = Directory.GetParent(prefixPath)?.FullName;
@@ -282,6 +273,7 @@ public sealed class ProtonPrefixRelocationService
             {
                 var target = new FileInfo(linkPath).LinkTarget;
                 if (TryGetAbsoluteProtonRuntimeLink(
+                        prefixPath,
                         linkPath,
                         target,
                         out var resolvedTarget,
@@ -346,6 +338,7 @@ public sealed class ProtonPrefixRelocationService
     }
 
     private static bool TryGetAbsoluteProtonRuntimeLink(
+        string prefixPath,
         string linkPath,
         string? target,
         out string resolvedTarget,
@@ -366,14 +359,15 @@ public sealed class ProtonPrefixRelocationService
 
         relativeRuntimePath = separatorNormalized[(markerIndex + marker.Length)..];
         return !string.IsNullOrWhiteSpace(relativeRuntimePath) &&
-               IsInsideProtonManagedPrefixArea(linkPath);
+               IsInsideProtonManagedPrefixArea(prefixPath, linkPath);
     }
 
-    private static bool IsInsideProtonManagedPrefixArea(string linkPath)
+    private static bool IsInsideProtonManagedPrefixArea(string prefixPath, string linkPath)
     {
-        var normalized = linkPath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
-        var driveCMarker = $"{Path.DirectorySeparatorChar}drive_c{Path.DirectorySeparatorChar}";
-        return normalized.Contains(driveCMarker, StringComparison.Ordinal);
+        var relative = Path.GetRelativePath(prefixPath, linkPath).Replace(Path.DirectorySeparatorChar, '/');
+        return relative.StartsWith("drive_c/", StringComparison.Ordinal) &&
+               !relative.StartsWith("drive_c/users/", StringComparison.OrdinalIgnoreCase) &&
+               !string.Equals(relative, "drive_c/users", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string? ResolveReplacementTarget(string protonFilesRoot, string relativeRuntimePath)

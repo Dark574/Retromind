@@ -187,6 +187,39 @@ public sealed class GogInstallerWorkflowServiceTests
     }
 
     [Fact]
+    public async Task RunAsync_CleanWindowsInstallDoesNotDeleteTheConfirmedPrefix()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("PATH", temp.CreateDirectory("no-runners")));
+        var install = temp.CreateDirectory("Library", "Games", "Game");
+        var prefix = temp.CreateDirectory("Library", "Games", "Game", "prefix");
+        var save = temp.CreateFile("Library/Games/Game/prefix/drive_c/save.dat", "keep");
+        var oldGame = temp.CreateFile("Library/Games/Game/game.exe");
+        var staging = temp.CreateDirectory("staging");
+        var installer = temp.CreateFile("staging/setup.exe", "installer");
+        var item = new MediaItem("Game") { Id = "game-item" };
+        item.CustomFields["Store.ProviderId"] = "gog";
+        item.CustomFields["Store.GameId"] = "123";
+        GogInstallDirectorySafety.WriteMarker(install, item);
+        var package = new GogInstallerPackage("123", GogInstallPlatform.Windows, "Game", "1",
+            [new("https://invalid.example/setup.exe", "setup.exe", new FileInfo(installer).Length)]);
+        var selected = WinePrefixService.ResolveExplicitOverride(WinePrefixRuntime.Wine,
+            new Dictionary<string, string> { ["WINEPREFIX"] = prefix }, out var specified);
+        Assert.True(specified);
+        Assert.NotNull(selected);
+
+        var result = await CreateService(temp.RootPath).RunAsync(new GogInstallerWorkflowRequest(item, "123",
+            install, GogInstallPlatform.Windows, package, staging, GogWindowsInstallerPreference.AutoPrefer64,
+            false, false, CleanInstall: true, UseTemporaryLinuxDestination: false,
+            RequireLinuxPayloadChange: false, ResolvedPrefix: selected), _ => { });
+
+        Assert.False(result.Success);
+        Assert.Contains("clean installation would delete it", result.ErrorMessage);
+        Assert.Equal("keep", await File.ReadAllTextAsync(save));
+        Assert.True(File.Exists(oldGame));
+    }
+
+    [Fact]
     public async Task RunAsync_CancelledDownloadReturnsCancelledStage()
     {
         using var temporaryDirectory = new TemporaryDirectory();

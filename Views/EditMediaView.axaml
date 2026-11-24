@@ -507,6 +507,9 @@
                                              PlaceholderText="Prefixes/itemId_Title" />
                                 </StackPanel>
 
+                                <SelectableTextBlock Text="{Binding PrefixDiagnosis}" TextWrapping="Wrap"
+                                                     FontSize="11" Opacity="0.8" />
+
                                 <StackPanel Spacing="6">
                                     <TextBlock Text="{Binding RunnerVersionLabel}" FontWeight="Bold" />
                                     <ComboBox ItemsSource="{Binding AvailableRunnerVersions}"

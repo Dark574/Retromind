@@ -1435,11 +1435,18 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   values and arguments, and marks Legendary launch parameters and playlist publication as start-time work.
 - `LaunchEnvironmentService` owns inherited environment cleanup for AppImage and portable-home launches, applies
   resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
-- `WinePrefixService` resolves existing portable or absolute prefix paths, selects the correct Wine, Proton, or UMU
-  prefix layout, creates safe `dosdevices` mappings, and supplies the launch environment paths
+- `WinePrefixService` resolves the effective compatibility root and Windows tree after launch environment
+  overrides are applied. The launcher, script-free preview, GOG Windows installer and Winetricks share the layout
+  resolver. A root, real `pfx` and relative root alias remain supported. The resolver reports partial setups,
+  separate Windows trees and unresolved links. The Prefix section and launch log show planned paths and
+  external profile folders observed on disk. Registry redirects and changes in custom wrappers are not inferred
+- Managed defaults override inherited host variables, while explicit prefix overrides retain their runner-specific
+  meaning. Retromind does not scaffold or repair an overridden prefix on game start. GOG requests confirmation
+  before using a launch override for its system Wine installer
 - `ProtonPrefixRelocationService` rebases stale Proton-managed runtime links after a portable data-root move before
-  a game launch or a later GOG installer accesses the existing prefix; reachable links are rewritten only when
-  Proton's `tracked_files` manifest identifies them as runtime-owned
+  a game launch or a later GOG installer accesses the existing prefix. It uses the selected Windows tree and
+  skips external, ambiguous and overridden targets as well as profile links. Reachable links are rewritten only
+  when Proton's `tracked_files` manifest identifies them as runtime-owned
 - `LaunchProcessService` owns operating-system process startup, bounded stdout/stderr capture, delegated-command
   observation, configured watch-process tracking, and the active tracked-session stop boundary. While Retromind
   is in the background, holding the configured stop combination (L1 + R1 by default) first requests an orderly

@@ -8,6 +8,50 @@ namespace Retromind.Tests.Services;
 public sealed class WinePrefixServiceTests
 {
     [Fact]
+    public void Inspect_DistinguishesAnIncompleteTreeFromAnInitializedNestedPrefix()
+    {
+        using var temp = new TemporaryDirectory();
+        var root = temp.CreateDirectory("prefix");
+        var nested = temp.CreateDirectory("prefix", "pfx");
+        temp.CreateDirectory("prefix", "drive_c");
+        temp.CreateDirectory("prefix", "pfx", "drive_c", "windows");
+        temp.CreateFile("prefix/pfx/system.reg");
+        temp.CreateFile("prefix/pfx/user.reg");
+
+        var flat = WinePrefixService.Inspect(root, root, WinePrefixRuntime.Wine);
+        var proton = WinePrefixService.Inspect(root, nested, WinePrefixRuntime.Proton);
+
+        Assert.True(flat.HasSeparateTrees);
+        Assert.Equal(PrefixTreeState.Incomplete, flat.State);
+        Assert.True(proton.HasSeparateTrees);
+        Assert.Equal(PrefixTreeState.Initialized, proton.State);
+    }
+
+    [Fact]
+    public void Inspect_ResolvesRelativeAliasesAndReportsExternalAndBrokenProfileFolders()
+    {
+        using var temp = new TemporaryDirectory();
+        var root = temp.CreateDirectory("prefix");
+        var nested = Path.Combine(root, "pfx");
+        Directory.CreateSymbolicLink(nested, ".");
+        var profile = temp.CreateDirectory("prefix", "drive_c", "users", "someone");
+        Directory.CreateSymbolicLink(Path.Combine(profile, "..", "steamuser"), "someone");
+        var documents = temp.CreateDirectory("home", "Documents");
+        Directory.CreateSymbolicLink(Path.Combine(profile, "Documents"), documents);
+        Directory.CreateSymbolicLink(Path.Combine(profile, "Desktop"), temp.GetPath("missing"));
+
+        var plan = WinePrefixService.Inspect(root, nested, WinePrefixRuntime.Proton);
+        var lines = WinePrefixService.Describe(plan);
+
+        Assert.Equal(PrefixLayout.RootAlias, plan.Layout);
+        Assert.False(plan.HasSeparateTrees);
+        Assert.Equal(root, plan.ResolvedWindowsPrefix);
+        Assert.Contains($"  steamuser/Documents → {documents}", lines);
+        Assert.Contains($"  someone/Desktop → {temp.GetPath("missing")} [!]", lines);
+        Assert.Empty(Directory.EnumerateFileSystemEntries(documents));
+    }
+
+    [Fact]
     public void Prepare_CreatesPortableWinePrefixAndDriveMappings()
     {
         using var temp = new TemporaryDirectory();

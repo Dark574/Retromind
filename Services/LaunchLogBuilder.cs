@@ -41,6 +41,7 @@ internal sealed class LaunchLogBuilder
     private string? _workingDirectory;
     private string? _gamePath;
     private IReadOnlyList<KeyValuePair<string, string>> _environment = [];
+    private IReadOnlyList<string> _prefixDetails = [];
 
     public LaunchLogBuilder(
         MediaItem item,
@@ -65,7 +66,8 @@ internal sealed class LaunchLogBuilder
     public void CaptureProcessStart(
         ProcessStartInfo startInfo,
         string? gamePath,
-        IReadOnlyDictionary<string, string>? effectiveEnvironment)
+        IReadOnlyDictionary<string, string>? effectiveEnvironment,
+        PrefixResolution? prefix = null)
     {
         _executable = startInfo.FileName;
         _arguments = startInfo.ArgumentList.Count > 0
@@ -74,6 +76,7 @@ internal sealed class LaunchLogBuilder
         _workingDirectory = startInfo.WorkingDirectory;
         _gamePath = gamePath;
         _environment = CaptureEnvironment(startInfo, effectiveEnvironment);
+        _prefixDetails = prefix == null ? [] : WinePrefixService.Describe(prefix);
     }
 
     public string Build(
@@ -114,6 +117,13 @@ internal sealed class LaunchLogBuilder
                 var value = LaunchSecretRedactor.IsSensitiveName(pair.Key) ? "<redacted>" : SanitizeLine(pair.Value);
                 log.AppendLine($"{pair.Key}={value}");
             }
+        }
+
+        if (_prefixDetails.Count > 0)
+        {
+            log.AppendLine().AppendLine("Wine/Proton prefix:");
+            foreach (var line in _prefixDetails)
+                log.AppendLine(SanitizeLine(RedactSensitiveData(line) ?? string.Empty));
         }
 
         if (!string.IsNullOrWhiteSpace(errorMessage))

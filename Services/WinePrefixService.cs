@@ -16,14 +16,14 @@ public enum WinePrefixRuntime
 /// <summary>
 /// Resolves and scaffolds per-item Wine-compatible prefixes for launch.
 /// </summary>
-public sealed class WinePrefixService
+public sealed partial class WinePrefixService
 {
     private readonly string _libraryRootPath;
     private readonly AppSettings _settings;
 
     public WinePrefixService(string libraryRootPath, AppSettings settings)
     {
-        _libraryRootPath = libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath));
+        _libraryRootPath = Path.GetFullPath(libraryRootPath ?? throw new ArgumentNullException(nameof(libraryRootPath)));
         _settings = settings ?? throw new ArgumentNullException(nameof(settings));
     }
 
@@ -32,75 +32,114 @@ public sealed class WinePrefixService
         ProcessStartInfo startInfo,
         WinePrefixRuntime runtime) => Prepare(item, startInfo, runtime, scaffold: true);
 
-    internal void Prepare(
-        MediaItem item,
-        ProcessStartInfo startInfo,
-        WinePrefixRuntime runtime,
-        bool scaffold)
+    internal void Prepare(MediaItem item, ProcessStartInfo startInfo, WinePrefixRuntime runtime, bool scaffold) =>
+        PrepareLaunch(item, startInfo, runtime, applyManagedPrefix: true, scaffold: scaffold);
+
+    internal PrefixResolution? PrepareLaunch(MediaItem item, ProcessStartInfo startInfo, WinePrefixRuntime runtime,
+        bool applyManagedPrefix, bool scaffold, bool wineOverride = false, bool compatOverride = false,
+        bool runtimeUncertain = false)
     {
-        var prefixPath = ResolvePrefixPath(item, out var relativePrefixPathToSave);
-        var prefixRoot = prefixPath;
-        var winePrefixPath = prefixPath;
-
-        switch (runtime)
+        string? pathToSave = null;
+        PrefixResolution? configured = null;
+        if (applyManagedPrefix)
         {
-            case WinePrefixRuntime.Umu:
-                (prefixRoot, winePrefixPath) = ResolveUmuPaths(prefixPath);
-                break;
+            configured = ResolveConfigured(ResolvePrefixPath(item, out pathToSave), runtime);
 
-            case WinePrefixRuntime.Proton:
-                (prefixRoot, winePrefixPath) = ResolveProtonPaths(prefixPath);
-                break;
-
-            case WinePrefixRuntime.Wine:
-                (prefixRoot, winePrefixPath) = ResolveWinePaths(prefixPath);
-                break;
+            // Explicit launch overrides have already been applied. Managed defaults
+            // replace inherited host values only, leaving explicit values intact.
+            if (runtime is WinePrefixRuntime.Umu or WinePrefixRuntime.Proton && !compatOverride)
+                startInfo.Environment["STEAM_COMPAT_DATA_PATH"] = runtime == WinePrefixRuntime.Umu && wineOverride
+                    ? startInfo.Environment["WINEPREFIX"]
+                    : configured.CompatRoot;
+            if (!wineOverride)
+            {
+                startInfo.Environment["WINEPREFIX"] = runtime switch
+                {
+                    WinePrefixRuntime.Umu => configured.CompatRoot,
+                    WinePrefixRuntime.Proton when compatOverride &&
+                        startInfo.Environment["STEAM_COMPAT_DATA_PATH"] is { Length: > 0 } root => Path.Combine(root, "pfx"),
+                    // Keep the historic input for flat Proton prefixes. The actual
+                    // Windows tree is still the one selected by the Proton script.
+                    WinePrefixRuntime.Proton when configured.WouldCreateSecondTree &&
+                        !Directory.Exists(configured.WindowsPrefix) => configured.CompatRoot,
+                    _ => configured.WindowsPrefix
+                };
+            }
         }
 
-        if (scaffold)
-            ScaffoldPrefix(prefixRoot, winePrefixPath, runtime);
+        var overridden = runtime == WinePrefixRuntime.Proton ? compatOverride : wineOverride;
+        var prefix = !overridden && configured != null
+            ? configured with { RuntimeUncertain = runtimeUncertain }
+            : ObserveLaunch(startInfo, runtime, overridden, runtimeUncertain);
+        if (prefix == null)
+            return null;
 
-        if (runtime is WinePrefixRuntime.Proton or WinePrefixRuntime.Umu)
-            startInfo.EnvironmentVariables["STEAM_COMPAT_DATA_PATH"] = prefixRoot;
+        if (runtime == WinePrefixRuntime.Proton && wineOverride)
+            prefix = CheckForConflictingOverrides(prefix, startInfo.Environment["WINEPREFIX"]);
+        if (runtime == WinePrefixRuntime.Umu && compatOverride)
+            prefix = CheckForConflictingOverrides(prefix, startInfo.Environment["STEAM_COMPAT_DATA_PATH"]);
 
-        startInfo.EnvironmentVariables["WINEPREFIX"] = runtime == WinePrefixRuntime.Umu
-            ? prefixRoot
-            : winePrefixPath;
-
-        if (scaffold && relativePrefixPathToSave != null)
-            item.PrefixPath = relativePrefixPathToSave;
+        if (scaffold && applyManagedPrefix && prefix.CanPrepare && !prefix.FromOverride)
+        {
+            ScaffoldPrefix(prefix);
+            if (pathToSave != null)
+                item.PrefixPath = pathToSave;
+        }
+        return prefix;
     }
 
-    private void ScaffoldPrefix(string prefixRoot, string winePrefixPath, WinePrefixRuntime runtime)
+    internal static PrefixResolution CheckForConflictingOverrides(PrefixResolution prefix, string? secondary)
     {
-        Directory.CreateDirectory(prefixRoot);
+        var expected = prefix.Runtime == WinePrefixRuntime.Proton ? prefix.WindowsPrefix : prefix.CompatRoot;
+        var expectedTarget = ResolveDirectory(expected).Path;
+        var conflicting = string.IsNullOrWhiteSpace(secondary) || !Path.IsPathFullyQualified(secondary) ||
+                          expectedTarget == null || !FileSystemPathIdentity.Equals(expectedTarget, ResolveDirectory(secondary).Path);
+        return prefix with { ConflictingOverrides = conflicting };
+    }
 
-        // UMU owns <compat-root>/pfx. Only scaffold its compat root until umu-run creates that link/folder.
-        var scaffoldPrefixPath = runtime == WinePrefixRuntime.Umu &&
-                                 !FileSystemPathIdentity.Equals(winePrefixPath, prefixRoot)
-            ? prefixRoot
-            : winePrefixPath;
-        Directory.CreateDirectory(scaffoldPrefixPath);
+    internal static PrefixResolution ResolveConfigured(string prefixPath, WinePrefixRuntime runtime,
+        bool useProtonWine = false)
+    {
+        var explicitPfx = PrefixPathHelper.IsPfxPath(prefixPath);
+        var root = explicitPfx ? Path.GetDirectoryName(prefixPath) ?? prefixPath : prefixPath;
+        var nested = Path.Combine(root, "pfx");
+        var nestedTarget = ResolveDirectory(nested);
+        var rootState = GetTreeState(ResolveDirectory(root));
+        var target = runtime switch
+        {
+            WinePrefixRuntime.Umu => nestedTarget.Exists && ReadLink(nested) == null ? nested : root,
+            WinePrefixRuntime.Proton when useProtonWine && explicitPfx => prefixPath,
+            WinePrefixRuntime.Proton when useProtonWine && !explicitPfx &&
+                !nestedTarget.Exists && rootState != PrefixTreeState.Missing => root,
+            WinePrefixRuntime.Proton => nested,
+            _ when explicitPfx => prefixPath,
+            _ => rootState == PrefixTreeState.Missing && nestedTarget.Exists ? nested : root
+        };
+        return Inspect(root, target, runtime) with
+        {
+            ExplicitWindowsTree = explicitPfx && (runtime == WinePrefixRuntime.Wine || useProtonWine)
+        };
+    }
 
-        var dosDevicesDirectory = Path.Combine(scaffoldPrefixPath, "dosdevices");
+    private void ScaffoldPrefix(PrefixResolution prefix)
+    {
+        var target = prefix.ResolvedWindowsPrefix!;
+        Directory.CreateDirectory(target);
+
+        var dosDevicesDirectory = Path.Combine(target, "dosdevices");
         Directory.CreateDirectory(dosDevicesDirectory);
 
-        var isUmuCompatRootScaffold =
-            runtime == WinePrefixRuntime.Umu &&
-            FileSystemPathIdentity.Equals(scaffoldPrefixPath, prefixRoot) &&
-            !FileSystemPathIdentity.Equals(winePrefixPath, prefixRoot);
-
-        if (!isUmuCompatRootScaffold)
+        // With a new UMU root, umu-run will create the pfx alias and initialize Wine.
+        var newUmuRoot = prefix.Runtime == WinePrefixRuntime.Umu &&
+                         prefix.State == PrefixTreeState.Missing && prefix.WindowsPrefix == prefix.CompatRoot;
+        if (!newUmuRoot)
         {
-            Directory.CreateDirectory(Path.Combine(scaffoldPrefixPath, "drive_c"));
+            Directory.CreateDirectory(Path.Combine(target, "drive_c"));
             PrefixPathHelper.EnsureDosDeviceMapping(dosDevicesDirectory, "c:", "../drive_c");
         }
 
-        PrefixPathHelper.EnsurePortableGamesDriveMapping(
-            prefixRoot,
-            dosDevicesDirectory,
-            _libraryRootPath);
-
+        if (IsInsideLibrary(prefix, _libraryRootPath))
+            PrefixPathHelper.EnsurePortableGamesDriveMapping(prefix.CompatRoot, dosDevicesDirectory, _libraryRootPath);
     }
 
     private string ResolvePrefixPath(MediaItem item, out string? relativePrefixPathToSave)
@@ -126,50 +165,6 @@ public sealed class WinePrefixService
         var safeTitle = PrefixPathHelper.SanitizePrefixFolderName(item.Title);
         relativePrefixPathToSave = Path.Combine("Prefixes", $"{item.Id}_{safeTitle}");
         return Path.Combine(_libraryRootPath, relativePrefixPathToSave);
-    }
-
-    private static (string PrefixRoot, string WinePrefixPath) ResolveUmuPaths(string prefixPath)
-    {
-        var prefixRoot = prefixPath;
-        string pfxPath;
-        if (PrefixPathHelper.IsPfxPath(prefixPath))
-        {
-            pfxPath = prefixPath;
-            prefixRoot = Directory.GetParent(prefixPath)?.FullName ?? prefixPath;
-        }
-        else
-        {
-            pfxPath = Path.Combine(prefixPath, "pfx");
-        }
-
-        var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixRoot);
-        var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
-        var winePrefixPath = rootInitialized && !pfxInitialized ? prefixRoot : pfxPath;
-        return (prefixRoot, winePrefixPath);
-    }
-
-    private static (string PrefixRoot, string WinePrefixPath) ResolveProtonPaths(string prefixPath)
-    {
-        if (PrefixPathHelper.IsPfxPath(prefixPath))
-            return (Directory.GetParent(prefixPath)?.FullName ?? prefixPath, prefixPath);
-
-        var pfxPath = Path.Combine(prefixPath, "pfx");
-        var rootInitialized = PrefixPathHelper.IsWinePrefixInitialized(prefixPath);
-        var pfxInitialized = PrefixPathHelper.IsWinePrefixInitialized(pfxPath);
-        return rootInitialized && !pfxInitialized
-            ? (prefixPath, prefixPath)
-            : (prefixPath, pfxPath);
-    }
-
-    private static (string PrefixRoot, string WinePrefixPath) ResolveWinePaths(string prefixPath)
-    {
-        if (PrefixPathHelper.IsPfxPath(prefixPath))
-            return (Directory.GetParent(prefixPath)?.FullName ?? prefixPath, prefixPath);
-
-        var pfxPath = Path.Combine(prefixPath, "pfx");
-        var usesNestedPfx = !Directory.Exists(Path.Combine(prefixPath, "drive_c")) &&
-                            (Directory.Exists(Path.Combine(pfxPath, "drive_c")) || Directory.Exists(pfxPath));
-        return (prefixPath, usesNestedPfx ? pfxPath : prefixPath);
     }
 
 }

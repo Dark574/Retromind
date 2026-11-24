@@ -849,16 +849,30 @@ public sealed class LauncherService
             item,
             nodePath,
             usePlaylistForMultiDisc);
-        var (startInfo, repairProtonPrefix) = PrepareNativeOrEmulatorStartInfo(item, inheritedConfig,
+        var (startInfo, prefix) = PrepareNativeOrEmulatorStartInfo(item, inheritedConfig,
             nativeWrappers, launchFilePath, environmentOverrides, _launchEnvironmentService, _winePrefixService,
             additionalLaunchArguments);
 
-        if (repairProtonPrefix)
+        launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides, prefix);
+        if (prefix is { RuntimeUncertain: false })
         {
-            var effectiveProtonPath = startInfo.EnvironmentVariables.ContainsKey("PROTONPATH")
-                ? startInfo.EnvironmentVariables["PROTONPATH"]
-                : null;
-            var repair = _protonPrefixRelocationService.Repair(item, effectiveProtonPath);
+            if (prefix.WouldCreateSecondTree)
+                throw new InvalidOperationException(Strings.ResourceManager.GetString("Launch.Prefix.SecondTreeBlocked", Strings.Culture) ??
+                    "The selected Proton launch would create a second Windows prefix. Select a compatible prefix or keep its current runner.");
+            if (prefix.Runtime == WinePrefixRuntime.Umu && prefix.Layout is PrefixLayout.CustomAlias or PrefixLayout.BrokenAlias)
+                throw new InvalidOperationException(Strings.ResourceManager.GetString("Launch.Prefix.UmuAliasBlocked", Strings.Culture) ??
+                    "UMU would replace the existing pfx link. Select a compatible prefix before starting the game.");
+        }
+
+        if (ShouldManagePrefix(item, inheritedConfig) &&
+            prefix is { CanRepair: true, Runtime: WinePrefixRuntime.Proton or WinePrefixRuntime.Umu })
+        {
+            startInfo.Environment.TryGetValue("PROTONPATH", out var protonPath);
+            startInfo.Environment.TryGetValue("PATH", out var searchPath);
+            var effectiveProtonPath = prefix.Runtime == WinePrefixRuntime.Proton
+                ? LaunchExecutablePathHelper.ResolveForDisplay(startInfo.FileName, searchPath).ResolvedPath
+                : protonPath;
+            var repair = _protonPrefixRelocationService.Repair(item, prefix, effectiveProtonPath, allowRunnerFallback: false);
             if (repair.RepairedLinks > 0)
             {
                 Debug.WriteLine(
@@ -883,12 +897,10 @@ public sealed class LauncherService
         var diagnosticCommand = LaunchSecretRedactor.RedactArguments(
             LaunchProcessService.BuildCommandDisplay(startInfo));
         Debug.WriteLine($"[Launcher] START: {diagnosticCommand}");
-        launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides);
-
         return _launchProcessService.Start(startInfo);
     }
 
-    internal static (ProcessStartInfo StartInfo, bool RepairProtonPrefix) PrepareNativeOrEmulatorStartInfo(
+    internal static (ProcessStartInfo StartInfo, PrefixResolution? Prefix) PrepareNativeOrEmulatorStartInfo(
         MediaItem item, EmulatorConfig? inheritedConfig, IReadOnlyList<LaunchWrapper>? nativeWrappers,
         string? launchFilePath, IReadOnlyDictionary<string, string>? environmentOverrides,
         LaunchEnvironmentService environmentService, WinePrefixService winePrefixService,
@@ -910,15 +922,17 @@ public sealed class LauncherService
             ((environmentOverrides == null) &&
              ((inheritedConfig?.EnvironmentOverrides?.Count ?? 0) > 0 ||
               (item.EnvironmentOverrides?.Count ?? 0) > 0));
-        var isUmuLaunch = IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
-        var isProtonLaunch = isUmuLaunch || IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides);
+        var knownRuntime = WinePrefixService.RuntimeForExecutable(item.LauncherPath is { Length: > 0 } itemLauncher
+            ? itemLauncher : inheritedConfig?.Path ?? launchFilePath);
+        var prefixRuntime = knownRuntime ??
+            (IsUmuBased(item, inheritedConfig, nativeWrappers, environmentOverrides) ? WinePrefixRuntime.Umu :
+                IsProtonBased(item, inheritedConfig, nativeWrappers, environmentOverrides)
+                    ? WinePrefixRuntime.Proton : WinePrefixRuntime.Wine);
 
         // Prefix management rules:
         // - explicit item PrefixPath -> always apply
         // - emulator profile with UsesWinePrefix=true -> apply
-        var shouldApplyPrefix =
-            !string.IsNullOrWhiteSpace(item.PrefixPath) ||
-            (item.MediaType == MediaType.Emulator && inheritedConfig?.UsesWinePrefix == true);
+        var shouldApplyPrefix = ShouldManagePrefix(item, inheritedConfig);
         var isAppImageRuntime = environmentService.IsRunningInsideAppImageRuntime;
 
         // Ensure env vars + wrapper arguments are honored (shell exec can drop env vars).
@@ -930,16 +944,6 @@ public sealed class LauncherService
 
         startInfo.UseShellExecute = requiresDirectExec ? false : useShellExecute;
 
-        if (shouldApplyPrefix)
-        {
-            var prefixRuntime = isUmuLaunch
-                ? WinePrefixRuntime.Umu
-                : isProtonLaunch
-                    ? WinePrefixRuntime.Proton
-                    : WinePrefixRuntime.Wine;
-            winePrefixService.Prepare(item, startInfo, prefixRuntime, scaffold: !preview);
-        }
-            
         environmentService.PrepareNativeOrEmulator(
             startInfo,
             item,
@@ -947,8 +951,27 @@ public sealed class LauncherService
             environmentOverrides);
 
         startInfo.Arguments = args ?? string.Empty;
-        return (startInfo, shouldApplyPrefix && isProtonLaunch);
+        var wineOverride = HasExplicitOverride("WINEPREFIX");
+        var compatOverride = HasExplicitOverride("STEAM_COMPAT_DATA_PATH");
+        var prefix = shouldApplyPrefix || knownRuntime.HasValue || wineOverride || compatOverride
+            ? winePrefixService.PrepareLaunch(item, startInfo, prefixRuntime, shouldApplyPrefix, scaffold: !preview,
+                wineOverride: wineOverride, compatOverride: compatOverride,
+                runtimeUncertain: !knownRuntime.HasValue || nativeWrappers is { Count: > 0 })
+            : null;
+        return (startInfo, prefix);
+
+        bool HasExplicitOverride(string key) => environmentOverrides is { Count: > 0 }
+            ? ContainsOverride(environmentOverrides, key)
+            : ContainsOverride(inheritedConfig?.EnvironmentOverrides, key) ||
+              ContainsOverride(item.EnvironmentOverrides, key);
+
+        static bool ContainsOverride(IReadOnlyDictionary<string, string>? variables, string key) =>
+            variables?.Keys.Any(candidate => string.Equals(candidate?.Trim(), key, StringComparison.Ordinal)) == true;
     }
+
+    private static bool ShouldManagePrefix(MediaItem item, EmulatorConfig? emulator) =>
+        !string.IsNullOrWhiteSpace(item.PrefixPath) ||
+        item.MediaType == MediaType.Emulator && emulator?.UsesWinePrefix == true;
 
     internal static string AppendLaunchArguments(
         string? existingArguments,

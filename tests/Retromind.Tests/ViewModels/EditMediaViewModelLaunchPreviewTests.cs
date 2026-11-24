@@ -12,6 +12,31 @@ namespace Retromind.Tests.ViewModels;
 public sealed class EditMediaViewModelLaunchPreviewTests
 {
     [Fact]
+    public void PrefixDiagnosis_ShowsExternalDocumentsWithoutCreatingOrChangingThePrefix()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")), ("APPDIR", null));
+        var prefix = temp.CreateDirectory("Library", "Prefixes", "Example");
+        var profile = temp.CreateDirectory("Library", "Prefixes", "Example", "drive_c", "users", "steamuser");
+        var documents = temp.CreateDirectory("Home", "Documents");
+        Directory.CreateSymbolicLink(Path.Combine(profile, "Documents"), documents);
+        var item = new MediaItem("Example")
+        {
+            MediaType = MediaType.Emulator, LauncherPath = "/usr/bin/wine", PrefixPath = "Prefixes/Example",
+            Files = [new() { Path = temp.GetPath("game.exe") }]
+        };
+        var node = new MediaNode("Games");
+        node.Items.Add(item);
+        using var editor = CreateEditor(item, node, new AppSettings());
+
+        Assert.Contains(prefix, editor.PrefixDiagnosis);
+        Assert.Contains($"steamuser/Documents → {documents}", editor.PrefixDiagnosis);
+        Assert.Contains("WINEPREFIX=", editor.PreviewText);
+        Assert.False(Directory.Exists(Path.Combine(prefix, "dosdevices")));
+        Assert.Equal("Prefixes/Example", item.PrefixPath);
+    }
+
+    [Fact]
     public void PreviewText_QuotesNestedWrapperPathAndPreservesConsecutiveSpaces()
     {
         using var temp = new TemporaryDirectory();

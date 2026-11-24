@@ -1873,4 +1873,74 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Launch.UnexpectedCompletionFailure" xml:space="preserve">
     <value>The game started, but Retromind could not finish processing the launch. See the error log for details.</value>
   </data>
+  <data name="Launch.Prefix.CustomAlias" xml:space="preserve">
+    <value>Custom pfx link</value>
+  </data>
+  <data name="Launch.Prefix.BrokenAlias" xml:space="preserve">
+    <value>Broken pfx link</value>
+  </data>
+  <data name="Launch.Prefix.Initialized" xml:space="preserve">
+    <value>registry and Windows directory present</value>
+  </data>
+  <data name="Launch.Prefix.Incomplete" xml:space="preserve">
+    <value>incomplete</value>
+  </data>
+  <data name="Launch.Prefix.Missing" xml:space="preserve">
+    <value>not initialized</value>
+  </data>
+  <data name="Launch.Prefix.CompatRoot" xml:space="preserve">
+    <value>Compatibility root</value>
+  </data>
+  <data name="Launch.Prefix.WindowsPrefix" xml:space="preserve">
+    <value>Windows prefix (planned)</value>
+  </data>
+  <data name="Launch.Prefix.Layout" xml:space="preserve">
+    <value>Layout</value>
+  </data>
+  <data name="Launch.Prefix.ResolvedTarget" xml:space="preserve">
+    <value>Resolved target</value>
+  </data>
+  <data name="Launch.Prefix.UnresolvedTarget" xml:space="preserve">
+    <value>The Windows prefix link could not be resolved.</value>
+  </data>
+  <data name="Launch.Prefix.SeparateTrees" xml:space="preserve">
+    <value>Root and pfx contain separate Windows data.</value>
+  </data>
+  <data name="Launch.Prefix.SecondTree" xml:space="preserve">
+    <value>This launch would initialize a second Windows tree in pfx.</value>
+  </data>
+  <data name="Launch.Prefix.EnvironmentOverride" xml:space="preserve">
+    <value>The launch environment overrides the configured prefix.</value>
+  </data>
+  <data name="Launch.Prefix.ConflictingOverrides" xml:space="preserve">
+    <value>WINEPREFIX and STEAM_COMPAT_DATA_PATH point to different prefixes.</value>
+  </data>
+  <data name="Launch.Prefix.RuntimeUncertain" xml:space="preserve">
+    <value>A custom launcher or wrapper can select a different prefix at runtime.</value>
+  </data>
+  <data name="Launch.Prefix.UmuAlias" xml:space="preserve">
+    <value>UMU can replace the custom pfx link.</value>
+  </data>
+  <data name="Launch.Prefix.ExternalTarget" xml:space="preserve">
+    <value>The pfx link points outside its compatibility root.</value>
+  </data>
+  <data name="Launch.Prefix.ProfileLocations" xml:space="preserve">
+    <value>External or unresolved profile folders (filesystem)</value>
+  </data>
+  <data name="Launch.Prefix.SecondTreeBlocked" xml:space="preserve">
+    <value>The selected Proton launch would create a second Windows prefix. Select a compatible prefix or keep its current runner.</value>
+  </data>
+  <data name="Launch.Prefix.UmuAliasBlocked" xml:space="preserve">
+    <value>UMU would replace the existing pfx link. Select a compatible prefix before starting the game.</value>
+  </data>
+  <data name="Gog.Install.PrefixOverrideInvalid" xml:space="preserve">
+    <value>The environment override does not select a usable Windows prefix. Check the paths in the media editor.</value>
+  </data>
+  <data name="Gog.Install.PrefixOverrideConfirm" xml:space="preserve">
+    <value>The launch environment selects this Windows prefix:
+
+{0}
+
+Use it for this GOG installation?</value>
+  </data>
 </root>

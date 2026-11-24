@@ -57,8 +57,9 @@ public partial class EditMediaViewModel
                 return;
 
             var env = BuildEffectiveEnvironmentOverrides();
-            var isUmu = IsUmuBased(env);
-            var isProton = isUmu || IsProtonBased(env);
+            var runtime = BuildLaunchPreview()?.Prefix?.Runtime;
+            var isUmu = runtime.HasValue ? runtime == WinePrefixRuntime.Umu : IsUmuBased(env);
+            var isProton = runtime.HasValue ? runtime != WinePrefixRuntime.Wine : isUmu || IsProtonBased(env);
             _winetricksService.PreparePrefix(prefixRoot, isProton, isUmu);
         }
         catch
@@ -117,8 +118,9 @@ public partial class EditMediaViewModel
         try
         {
             var env = BuildEffectiveEnvironmentOverrides();
-            var isUmu = IsUmuBased(env);
-            var isProton = isUmu || IsProtonBased(env);
+            var runtime = BuildLaunchPreview()?.Prefix?.Runtime;
+            var isUmu = runtime.HasValue ? runtime == WinePrefixRuntime.Umu : IsUmuBased(env);
+            var isProton = runtime.HasValue ? runtime != WinePrefixRuntime.Wine : isUmu || IsProtonBased(env);
 
             foreach (var key in env.Keys.ToList())
                 env[key] = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, env[key]);

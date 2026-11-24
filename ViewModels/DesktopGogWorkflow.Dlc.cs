@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services;
 using Retromind.Services.Stores.Gog;
 using Retromind.Views;
 
@@ -71,7 +72,8 @@ internal sealed partial class DesktopGogWorkflow
         Window owner,
         CancellationToken dialogCancellationToken,
         DownloadSettings downloadSettings,
-        ProcessLogViewModel? existingProgressLog = null)
+        ProcessLogViewModel? existingProgressLog = null,
+        PrefixResolution? windowsPrefix = null)
     {
         if (entries.Count == 0)
             return new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
@@ -91,6 +93,14 @@ internal sealed partial class DesktopGogWorkflow
         {
             return CreateGogDlcInstallError(
                 T("Gog.Dlc.SystemWineRequired", "Installing or updating Windows DLCs requires system Wine."));
+        }
+
+        if (platform == GogInstallPlatform.Windows && windowsPrefix == null)
+        {
+            var (confirmed, prefix) = await ConfirmGogPrefixOverrideAsync(owner, item);
+            if (!confirmed)
+                return CreateGogDlcInstallError(T("Gog.Install.Cancelled", "Installation cancelled by user."));
+            windowsPrefix = prefix;
         }
 
         if (!await EnsureGogSignInForInstallAsync(owner))
@@ -236,7 +246,8 @@ internal sealed partial class DesktopGogWorkflow
                         CleanInstall: false,
                         UseTemporaryLinuxDestination: false,
                         RequireLinuxPayloadChange: platform == GogInstallPlatform.Linux,
-                        DownloadSettings: downloadSettings),
+                        DownloadSettings: downloadSettings,
+                        ResolvedPrefix: windowsPrefix),
                     line => AppendProcessLog(progressLogVm, line),
                     ct);
                 if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.Cancelled)
@@ -366,7 +377,8 @@ internal sealed partial class DesktopGogWorkflow
         IReadOnlyList<GogDlcInstallationState> previouslyInstalledDlcs,
         Window owner,
         ProcessLogViewModel progressLogVm,
-        DownloadSettings downloadSettings)
+        DownloadSettings downloadSettings,
+        PrefixResolution? windowsPrefix)
     {
         var gameId = GogMediaItemStateHelper.TryGetGameId(item);
         var platform = GetPreferredInstalledGogPlatform(item);
@@ -461,7 +473,8 @@ internal sealed partial class DesktopGogWorkflow
                 owner,
                 progressLogVm.Token,
                 downloadSettings,
-                existingProgressLog: progressLogVm)
+                existingProgressLog: progressLogVm,
+                windowsPrefix: windowsPrefix)
             : new GogDlcInstallBatchResult(new HashSet<string>(), string.Empty);
 
         var updatedCount = plan.Targets.Count(target =>
