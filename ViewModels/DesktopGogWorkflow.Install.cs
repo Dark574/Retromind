@@ -30,7 +30,8 @@ internal sealed partial class DesktopGogWorkflow
         Window? ownerOverride = null,
         GogInstallOperation operation = GogInstallOperation.Install,
         Action? installationStarted = null,
-        QueuedGogPayload? queuedPayload = null)
+        QueuedGogPayload? queuedPayload = null,
+        Action? librarySavePending = null)
     {
         var owner = ownerOverride ?? CurrentWindow;
         if (owner == null)
@@ -410,6 +411,7 @@ internal sealed partial class DesktopGogWorkflow
             NotifyPlayAvailabilityChanged();
             if (!await SaveGogInstallationAsync(item, selectedInstallerPackage, preferredPlatform))
             {
+                librarySavePending?.Invoke();
                 AppendProcessLog(progressLogVm, OperationSavePendingMessage());
                 return true; // Physical success; preserve staging while metadata is unsaved.
             }
@@ -417,8 +419,7 @@ internal sealed partial class DesktopGogWorkflow
             if (!workflowResult.ArchivePending)
             {
                 GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(downloadedPackage.StagingDirectory);
-                if (installationStarted != null)
-                    GogInstallerArchive.DeleteQueuedStagingBestEffort(selectedInstallerPackage);
+                await _gogInstallService.DeleteInstalledQueuedStagingAsync(selectedInstallerPackage);
                 AppendProcessLog(progressLogVm, "Staging data deleted after successful installation.");
             }
 

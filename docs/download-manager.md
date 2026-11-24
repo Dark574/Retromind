@@ -14,7 +14,10 @@ a different queued version or an offline-installer archive request stays in the 
 target version when checking a queued update. Older unversioned update jobs can be completed by a successful
 installation/update, while a repair alone does not establish that an unknown update target was installed.
 Cancelled or failed manual operations do not dismiss pending jobs. If the installation succeeds but the
-library cannot be saved, the completed job retains a notice that the library save is pending.
+library cannot be saved, the completed job retains a notice that the library save is pending for both
+manual and queued installations. GOG clears the installed revision from queue staging after a successful
+library save and any requested archive copy. An active transfer of that package keeps its staging until
+it finishes. Failed transfers or archive writes keep their files for retry.
 
 **Pause all downloads** suspends active transfers and holds new jobs in the queue while
 Retromind is open. Closing the download manager window keeps the pause in effect. **Resume download

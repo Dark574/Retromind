@@ -107,6 +107,8 @@ public sealed class GogInstallService
     private readonly long _maxInstallerFileDownloadBytes;
     private readonly int _maxChecksumMetadataBytes;
     private readonly SemaphoreSlim _transfer = new(1, 1);
+    private readonly object _queuedStagingGate = new();
+    private readonly Dictionary<string, bool> _activeQueuedStaging = new(StringComparer.Ordinal);
 
     public GogInstallService(
         GogAuthService authService,
@@ -661,6 +663,64 @@ public sealed class GogInstallService
         {
             _transfer.Release();
         }
+    }
+
+    internal async Task<DownloadOutcome> UseQueuedStagingAsync(GogInstallerPackage package,
+        Func<Task<DownloadOutcome>> transfer)
+    {
+        var staging = GogInstallerArchive.GetStagingDirectory(package);
+        lock (_queuedStagingGate)
+            _activeQueuedStaging.Add(staging, false);
+
+        var ready = false;
+        try
+        {
+            var outcome = await transfer().ConfigureAwait(false);
+            ready = outcome.PayloadReady;
+            return outcome;
+        }
+        finally
+        {
+            bool cleanupRequested;
+            lock (_queuedStagingGate)
+                _activeQueuedStaging.Remove(staging, out cleanupRequested);
+            // Incomplete transfers and failed archive writes keep their files for retry.
+            if (cleanupRequested && ready)
+                await DeleteInstalledQueuedStagingAsync(package).ConfigureAwait(false);
+        }
+    }
+
+    internal async Task DeleteInstalledQueuedStagingAsync(GogInstallerPackage package)
+    {
+        var staging = GogInstallerArchive.GetStagingDirectory(package);
+        lock (_queuedStagingGate)
+        {
+            if (DeferQueuedStagingCleanup(staging))
+                return;
+        }
+
+        // A manual installation can also be reading the queue staging under this semaphore.
+        await _transfer.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            lock (_queuedStagingGate)
+            {
+                if (!DeferQueuedStagingCleanup(staging))
+                    GogInstallerArchive.DeleteQueuedStagingBestEffort(package);
+            }
+        }
+        finally
+        {
+            _transfer.Release();
+        }
+    }
+
+    private bool DeferQueuedStagingCleanup(string staging)
+    {
+        if (!_activeQueuedStaging.ContainsKey(staging))
+            return false;
+        _activeQueuedStaging[staging] = true;
+        return true;
     }
 
     private async Task<GogDownloadedInstallerPackage> DownloadInstallerPackageCoreAsync(

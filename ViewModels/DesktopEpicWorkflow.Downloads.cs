@@ -16,8 +16,10 @@ namespace Retromind.ViewModels;
 internal sealed partial class DesktopEpicWorkflow
 {
     private readonly SemaphoreSlim _updateCatalogGate = new(1, 1);
+    private readonly object _updateCatalogStateGate = new();
     private IReadOnlyDictionary<string, LegendaryUpdateStatus>? _updateCatalog;
     private DateTimeOffset _catalogExpires;
+    private long _catalogGeneration;
 
     internal event Action<MediaItem, string>? UpdateFound;
 
@@ -62,12 +64,27 @@ internal sealed partial class DesktopEpicWorkflow
         await _updateCatalogGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_updateCatalog != null && _catalogExpires > DateTimeOffset.UtcNow)
-                return _updateCatalog;
+            while (true)
+            {
+                ct.ThrowIfCancellationRequested();
+                long generation;
+                lock (_updateCatalogStateGate)
+                {
+                    if (_updateCatalog != null && _catalogExpires > DateTimeOffset.UtcNow)
+                        return _updateCatalog;
+                    generation = _catalogGeneration;
+                }
 
-            _updateCatalog = await _epicInstallService.GetUpdateStatusesAsync(ct).ConfigureAwait(false);
-            _catalogExpires = DateTimeOffset.UtcNow.AddMinutes(5);
-            return _updateCatalog;
+                var catalog = await _epicInstallService.GetUpdateStatusesAsync(ct).ConfigureAwait(false);
+                lock (_updateCatalogStateGate)
+                {
+                    if (generation != _catalogGeneration)
+                        continue;
+                    _updateCatalog = catalog;
+                    _catalogExpires = DateTimeOffset.UtcNow.AddMinutes(5);
+                    return catalog;
+                }
+            }
         }
         finally
         {
@@ -75,23 +92,24 @@ internal sealed partial class DesktopEpicWorkflow
         }
     }
 
-    private async Task InvalidateUpdateCatalogAsync()
+    private void InvalidateUpdateCatalog()
     {
-        await _updateCatalogGate.WaitAsync();
-        try
+        lock (_updateCatalogStateGate)
         {
+            _catalogGeneration++;
             _updateCatalog = null;
-            _catalogExpires = DateTimeOffset.MinValue;
         }
-        finally { _updateCatalogGate.Release(); }
     }
 
-    internal bool IsCurrentUpdateCatalog(IReadOnlyDictionary<string, LegendaryUpdateStatus> catalog) =>
-        ReferenceEquals(_updateCatalog, catalog);
+    internal bool IsCurrentUpdateCatalog(IReadOnlyDictionary<string, LegendaryUpdateStatus> catalog)
+    {
+        lock (_updateCatalogStateGate)
+            return ReferenceEquals(_updateCatalog, catalog);
+    }
 
     internal async Task<bool> SaveEpicInstallationAsync(MediaItem item, string appName, string version, bool repair = false)
     {
-        await InvalidateUpdateCatalogAsync();
+        InvalidateUpdateCatalog();
         return await SaveInstalledGameAsync(new InstalledGameVersion(item.Id, DownloadStore.Epic, appName,
             string.IsNullOrWhiteSpace(version) ? string.Empty : GetAvailableRevision(version), "windows",
             CompletesUnversionedUpdates: !repair));
@@ -109,6 +127,10 @@ internal sealed partial class DesktopEpicWorkflow
         if (!await HasUpdateSessionAsync(ct))
             return new(DownloadState.Failed, DownloadReason.SignIn);
         var updates = await GetQueuedUpdateCatalogAsync(ct);
+        if (!IsCurrentUpdateCatalog(updates))
+            return new(DownloadState.Queued);
+        if (IsLaunchInProgress)
+            return new(DownloadState.WaitingForGame, DownloadReason.GameActive);
         if (!updates.TryGetValue(appName, out var status))
             return new(DownloadState.Failed, DownloadReason.InstallerUnavailable);
         var targetRevision = GetAvailableRevision(status.AvailableVersion);
@@ -125,6 +147,8 @@ internal sealed partial class DesktopEpicWorkflow
             return new(DownloadState.InstallationPending, DownloadReason.EpicCombinedUpdate, ResolvedRevision: targetRevision);
 
         var estimate = await _epicInstallService.GetInstallEstimateAsync(appName, ct);
+        if (!IsCurrentUpdateCatalog(updates))
+            return new(DownloadState.Queued, ResolvedRevision: targetRevision);
         if (_epicInstallService.AssessSpace(installPath, estimate).Status != EpicInstallSpaceStatus.Sufficient)
             return new(DownloadState.WaitingForSpace, DownloadReason.InstallationSpace, ResolvedRevision: targetRevision);
         if (IsLaunchInProgress)
@@ -159,7 +183,7 @@ internal sealed partial class DesktopEpicWorkflow
                     : null);
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
-            await InvalidateUpdateCatalogAsync();
+            InvalidateUpdateCatalog();
             return new(DownloadState.Completed, await SaveData() ? DownloadReason.None : DownloadReason.SavePending);
         }
         finally

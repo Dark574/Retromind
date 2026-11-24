@@ -30,6 +30,13 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
         if (request.Job.Kind == DownloadKind.Update && revision == installedRevision)
             return new(DownloadState.Completed);
 
+        return await installer.UseQueuedStagingAsync(package,
+            () => DownloadPackageAsync(request, package, revision, installPath, gameTitle, ct)).ConfigureAwait(false);
+    }
+
+    private async Task<DownloadOutcome> DownloadPackageAsync(DownloadExecution request, GogInstallerPackage package,
+        string revision, string? installPath, string? gameTitle, CancellationToken ct)
+    {
         var offlineOnly = request.Job.Kind == DownloadKind.OfflineInstaller;
         var staging = GogInstallerArchive.GetStagingDirectory(package);
         string? archive = null;

@@ -53,6 +53,7 @@ internal sealed partial class DesktopGogWorkflow
                 IsLaunchInProgress = true;
                 var started = false;
                 var needsRedownload = false;
+                var savePending = false;
                 try
                 {
                     var operation = job.RepairRequested ? GogInstallOperation.Reinstall : GogInstallOperation.Update;
@@ -60,10 +61,12 @@ internal sealed partial class DesktopGogWorkflow
                         ? null
                         : new QueuedGogPayload(platform.Value, job.PayloadRevision!, () => needsRedownload = true);
                     var success = await InstallGogItemAsync(item, operation: operation,
-                        installationStarted: () => started = true, queuedPayload: queuedPayload);
+                        installationStarted: () => started = true, queuedPayload: queuedPayload,
+                        librarySavePending: () => savePending = true);
                     if (needsRedownload)
                         return RequireFreshPayload();
-                    return success ? new(DownloadState.Completed, PayloadReady: true)
+                    return success ? new(DownloadState.Completed,
+                            savePending ? DownloadReason.SavePending : DownloadReason.None, PayloadReady: true)
                         : started || job.RepairRequested ? new(DownloadState.RepairRequired, DownloadReason.InstallInterrupted, true)
                         : new(DownloadState.InstallationPending, DownloadReason.ManualGogInstallation, true);
                 }

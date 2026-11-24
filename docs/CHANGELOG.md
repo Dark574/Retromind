@@ -20,6 +20,8 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ### Fixed
 - allow manually starting downloaded GOG installations with DLC reinstallation while other queued downloads stay paused
 - complete matching download-manager updates after manual GOG or Epic installation, update or repair, and clear stale installation notices
+- show pending library saves after queued GOG installations and free reused download space after successful manual GOG installations
+- save completed Epic installations without waiting for background update checks
 - keep the yellow installation icon inside the cover, aligned with the blue update indicator
 - show owned GOG DLCs referenced by the game even when GOG omits them from its detailed DLC list
 - keep GOG DLC offline installers in the configured archive when the same checkbox used for the main game is checked

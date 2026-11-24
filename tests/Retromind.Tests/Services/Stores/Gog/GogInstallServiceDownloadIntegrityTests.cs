@@ -225,6 +225,65 @@ public sealed class GogInstallServiceDownloadIntegrityTests
     }
 
     [Fact]
+    public async Task DeleteInstalledQueuedStaging_RemovesOnlyInstalledRevision()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var package = CreatePackage(catalogSize: 4);
+        var installed = Directory.CreateDirectory(GogInstallerArchive.GetStagingDirectory(package)).FullName;
+        var newer = Directory.CreateDirectory(GogInstallerArchive.GetStagingDirectory(package with { Version = "new" })).FullName;
+        await File.WriteAllTextAsync(Path.Combine(installed, "setup_game.sh"), "game");
+        await File.WriteAllTextAsync(Path.Combine(newer, "setup_game.sh"), "next");
+        using var client = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("Unexpected download.")));
+
+        await CreateService(client).DeleteInstalledQueuedStagingAsync(package);
+
+        Assert.False(Directory.Exists(installed));
+        Assert.Equal("next", await File.ReadAllTextAsync(Path.Combine(newer, "setup_game.sh")));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    [InlineData(null)]
+    public async Task DeleteInstalledQueuedStaging_DefersCleanupUntilQueuedWorkSettles(bool? archiveSucceeds)
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var package = CreatePackage(catalogSize: 4);
+        var staging = Directory.CreateDirectory(GogInstallerArchive.GetStagingDirectory(package)).FullName;
+        var file = Path.Combine(staging, "setup_game.sh");
+        await File.WriteAllTextAsync(file, "game");
+        using var client = new HttpClient(new StubHandler(_ => throw new InvalidOperationException("Unexpected download.")));
+        var service = CreateService(client);
+        var archive = GogInstallerArchive.GetPackageDirectory(new(), package);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var queued = service.UseQueuedStagingAsync(package, async () =>
+        {
+            await release.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (archiveSucceeds == false)
+                return new DownloadOutcome(DownloadState.Failed, DownloadReason.ArchiveUnavailable);
+            if (archiveSucceeds == true)
+                await service.ArchiveQueuedPackageAsync(package, archive, new(staging, file, [file]), CancellationToken.None);
+            return new DownloadOutcome(DownloadState.Completed, PayloadReady: true);
+        });
+
+        try
+        {
+            await service.DeleteInstalledQueuedStagingAsync(package).WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(File.Exists(file));
+        }
+        finally
+        {
+            release.TrySetResult();
+            await queued.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+
+        Assert.Equal(archiveSucceeds == false, File.Exists(file));
+        Assert.Equal(archiveSucceeds == true, File.Exists(Path.Combine(archive, "setup_game.sh")));
+    }
+
+    [Fact]
     public async Task RequireCachedPayload_DoesNotDownloadMissingOrCorruptInstallerBytes()
     {
         using var temp = new TemporaryDirectory();

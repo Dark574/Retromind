@@ -59,7 +59,7 @@ internal sealed partial class DesktopEpicWorkflow
                 try
                 {
                     status = await _epicInstallService.GetUpdateStatusAsync(appName);
-                    _catalogExpires = DateTimeOffset.MinValue;
+                    InvalidateUpdateCatalog();
                 }
                 finally
                 {

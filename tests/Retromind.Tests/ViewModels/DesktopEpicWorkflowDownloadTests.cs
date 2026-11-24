@@ -105,11 +105,60 @@ public sealed class DesktopEpicWorkflowDownloadTests
         Assert.False(after["FixtureEpic"].IsUpdateAvailable);
     }
 
+    [Fact]
+    public async Task SaveInstallation_CompletesWhileCatalogQueryIsRunningAndDiscardsItsOldSnapshot()
+    {
+        using var temp = new TemporaryDirectory();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var querying = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var runner = new CurrentGameRunner(temp.GetPath("game"), "3")
+        {
+            DelayFirstCatalog = async ct =>
+            {
+                querying.TrySetResult();
+                await release.Task.WaitAsync(ct);
+            }
+        };
+        var cli = new LegendaryCliClient(runner);
+        var provider = new EpicProvider(cli, new EpicLibraryService(cli));
+        var root = new MediaNode("Games");
+        var item = new MediaItem("Fixture");
+        root.Items.Add(item);
+        var saves = 0;
+        var workspace = new DesktopStoreWorkspace(new(), () => null, () => null, () => [root],
+            () => false, () => false, _ => { }, _ => root, _ => null,
+            () => { saves++; return Task.FromResult(true); },
+            () => { }, () => { }, () => { }, _ => Task.CompletedTask, (_, _) => Task.CompletedTask);
+        var workflow = new DesktopEpicWorkflow(workspace, provider, provider,
+            new EpicInstallService(cli, new RecordingErrorService()), new EpicLaunchService(cli));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        var pending = workflow.GetQueuedUpdateCatalogAsync(timeout.Token);
+
+        try
+        {
+            await querying.Task.WaitAsync(timeout.Token);
+            runner.InstalledVersion = "3";
+            Assert.True(await workflow.SaveEpicInstallationAsync(item, "FixtureEpic", "3").WaitAsync(timeout.Token));
+            Assert.Equal(1, saves);
+            Assert.False(pending.IsCompleted);
+        }
+        finally
+        {
+            release.TrySetResult();
+        }
+
+        var catalog = await pending.WaitAsync(timeout.Token);
+        Assert.Equal(new LegendaryUpdateStatus("3", "3", false), catalog["FixtureEpic"]);
+        Assert.True(workflow.IsCurrentUpdateCatalog(catalog));
+        Assert.Same(catalog, await workflow.GetQueuedUpdateCatalogAsync(timeout.Token));
+    }
+
     private sealed class CurrentGameRunner(string installPath, string availableVersion = "2") : ILegendaryCliProcessRunner
     {
         internal string InstalledVersion { get; set; } = "2";
+        internal Func<CancellationToken, Task>? DelayFirstCatalog { get; set; }
 
-        public Task<LegendaryCliResult> RunAsync(LegendaryCliCommand command, CancellationToken ct = default)
+        public async Task<LegendaryCliResult> RunAsync(LegendaryCliCommand command, CancellationToken ct = default)
         {
             var output = command.Arguments[0] switch
             {
@@ -121,7 +170,12 @@ public sealed class DesktopEpicWorkflowDownloadTests
                 }),
                 _ => throw new InvalidOperationException("Unexpected Legendary command.")
             };
-            return Task.FromResult(new LegendaryCliResult(0, output, string.Empty));
+            if (command.Arguments[0] == "list-installed" && DelayFirstCatalog is { } delay)
+            {
+                DelayFirstCatalog = null;
+                await delay(ct);
+            }
+            return new LegendaryCliResult(0, output, string.Empty);
         }
     }
 }
