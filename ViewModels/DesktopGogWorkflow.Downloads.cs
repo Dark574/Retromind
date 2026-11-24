@@ -81,4 +81,10 @@ internal sealed partial class DesktopGogWorkflow
 
     private static DownloadOutcome RequireFreshPayload() =>
         new(DownloadState.Queued, DownloadReason.GogPayloadChanged, RedownloadRequired: true);
+
+    internal Task<bool> SaveGogInstallationAsync(MediaItem item, GogInstallerPackage package,
+        GogInstallPlatform? previousPlatform) =>
+        SaveInstalledGameAsync(new InstalledGameVersion(item.Id, DownloadStore.Gog, package.GameId,
+            GogInstallerArchive.GetRevision(package), GogInstallerArchive.GetPlatformName(package.Platform),
+            previousPlatform.HasValue ? GogInstallerArchive.GetPlatformName(previousPlatform.Value) : null));
 }

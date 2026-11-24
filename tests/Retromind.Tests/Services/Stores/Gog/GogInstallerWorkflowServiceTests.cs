@@ -195,6 +195,47 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.True(Directory.Exists(stagingPath));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunAsync_ManualUpdateAndCleanReinstallReuseTheQueuedInstaller(bool cleanInstall)
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var installPath = temp.CreateDirectory("Library", "Games", "Queued Game");
+        var source = CreateInstallerScript(temp.CreateDirectory("source"));
+        var package = new GogInstallerPackage("123", GogInstallPlatform.Linux, "Queued Game", "2.0",
+            [new GogInstallerDownloadFile("https://invalid.example/installer.sh", "installer.sh", new FileInfo(source).Length)]);
+        var cache = Directory.CreateDirectory(GogInstallerArchive.GetStagingDirectory(package)).FullName;
+        File.Copy(source, Path.Combine(cache, "installer.sh"));
+        var staging = Path.Combine(installPath, ".retromind-gog-installers", "123", "linux");
+        var oldFile = Path.Combine(installPath, "old-game.bin");
+        File.WriteAllText(oldFile, "old");
+        using var client = new HttpClient(new RejectDownloadsHandler());
+        var service = CreateService(temp.RootPath, client);
+        var item = new MediaItem("Queued Game") { Id = "queued-game" };
+        item.CustomFields["Store.ProviderId"] = "gog";
+        item.CustomFields["Store.GameId"] = "123";
+        GogInstallDirectorySafety.WriteMarker(installPath, item);
+
+        var result = await service.RunAsync(new GogInstallerWorkflowRequest(
+                item, "123", installPath,
+                GogInstallPlatform.Linux, package, staging, GogWindowsInstallerPreference.AutoPrefer64,
+                false, false, cleanInstall, UseTemporaryLinuxDestination: true, RequireLinuxPayloadChange: true),
+            _ => { });
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
+        Assert.Equal(!cleanInstall, File.Exists(oldFile));
+        Assert.Equal(File.ReadAllBytes(source), File.ReadAllBytes(result.DownloadedPackage!.EntryFilePath));
+    }
+
+    private sealed class RejectDownloadsHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
+            throw new InvalidOperationException("The queued installer must be reused without network transfers.");
+    }
+
     private static string CreateInstallerScript(string stagingPath)
     {
         var path = Path.Combine(stagingPath, "installer.sh");
@@ -222,14 +263,14 @@ public sealed class GogInstallerWorkflowServiceTests
         return path;
     }
 
-    private static GogInstallerWorkflowService CreateService(string rootPath)
+    private static GogInstallerWorkflowService CreateService(string rootPath, HttpClient? downloads = null)
     {
         var installService = new GogInstallService(
             new GogAuthService(
                 new InMemorySecretStore(),
                 new GogOAuthClient(new HttpClient()),
                 new GogPkceService(), new RecordingErrorService()),
-            new HttpClient());
+            downloads ?? new HttpClient());
         var executionService = new GogInstallerExecutionService(
             new GogInstallerProcessService(),
             Path.Combine(rootPath, "Library"));

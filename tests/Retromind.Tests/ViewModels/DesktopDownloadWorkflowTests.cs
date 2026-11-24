@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.Extensions.DependencyInjection;
 using Retromind.Helpers;
 using Retromind.Models;
@@ -6,6 +8,7 @@ using Retromind.Models.Stores;
 using Retromind.Services;
 using Retromind.Services.Downloads;
 using Retromind.Services.Stores.Epic.Legendary;
+using Retromind.Services.Stores.Gog;
 using Retromind.Tests.TestInfrastructure;
 using Retromind.ViewModels;
 
@@ -123,6 +126,76 @@ public sealed class DesktopDownloadWorkflowTests
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = path;
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPlatform] = "linux";
         return item;
+    }
+
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public async Task ConfirmedManualInstallation_CompletesTheProviderQueueAndClearsThePendingBadge(bool isEpic, bool saveSucceeds)
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")), ("APPDIR", null));
+        var settings = new AppSettings();
+        var errors = new RecordingErrorService();
+        var path = temp.GetPath("downloads.json");
+        var providerId = isEpic ? StoreProviderIds.Epic : StoreProviderIds.Gog;
+        var storeKind = isEpic ? DownloadStore.Epic : DownloadStore.Gog;
+        var game = Game(providerId, "game-id", temp);
+        var package = new GogInstallerPackage("game-id", GogInstallPlatform.Linux, "Game", "2", []);
+        var revision = isEpic ? Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes("2")))
+            : GogInstallerArchive.GetRevision(package);
+        var job = new DownloadJob(Guid.NewGuid(), game.Id, storeKind, DownloadKind.Update, revision,
+            false, false, false, DownloadState.InstallationPending, PayloadReady: !isEpic, StoreGameId: "game-id");
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([job]);
+        }
+        var manager = new DownloadManagerService(path, errors, TimeProvider.System);
+        var services = new ServiceCollection();
+        services.AddSingleton(settings);
+        services.AddSingleton<SettingsService>();
+        App.ConfigureServices(services);
+        services.AddSingleton(manager);
+        using var provider = services.BuildServiceProvider();
+        var root = new MediaNode("Games") { Items = [game] };
+        var saves = 0;
+        var workspace = new DesktopStoreWorkspace(settings, () => null, () => null, () => [root],
+            () => false, () => true, _ => { }, _ => root, _ => null,
+            () =>
+            {
+                // The queue must not report success before the library-save outcome is known.
+                Assert.Equal(DownloadState.InstallationPending, Assert.Single(manager.Snapshot()).Job.State);
+                saves++;
+                return Task.FromResult(saveSucceeds);
+            },
+            () => { }, () => { }, () => { }, _ => Task.CompletedTask, (_, _) => Task.CompletedTask);
+        var (gog, epic, downloads) = provider.GetRequiredService<DesktopStoreWorkflowFactory>().Create(workspace);
+        try
+        {
+            await AvaloniaTestDispatcher.InvokeAsync(_ => downloads.Start());
+            Assert.Equal(!isEpic, manager.GetQueueStatus().PendingGogInstallations.Count > 0);
+
+            var saved = isEpic ? await epic.SaveEpicInstallationAsync(game, "game-id", "2")
+                : await gog.SaveGogInstallationAsync(game, package, GogInstallPlatform.Linux);
+
+            Assert.Equal(saveSucceeds, saved);
+            Assert.Equal(1, saves);
+            var completed = Assert.Single(manager.Snapshot()).Job;
+            Assert.Equal(DownloadState.Completed, completed.State);
+            Assert.Equal(saveSucceeds ? DownloadReason.None : DownloadReason.SavePending, completed.Reason);
+            Assert.Empty(manager.GetQueueStatus().PendingGogInstallations);
+        }
+        finally
+        {
+            await UiThreadHelper.InvokeAsync(downloads.StopAsync).WaitAsync(TimeSpan.FromSeconds(5));
+            downloads.Release();
+        }
+        using var restored = new DownloadQueueStore(path);
+        Assert.Equal(DownloadState.Completed, Assert.Single(restored.Load()).State);
+        Assert.Empty(errors.Reports);
     }
 
     private sealed class NoonClock : TimeProvider

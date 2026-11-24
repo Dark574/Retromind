@@ -245,6 +245,8 @@ internal sealed partial class DesktopEpicWorkflow
                 item.CustomFields.Remove(CustomFieldKeyHelper.StoreInstalledVersion);
             else
                 item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = installed.Version;
+            if (!string.IsNullOrWhiteSpace(installed.Version))
+                SetEpicUpdateAvailability(item, available: false);
 
             try
             {
@@ -262,7 +264,7 @@ internal sealed partial class DesktopEpicWorkflow
 
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
-            if (!await SaveData())
+            if (!await SaveEpicInstallationAsync(item, appName, installed.Version))
             {
                 AppendProcessLog(progressVm, OperationSavePendingMessage());
                 return true; // Physical success; keep the editor's launch configuration in sync.

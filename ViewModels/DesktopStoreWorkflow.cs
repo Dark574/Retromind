@@ -8,6 +8,7 @@ using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Retromind.Helpers;
 using Retromind.Models;
+using Retromind.Services.Downloads;
 using Retromind.Services.Stores;
 using Retromind.Views;
 
@@ -45,6 +46,15 @@ internal abstract class DesktopStoreWorkflow(DesktopStoreWorkspace workspace)
     }
 
     protected Task<bool> SaveData() => Workspace.SaveLibraryAsync();
+    internal event Action<InstalledGameVersion, bool>? InstallationCompleted;
+
+    protected async Task<bool> SaveInstalledGameAsync(InstalledGameVersion installed)
+    {
+        var saved = await SaveData();
+        InstallationCompleted?.Invoke(installed, saved);
+        return saved;
+    }
+
     protected void NotifyPlayAvailabilityChanged() => Workspace.RefreshActions();
     protected Task RefreshItemPresentationAsync(MediaNode node) => Workspace.RefreshItemAsync(node);
 

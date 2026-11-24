@@ -1131,6 +1131,13 @@ the report never mutates JSON or deletes files.
 - The desktop download workflow binds the central queue to library IDs, store workflows, settings,
   and the existing game-session guard. `DownloadManagerService` owns queue transitions, timing,
   cancellation and recovery. The download view displays snapshots and submits commands.
+  Confirmed base-game installation/update/reinstall results from both store workflows also reconcile matching
+  update jobs through the download workflow. Matching uses item/store identity, platform and installed revision;
+  offline-installer jobs and different target versions remain untouched. In-flight preflights cannot install
+  the same version again, and transfers reconcile only after their actual target revision is known. Queue
+  installers retain ownership of their own outcome. Physical success with unsaved library metadata retains
+  the existing `SavePending` result. Manual Epic maintenance invalidates the shared catalog; background sweeps
+  discard catalogs invalidated by a completed installation.
   See [Download manager and GOG depot investigation](download-manager.md).
 - `GogUpdateCheckService` owns the background sweep, per-item check gate, and silent authentication cache. It
   compares installed snapshots with the remote base-game and DLC packages. The GOG desktop workflow captures

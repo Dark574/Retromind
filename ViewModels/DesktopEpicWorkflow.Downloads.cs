@@ -75,6 +75,28 @@ internal sealed partial class DesktopEpicWorkflow
         }
     }
 
+    private async Task InvalidateUpdateCatalogAsync()
+    {
+        await _updateCatalogGate.WaitAsync();
+        try
+        {
+            _updateCatalog = null;
+            _catalogExpires = DateTimeOffset.MinValue;
+        }
+        finally { _updateCatalogGate.Release(); }
+    }
+
+    internal bool IsCurrentUpdateCatalog(IReadOnlyDictionary<string, LegendaryUpdateStatus> catalog) =>
+        ReferenceEquals(_updateCatalog, catalog);
+
+    internal async Task<bool> SaveEpicInstallationAsync(MediaItem item, string appName, string version, bool repair = false)
+    {
+        await InvalidateUpdateCatalogAsync();
+        return await SaveInstalledGameAsync(new InstalledGameVersion(item.Id, DownloadStore.Epic, appName,
+            string.IsNullOrWhiteSpace(version) ? string.Empty : GetAvailableRevision(version), "windows",
+            CompletesUnversionedUpdates: !repair));
+    }
+
     internal async Task<DownloadOutcome> RunQueuedUpdateAsync(MediaItem item, DownloadExecution execution, CancellationToken ct)
     {
         // This part runs through the desktop's UI dispatcher. Claim the same guard as manual
@@ -89,6 +111,7 @@ internal sealed partial class DesktopEpicWorkflow
         var updates = await GetQueuedUpdateCatalogAsync(ct);
         if (!updates.TryGetValue(appName, out var status))
             return new(DownloadState.Failed, DownloadReason.InstallerUnavailable);
+        var targetRevision = GetAvailableRevision(status.AvailableVersion);
         if (!execution.Job.RepairRequested && !status.IsUpdateAvailable)
         {
             if (!ApplyEpicUpdateCheckMetadata(item, status))
@@ -99,13 +122,13 @@ internal sealed partial class DesktopEpicWorkflow
             return new(DownloadState.Completed, await SaveData() ? DownloadReason.None : DownloadReason.SavePending);
         }
         if (!execution.MayInstall)
-            return new(DownloadState.InstallationPending, DownloadReason.EpicCombinedUpdate);
+            return new(DownloadState.InstallationPending, DownloadReason.EpicCombinedUpdate, ResolvedRevision: targetRevision);
 
         var estimate = await _epicInstallService.GetInstallEstimateAsync(appName, ct);
         if (_epicInstallService.AssessSpace(installPath, estimate).Status != EpicInstallSpaceStatus.Sufficient)
-            return new(DownloadState.WaitingForSpace, DownloadReason.InstallationSpace);
+            return new(DownloadState.WaitingForSpace, DownloadReason.InstallationSpace, ResolvedRevision: targetRevision);
         if (IsLaunchInProgress)
-            return new(DownloadState.WaitingForGame, DownloadReason.GameActive);
+            return new(DownloadState.WaitingForGame, DownloadReason.GameActive, ResolvedRevision: targetRevision);
         if (!TryGetQueuedUpdateLocation(item, out var currentApp, out var currentPath) ||
             currentApp != appName || !FileSystemPathIdentity.Equals(currentPath, installPath))
             return new(DownloadState.Failed, DownloadReason.UnsafeDirectory);
@@ -113,7 +136,7 @@ internal sealed partial class DesktopEpicWorkflow
             return new(DownloadState.Failed, DownloadReason.GameUnavailable);
         ct.ThrowIfCancellationRequested();
         if (!execution.BeginInstallation())
-            return new(DownloadState.InstallationPending, DownloadReason.EpicCombinedUpdate);
+            return new(DownloadState.InstallationPending, DownloadReason.EpicCombinedUpdate, ResolvedRevision: targetRevision);
 
         IsLaunchInProgress = true;
         try
@@ -136,9 +159,7 @@ internal sealed partial class DesktopEpicWorkflow
                     : null);
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
-            await _updateCatalogGate.WaitAsync();
-            try { _catalogExpires = DateTimeOffset.MinValue; }
-            finally { _updateCatalogGate.Release(); }
+            await InvalidateUpdateCatalogAsync();
             return new(DownloadState.Completed, await SaveData() ? DownloadReason.None : DownloadReason.SavePending);
         }
         finally

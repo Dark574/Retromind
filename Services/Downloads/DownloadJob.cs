@@ -29,7 +29,13 @@ internal sealed record DownloadJob(
 
 internal readonly record struct DownloadProgress(long Bytes, long? Total, double? BytesPerSecond = null, double? Fraction = null);
 internal readonly record struct DownloadOutcome(DownloadState State, DownloadReason Reason = DownloadReason.None,
-    bool PayloadReady = false, string? PayloadRevision = null, bool RedownloadRequired = false);
+    bool PayloadReady = false, string? PayloadRevision = null, bool RedownloadRequired = false,
+    string? ResolvedRevision = null);
+
+// A confirmed base-game installation, including manual update/reinstall/repair flows.
+// PreviousPlatform identifies the platform of queue entries that inherit it from the item.
+internal sealed record InstalledGameVersion(string ItemId, DownloadStore Store, string StoreGameId,
+    string Revision, string Platform, string? PreviousPlatform = null, bool CompletesUnversionedUpdates = true);
 internal enum DownloadAction { Start, Pause, Resume, Cancel, Retry, Earlier, Later, Install, Repair, Remove, DiscardRepair }
 
 internal sealed record DownloadExecution(

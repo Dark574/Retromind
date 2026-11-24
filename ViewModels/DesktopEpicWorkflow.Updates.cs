@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
@@ -251,11 +252,12 @@ internal sealed partial class DesktopEpicWorkflow
                 installed.InstallPath,
                 Workspace.Settings.PreferPortableLaunchPaths);
             item.CustomFields[CustomFieldKeyHelper.StoreInstalledVersion] = installed.Version;
-            if (!isRepair)
+            if (!isRepair || !string.IsNullOrWhiteSpace(installed.Version) &&
+                item.CustomFields.GetValueOrDefault(CustomFieldKeyHelper.StoreAvailableRevision) == GetAvailableRevision(installed.Version))
                 SetEpicUpdateAvailability(item, available: false);
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
-            if (!await SaveData())
+            if (!await SaveEpicInstallationAsync(item, appName, installed.Version, repair: isRepair))
             {
                 AppendProcessLog(progressVm, OperationSavePendingMessage());
                 return true; // The completed update/repair and its launch configuration are retained.

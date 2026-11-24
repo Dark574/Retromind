@@ -679,6 +679,193 @@ public sealed class DownloadManagerTests
         manager.Release();
     }
 
+    [Theory]
+    [InlineData((int)DownloadStore.Gog, (int)DownloadState.InstallationPending, true)]
+    [InlineData((int)DownloadStore.Epic, (int)DownloadState.InstallationPending, true)]
+    [InlineData((int)DownloadStore.Gog, (int)DownloadState.RepairRequired, true)]
+    [InlineData((int)DownloadStore.Epic, (int)DownloadState.RepairRequired, true)]
+    [InlineData((int)DownloadStore.Gog, (int)DownloadState.Paused, true)]
+    [InlineData((int)DownloadStore.Epic, (int)DownloadState.Queued, true)]
+    [InlineData((int)DownloadStore.Gog, (int)DownloadState.Failed, false)]
+    public async Task ManualInstallation_CompletesOnlyMatchingUpdatesAndPersistsTheResult(
+        int providerValue, int stateValue, bool librarySaved)
+    {
+        var provider = (DownloadStore)providerValue;
+        var state = (DownloadState)stateValue;
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var revision = new string('A', 64);
+        var job = Job("game", state) with
+        {
+            Store = provider, StoreGameId = "store-game", Revision = revision, Platform = "windows",
+            PayloadReady = provider == DownloadStore.Gog, InstallRequested = true,
+            RepairRequested = true, OverrideWindow = true
+        };
+        var unrelated = new[]
+        {
+            job with { Id = Guid.NewGuid(), Revision = new string('B', 64) },
+            job with { Id = Guid.NewGuid(), StoreGameId = "other-game" },
+            job with { Id = Guid.NewGuid(), ItemId = "other-item" },
+            job with { Id = Guid.NewGuid(), Platform = "linux" },
+            job with { Id = Guid.NewGuid(), Store = provider == DownloadStore.Gog ? DownloadStore.Epic : DownloadStore.Gog },
+            job with { Id = Guid.NewGuid(), State = DownloadState.Cancelled, InstallRequested = false },
+            job with { Id = Guid.NewGuid(), State = DownloadState.Completed }
+        };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([job, .. unrelated]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException("Automatic updates are disabled."));
+        var before = manager.Snapshot().Select(row => row.Job).ToArray();
+        try
+        {
+            manager.CompleteInstalledUpdate(new("game", provider, "store-game", revision, "windows"), librarySaved);
+
+            var completed = manager.Snapshot()[0].Job;
+            Assert.Equal(DownloadState.Completed, completed.State);
+            Assert.Equal(librarySaved ? DownloadReason.None : DownloadReason.SavePending, completed.Reason);
+            Assert.False(completed.InstallRequested || completed.RepairRequested || completed.OverrideWindow);
+            Assert.Equal(before.Skip(1), manager.Snapshot().Skip(1).Select(row => row.Job));
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+
+        using var restored = new DownloadQueueStore(path);
+        Assert.Equal(DownloadState.Completed, restored.Load()[0].State);
+    }
+
+    [Fact]
+    public async Task ManualInstallation_PreservesOtherPlatformsAndOfflineInstallerJobs()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var revision = new string('A', 64);
+        var pending = Job("game", DownloadState.InstallationPending) with { Revision = revision, PayloadReady = true };
+        var offline = pending with { Id = Guid.NewGuid(), Kind = DownloadKind.OfflineInstaller, Platform = "linux" };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([pending, offline]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException());
+        try
+        {
+            manager.CompleteInstalledUpdate(new("game", DownloadStore.Gog, "store-game", revision, "linux", "windows"), true);
+            Assert.Equal([pending, offline], manager.Snapshot().Select(row => row.Job));
+            Assert.NotEmpty(manager.GetQueueStatus().PendingGogInstallations);
+
+            manager.CompleteInstalledUpdate(new("game", DownloadStore.Gog, "store-game", revision, "windows", "windows"), true);
+            Assert.Equal(DownloadState.Completed, manager.Snapshot()[0].Job.State);
+            Assert.Equal(offline, manager.Snapshot()[1].Job);
+            Assert.Empty(manager.GetQueueStatus().PendingGogInstallations);
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ManualInstallation_DuringDownloadReconcilesItsActualPayloadRevision(bool isEpic, bool newerPayload)
+    {
+        using var temp = new TemporaryDirectory();
+        var revision = new string('A', 64);
+        var downloadedRevision = newerPayload ? new string('B', 64) : revision;
+        var reason = isEpic ? DownloadReason.EpicCombinedUpdate : DownloadReason.ManualGogInstallation;
+        var manager = new DownloadManagerService(temp.GetPath("downloads.json"), new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var finish = Signal();
+        var settled = Signal();
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot() is [{ Job.State: DownloadState.Completed or DownloadState.InstallationPending }])
+                settled.TrySetResult();
+        };
+        manager.Start(new(), async (execution, _) =>
+        {
+            entered.TrySetResult();
+            await finish.Task;
+            // A preflight that was overtaken by a manual install must not install again.
+            Assert.False(execution.BeginInstallation());
+            return new(DownloadState.InstallationPending, reason,
+                PayloadReady: !isEpic, PayloadRevision: isEpic ? null : downloadedRevision,
+                ResolvedRevision: isEpic ? downloadedRevision : null);
+        });
+        try
+        {
+            var store = isEpic ? DownloadStore.Epic : DownloadStore.Gog;
+            Assert.True(manager.Enqueue("game", store, DownloadKind.Update, revision, storeGameId: "store-game"));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            manager.CompleteInstalledUpdate(new("game", store, "store-game", revision, "windows"), false);
+            finish.TrySetResult();
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var result = Assert.Single(manager.Snapshot()).Job;
+            Assert.Equal(downloadedRevision, result.Revision);
+            Assert.Equal(newerPayload ? DownloadState.InstallationPending : DownloadState.Completed, result.State);
+            Assert.Equal(newerPayload ? reason : DownloadReason.SavePending, result.Reason);
+            Assert.Equal(!isEpic && newerPayload, manager.GetQueueStatus().PendingGogInstallations.Count > 0);
+        }
+        finally { finish.TrySetResult(); await manager.StopAsync(); manager.Release(); }
+    }
+
+    [Fact]
+    public async Task ManualInstallation_DoesNotClaimCompletionWhenQueueCannotBeSaved()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var revision = new string('A', 64);
+        var pending = Job("game", DownloadState.InstallationPending) with { Revision = revision, PayloadReady = true };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([pending]);
+        }
+        var errors = new RecordingErrorService();
+        var manager = new DownloadManagerService(path, errors, TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException());
+        try
+        {
+            File.Delete(path);
+            Directory.CreateDirectory(path);
+            manager.CompleteInstalledUpdate(new("game", DownloadStore.Gog, "store-game", revision, "windows"), true);
+
+            Assert.True(manager.PersistenceFailed);
+            Assert.Equal(pending, Assert.Single(manager.Snapshot()).Job);
+            Assert.NotEmpty(manager.GetQueueStatus().PendingGogInstallations);
+            Assert.Contains(errors.Reports, report => report.Code == "Downloads.QueueUnavailable");
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ManualInstallation_UnversionedUpdatesAreCompletedByInstallOrUpdateButNotAnUnverifiedRepair(bool repair)
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var pending = Job("game", DownloadState.InstallationPending) with { Store = DownloadStore.Epic };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([pending]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException());
+        try
+        {
+            manager.CompleteInstalledUpdate(new("game", DownloadStore.Epic, "game-id", new string('A', 64),
+                "windows", CompletesUnversionedUpdates: !repair), true);
+            var result = Assert.Single(manager.Snapshot()).Job;
+            Assert.Equal(repair ? DownloadState.InstallationPending : DownloadState.Completed, result.State);
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+    }
+
     private static DownloadJob Job(string id, DownloadState state) => new(Guid.NewGuid(), id, DownloadStore.Gog,
         DownloadKind.Update, "", true, false, false, state);
 

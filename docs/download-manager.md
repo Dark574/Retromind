@@ -7,6 +7,15 @@ Linux offline installer for the archive. Use **Start now** to override the curre
 window for one job. Use **Install** to approve an update that is pending. The existing store
 dialogs handle first-time installations and separate DLC maintenance.
 
+GOG and Epic installation, update and maintenance actions from the game context menu or editor also
+complete matching update jobs after success. GOG reuses verified installer files from queue staging or
+the archive, including for a clean reinstall. Matching uses the store game, platform and installed version;
+a different queued version or an offline-installer archive request stays in the list. Epic records the
+target version when checking a queued update. Older unversioned update jobs can be completed by a successful
+installation/update, while a repair alone does not establish that an unknown update target was installed.
+Cancelled or failed manual operations do not dismiss pending jobs. If the installation succeeds but the
+library cannot be saved, the completed job retains a notice that the library save is pending.
+
 **Pause all downloads** suspends active transfers and holds new jobs in the queue while
 Retromind is open. Closing the download manager window keeps the pause in effect. **Resume download
 queue** restores normal scheduling and keeps individually paused jobs paused. An installation

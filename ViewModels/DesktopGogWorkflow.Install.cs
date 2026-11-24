@@ -408,7 +408,7 @@ internal sealed partial class DesktopGogWorkflow
 
             Workspace.MarkLibraryDirty();
             NotifyPlayAvailabilityChanged();
-            if (!await SaveData())
+            if (!await SaveGogInstallationAsync(item, selectedInstallerPackage, preferredPlatform))
             {
                 AppendProcessLog(progressLogVm, OperationSavePendingMessage());
                 return true; // Physical success; preserve staging while metadata is unsaved.

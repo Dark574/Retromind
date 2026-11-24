@@ -65,6 +65,54 @@ public sealed class DownloadManagerService
             return _jobs.Select(job => (job, _progress.GetValueOrDefault(job.Id))).ToArray();
     }
 
+    internal void CompleteInstalledUpdate(InstalledGameVersion installed, bool librarySaved)
+    {
+        lock (_gate)
+        {
+            if (!_loaded || _persistenceFailed || string.IsNullOrWhiteSpace(installed.Revision))
+                return;
+
+            var next = _jobs.Select(job =>
+            {
+                if (job.Kind != DownloadKind.Update || IsHistory(job.State) ||
+                    job.ItemId != installed.ItemId || job.Store != installed.Store ||
+                    job.StoreGameId != null && job.StoreGameId != installed.StoreGameId ||
+                    !MatchesInstalledRevision(job, installed) ||
+                    (job.Platform ?? installed.PreviousPlatform ?? installed.Platform) != installed.Platform)
+                    return job;
+
+                if (_active is { } active && active.Id == job.Id)
+                {
+                    // A queued installer owns its own result. For a transfer/preflight, wait
+                    // for its actual payload revision before reconciling: GOG may serve a newer package.
+                    if (!active.Installing)
+                        active.InstalledVersion = (installed, librarySaved);
+                    return job;
+                }
+
+                return CompleteJob(job, installed, librarySaved);
+            }).ToList();
+
+            if (!_jobs.SequenceEqual(next) && Save(next))
+                foreach (var job in next.Where(job => job.State == DownloadState.Completed))
+                    _blockedUntil.Remove(job.Id);
+        }
+    }
+
+    private static bool MatchesInstalledRevision(DownloadJob job, InstalledGameVersion installed) =>
+        job.Revision == installed.Revision ||
+        job.Revision.Length == 0 && job.PayloadRevision == null && installed.CompletesUnversionedUpdates;
+
+    private static DownloadJob CompleteJob(DownloadJob job, InstalledGameVersion installed, bool librarySaved) => job with
+    {
+        State = DownloadState.Completed,
+        Revision = installed.Revision,
+        Reason = librarySaved ? DownloadReason.None : DownloadReason.SavePending,
+        InstallRequested = false,
+        RepairRequested = false,
+        OverrideWindow = false
+    };
+
     internal void Start(DownloadSettings? settings, ExecuteDownloadAsync execute,
         IEnumerable<string>? excludedItemIds = null)
     {
@@ -437,10 +485,15 @@ public sealed class DownloadManagerService
                 {
                     PayloadReady = finished.PayloadReady || outcome.PayloadReady,
                     PayloadRevision = outcome.PayloadRevision ?? finished.PayloadRevision,
-                    Revision = job.Kind == DownloadKind.Update ? outcome.PayloadRevision ?? finished.Revision : finished.Revision
+                    Revision = job.Kind == DownloadKind.Update
+                        ? outcome.ResolvedRevision ?? outcome.PayloadRevision ?? finished.Revision
+                        : finished.Revision
                 };
             }
             finished = ApplyAutomaticUpdateExclusion(finished);
+            if (active.InstalledVersion is { } installation && !outcome.RedownloadRequired &&
+                finished.State != DownloadState.Cancelled && MatchesInstalledRevision(finished, installation.Version))
+                finished = CompleteJob(finished, installation.Version, installation.LibrarySaved);
             if (finished is { State: DownloadState.InstallationPending, InstallRequested: true })
                 finished = RestorePendingInstallation(finished);
             if (finished.State is DownloadState.WaitingForSpace or DownloadState.WaitingForGame)
@@ -477,6 +530,7 @@ public sealed class DownloadManagerService
         lock (_gate)
         {
             if (_queuePaused || _stopping || _persistenceFailed || active.InterruptedJob != null || token.IsCancellationRequested ||
+                active.InstalledVersion is { } installed && MatchesInstalledRevision(job, installed.Version) ||
                 job.Automatic && (_settings.AutomaticUpdates != AutomaticUpdateMode.DownloadAndInstall ||
                                   _automaticUpdateExclusions.Contains(job.ItemId)) ||
                 job.Store == DownloadStore.Epic && !job.OverrideWindow && !IsWindowOpen(_settings))
@@ -641,6 +695,7 @@ public sealed class DownloadManagerService
         internal DownloadJob Job { get; } = job;
         internal Guid Id => Job.Id;
         internal bool Installing { get; set; }
+        internal (InstalledGameVersion Version, bool LibrarySaved)? InstalledVersion { get; set; }
         internal DownloadJob? InterruptedJob { get; set; }
         internal DateTimeOffset LastNotification { get; set; } = DateTimeOffset.MinValue;
     }

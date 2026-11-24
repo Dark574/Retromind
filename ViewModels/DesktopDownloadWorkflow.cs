@@ -36,6 +36,8 @@ internal sealed partial class DesktopDownloadWorkflow(
         manager.Start(settings, ExecuteAsync, AllItems().Where(IsExcluded).Select(item => item.Id));
         gog.UpdateFound += EnqueueKnownUpdate;
         epic.UpdateFound += EnqueueKnownUpdate;
+        gog.InstallationCompleted += manager.CompleteInstalledUpdate;
+        epic.InstallationCompleted += manager.CompleteInstalledUpdate;
         StartChecks();
     }
 
@@ -92,6 +94,8 @@ internal sealed partial class DesktopDownloadWorkflow(
         _running = false;
         gog.UpdateFound -= EnqueueKnownUpdate;
         epic.UpdateFound -= EnqueueKnownUpdate;
+        gog.InstallationCompleted -= manager.CompleteInstalledUpdate;
+        epic.InstallationCompleted -= manager.CompleteInstalledUpdate;
         var stopJobs = manager.StopAsync();
         var stopGog = gog.StopBackgroundChecksAsync();
         _checkCancellation?.Cancel();
@@ -124,6 +128,8 @@ internal sealed partial class DesktopDownloadWorkflow(
                             var incomplete = false;
                             if (!IsAutoEnabled || ct.IsCancellationRequested)
                                 return false;
+                            if (workspace.GetOperationInProgress() || !epic.IsCurrentUpdateCatalog(statuses))
+                                return true;
                             foreach (var item in AllItems())
                             {
                                 if (IsExcluded(item) || !EpicMediaItemStateHelper.CanCheckUpdates(item) ||
