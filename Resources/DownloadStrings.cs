@@ -17,7 +17,7 @@ public static class DownloadStrings
     public static string Resume => Get("Resume", "Resume");
     public static string PauseQueue => Get("PauseQueue", "Pause all downloads");
     public static string ResumeQueue => Get("ResumeQueue", "Resume download queue");
-    public static string QueuePauseHint => Get("QueuePauseHint", "Installations already in progress finish even when the queue is paused.");
+    public static string QueuePauseHint => Get("QueuePauseHint", "Other queued downloads stay paused. You can manually start prepared GOG installations, including required DLC downloads. Epic updates and repairs require resuming the queue. Installations already in progress finish.");
     public static string Cancel => Get("Cancel", "Cancel");
     public static string Retry => Get("Retry", "Retry");
     public static string Install => Get("Install", "Install");

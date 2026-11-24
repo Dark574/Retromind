@@ -1,6 +1,9 @@
 using System.Collections.Concurrent;
+using System.Net;
+using System.Text;
 using Retromind.Models;
 using Retromind.Services;
+using Retromind.Services.Downloads;
 using Retromind.Services.Stores.Gog;
 using Retromind.Services.Stores.Gog.Auth;
 using Retromind.Services.Stores.Security;
@@ -230,6 +233,104 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.Equal(File.ReadAllBytes(source), File.ReadAllBytes(result.DownloadedPackage!.EntryFilePath));
     }
 
+    [Fact]
+    public async Task PausedQueue_InstallsCachedBaseGameAndDownloadsItsDlcWhileOtherJobsStayHeld()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var installPath = temp.CreateDirectory("Library", "Games", "Game");
+        var item = new MediaItem("Game");
+        var source = CreateInstallerScript(temp.CreateDirectory("source"));
+        var package = new GogInstallerPackage("123", GogInstallPlatform.Linux, "Game", "1.0",
+            [new GogInstallerDownloadFile("https://invalid.example/installer.sh", "installer.sh", new FileInfo(source).Length)]);
+        var cache = Directory.CreateDirectory(GogInstallerArchive.GetStagingDirectory(package)).FullName;
+        File.Copy(source, Path.Combine(cache, "installer.sh"));
+        var dlcBytes = Encoding.UTF8.GetBytes(File.ReadAllText(source).Replace("game.x86_64", "dlc-data.bin"));
+        var dlc = new GogInstallerPackage("456", GogInstallPlatform.Linux, "DLC", "1.0",
+            [new GogInstallerDownloadFile("https://invalid.example/dlc.sh", "dlc.sh", dlcBytes.Length)]);
+        var handler = new DlcDownloadHandler(dlcBytes);
+        using var client = new HttpClient(handler);
+        var service = CreateService(temp.RootPath, client);
+        var revision = GogInstallerArchive.GetRevision(package);
+        var install = new DownloadJob(Guid.NewGuid(), item.Id, DownloadStore.Gog, DownloadKind.Update,
+            revision, false, false, false, DownloadState.InstallationPending, PayloadReady: true, PayloadRevision: revision);
+        var waiting = install with
+        {
+            Id = Guid.NewGuid(), ItemId = "other-game", State = DownloadState.Paused,
+            PayloadReady = false, PayloadRevision = null
+        };
+        var path = temp.GetPath("downloads.json");
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([install, waiting]);
+        }
+        var errors = new RecordingErrorService();
+        var manager = new DownloadManagerService(path, errors, TimeProvider.System);
+        var settled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot().Any(row => row.Job.Id == install.Id && row.Job.State is
+                    DownloadState.Completed or DownloadState.Failed or DownloadState.RepairRequired))
+                settled.TrySetResult();
+        };
+        GogInstallerWorkflowResult? baseResult = null;
+        GogInstallerWorkflowResult? dlcResult = null;
+        manager.Start(new(), async (work, ct) =>
+        {
+            Assert.Equal(install.Id, work.Job.Id);
+            Assert.True(work.BeginInstallation());
+            baseResult = await service.RunAsync(new GogInstallerWorkflowRequest(
+                    item, "123", installPath, GogInstallPlatform.Linux, package,
+                    Path.Combine(installPath, ".retromind-gog-installers", "123", "linux"),
+                    GogWindowsInstallerPreference.AutoPrefer64, false, false, false,
+                    UseTemporaryLinuxDestination: true, RequireLinuxPayloadChange: true, RequireCachedPayload: true),
+                _ => { }, ct);
+            Assert.True(baseResult.Success, baseResult.ErrorMessage);
+
+            // Automatic DLC reapplication belongs to the explicit install operation, not a new queue job.
+            dlcResult = await service.RunAsync(new GogInstallerWorkflowRequest(
+                item, "123", installPath, GogInstallPlatform.Linux, dlc,
+                Path.Combine(installPath, ".retromind-gog-installers", "dlc", "456", "linux"),
+                GogWindowsInstallerPreference.AutoPrefer64, false, false, false,
+                UseTemporaryLinuxDestination: false, RequireLinuxPayloadChange: true),
+                _ => { }, ct);
+            Assert.True(dlcResult.Success, dlcResult.ErrorMessage);
+            Assert.True(manager.IsQueuePaused);
+            return new DownloadOutcome(DownloadState.Completed);
+        });
+        try
+        {
+            manager.ToggleQueuePause();
+            Assert.True(manager.Change(waiting.Id, DownloadAction.Resume));
+            Assert.True(manager.Change(install.Id, DownloadAction.Install));
+            await settled.Task.WaitAsync(TimeSpan.FromSeconds(10));
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+
+        Assert.True(baseResult?.Success, baseResult?.ErrorMessage);
+        Assert.True(dlcResult?.Success, dlcResult?.ErrorMessage);
+        Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
+        Assert.True(File.Exists(Path.Combine(installPath, "dlc-data.bin")));
+        Assert.Equal(1, handler.Requests);
+        Assert.True(manager.IsQueuePaused);
+        Assert.Equal(DownloadState.Completed, manager.Snapshot()[0].Job.State);
+        Assert.Equal(DownloadState.Queued, manager.Snapshot()[1].Job.State);
+        Assert.Empty(errors.Reports);
+    }
+
+    private sealed class DlcDownloadHandler(byte[] installer) : HttpMessageHandler
+    {
+        internal int Requests { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
+        {
+            Assert.Equal("/dlc.sh", request.RequestUri!.AbsolutePath);
+            Requests++;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(installer) });
+        }
+    }
+
     private sealed class RejectDownloadsHandler : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct) =>
@@ -270,7 +371,8 @@ public sealed class GogInstallerWorkflowServiceTests
                 new InMemorySecretStore(),
                 new GogOAuthClient(new HttpClient()),
                 new GogPkceService(), new RecordingErrorService()),
-            downloads ?? new HttpClient());
+            new HttpClient(),
+            downloadHttpClient: downloads ?? new HttpClient(new RejectDownloadsHandler()));
         var executionService = new GogInstallerExecutionService(
             new GogInstallerProcessService(),
             Path.Combine(rootPath, "Library"));

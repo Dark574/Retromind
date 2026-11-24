@@ -85,8 +85,10 @@
                 <Button Content="{x:Static p:DownloadStrings.Resume}" Command="{Binding Resume}" />
                 <Button Content="{x:Static p:DownloadStrings.Cancel}" Command="{Binding Cancel}" />
                 <Button Content="{x:Static p:DownloadStrings.Retry}" Command="{Binding Retry}" />
-                <Button Content="{x:Static p:DownloadStrings.Install}" Command="{Binding Install}" />
-                <Button Content="{x:Static p:DownloadStrings.Repair}" Command="{Binding Repair}" />
+                <Button Content="{x:Static p:DownloadStrings.Install}" Command="{Binding Install}"
+                        ToolTip.Tip="{x:Static p:DownloadStrings.QueuePauseHint}" ToolTip.ShowOnDisabled="True" />
+                <Button Content="{x:Static p:DownloadStrings.Repair}" Command="{Binding Repair}"
+                        ToolTip.Tip="{x:Static p:DownloadStrings.QueuePauseHint}" ToolTip.ShowOnDisabled="True" />
                 <Button Content="{x:Static p:DownloadStrings.Earlier}" Command="{Binding Earlier}" />
                 <Button Content="{x:Static p:DownloadStrings.Later}" Command="{Binding Later}" />
                 <Button Content="{x:Static p:DownloadStrings.Remove}" Command="{Binding Remove}" />

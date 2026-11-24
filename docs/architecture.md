@@ -1138,6 +1138,13 @@ the report never mutates JSON or deletes files.
   installers retain ownership of their own outcome. Physical success with unsaved library metadata retains
   the existing `SavePending` result. Manual Epic maintenance invalidates the shared catalog; background sweeps
   discard catalogs invalidated by a completed installation.
+  Queue pause suspends transfers and automatic jobs but permits an explicit GOG `Install` with a
+  prepared, revision-bound payload. Selection, preflight cancellation and `BeginInstallation` use
+  the same exception; stop, persistence failure, game guards and explicit cancellation still apply.
+  Missing/changed payloads return to the paused download queue without silently downloading a replacement.
+  Attached DLC reapplication may download its installers as part of the explicit installation;
+  the scheduler keeps all other queued jobs paused until the user resumes them.
+  Epic combined updates, repairs and unprepared packages remain blocked until the queue resumes.
   See [Download manager and GOG depot investigation](download-manager.md).
 - `GogUpdateCheckService` owns the background sweep, per-item check gate, and silent authentication cache. It
   compares installed snapshots with the remote base-game and DLC packages. The GOG desktop workflow captures

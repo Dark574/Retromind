@@ -215,7 +215,8 @@ public sealed class DownloadManagerService
                 return;
 
             _queuePaused = !_queuePaused;
-            if (_queuePaused && _active is { Installing: false, InterruptedJob: null } active)
+            if (_queuePaused && _active is { Installing: false, InterruptedJob: null } active &&
+                !CanRunDuringQueuePause(active.Job))
                 active.InterruptedJob = active.Job with { State = DownloadState.Queued, Reason = DownloadReason.None };
 
             Notify();
@@ -301,11 +302,12 @@ public sealed class DownloadManagerService
                     job.State is DownloadState.Paused or DownloadState.InstallationPending or DownloadState.Failed:
                     next[index] = CancelJob(job);
                     break;
-                case DownloadAction.Install when job.State == DownloadState.InstallationPending:
+                case DownloadAction.Install when job.State == DownloadState.InstallationPending &&
+                    (!_queuePaused || HasPreparedGogInstaller(job)):
                     next[index] = job with { State = DownloadState.Queued, Reason = DownloadReason.None,
                         Automatic = false, OverrideWindow = true, InstallRequested = true };
                     break;
-                case DownloadAction.Repair when job.State == DownloadState.RepairRequired:
+                case DownloadAction.Repair when job.State == DownloadState.RepairRequired && !_queuePaused:
                     next[index] = job with { State = DownloadState.Queued, Reason = DownloadReason.None,
                         Automatic = false, OverrideWindow = true, InstallRequested = true, RepairRequested = true };
                     break;
@@ -365,7 +367,7 @@ public sealed class DownloadManagerService
                     if (_stopping || _persistenceFailed)
                         return;
                     settings = _settings;
-                    (next, wait) = _queuePaused ? (null, null) : SelectJob(settings);
+                    (next, wait) = SelectJob(settings);
                     if (next != null)
                     {
                         Update(next with { State = DownloadState.Downloading, Reason = DownloadReason.None });
@@ -397,7 +399,8 @@ public sealed class DownloadManagerService
         var hasWindowBlockedJobs = false;
         foreach (var job in _jobs)
         {
-            if (!IsWaiting(job.State) || job.Automatic && settings.AutomaticUpdates == AutomaticUpdateMode.Disabled)
+            if (!IsWaiting(job.State) || _queuePaused && !CanRunDuringQueuePause(job) ||
+                job.Automatic && settings.AutomaticUpdates == AutomaticUpdateMode.Disabled)
                 continue;
             if (_blockedUntil.TryGetValue(job.Id, out var retry) && retry > now)
             {
@@ -445,7 +448,7 @@ public sealed class DownloadManagerService
                 if (!active.Installing)
                 {
                     var state = active.InterruptedJob?.State;
-                    if (state == null && (_queuePaused || _stopping || _persistenceFailed || job.Automatic &&
+                    if (state == null && (_queuePaused && !CanRunDuringQueuePause(job) || _stopping || _persistenceFailed || job.Automatic &&
                         _settings.AutomaticUpdates == AutomaticUpdateMode.Disabled))
                         state = DownloadState.Queued;
                     if (state == null && !job.OverrideWindow && !job.PayloadReady && !IsWindowOpen(_settings))
@@ -529,7 +532,8 @@ public sealed class DownloadManagerService
     {
         lock (_gate)
         {
-            if (_queuePaused || _stopping || _persistenceFailed || active.InterruptedJob != null || token.IsCancellationRequested ||
+            if (_queuePaused && !CanRunDuringQueuePause(job) || _stopping || _persistenceFailed ||
+                active.InterruptedJob != null || token.IsCancellationRequested ||
                 active.InstalledVersion is { } installed && MatchesInstalledRevision(job, installed.Version) ||
                 job.Automatic && (_settings.AutomaticUpdates != AutomaticUpdateMode.DownloadAndInstall ||
                                   _automaticUpdateExclusions.Contains(job.ItemId)) ||
@@ -652,6 +656,16 @@ public sealed class DownloadManagerService
         try { Changed?.Invoke(); }
         catch { /* Presentation must not stop the queue. */ }
     }
+
+    internal static bool HasPreparedGogInstaller(DownloadJob job) => job is
+    {
+        Store: DownloadStore.Gog, Kind: DownloadKind.Update, PayloadReady: true,
+        PayloadRevision: not null, RepairRequested: false
+    };
+
+    // Repairs can fetch installers again; only explicit version-bound cached installs bypass the pause.
+    private static bool CanRunDuringQueuePause(DownloadJob job) =>
+        job.InstallRequested && !job.Automatic && HasPreparedGogInstaller(job);
 
     private static bool IsWaiting(DownloadState state) =>
         state is DownloadState.Queued or DownloadState.WaitingForWindow or DownloadState.WaitingForSpace or DownloadState.WaitingForGame;

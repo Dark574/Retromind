@@ -20,6 +20,14 @@ library cannot be saved, the completed job retains a notice that the library sav
 Retromind is open. Closing the download manager window keeps the pause in effect. **Resume download
 queue** restores normal scheduling and keeps individually paused jobs paused. An installation
 already in progress, including a combined Epic download and update, runs to completion.
+You can also explicitly start a fully downloaded GOG update with **Install** while downloads stay
+paused. It waits for an interrupted transfer to finish unwinding and leaves other downloads held.
+The installer files are verified again; a changed or missing package returns to the queue without
+downloading until you resume it and approve the new package. New automatic installations do not bypass
+the pause. Epic updates, repairs and GOG packages without a prepared payload require resuming the
+queue first because they can download data. The explicitly started GOG installation can download
+and reinstall its DLCs as part of the same operation. Other queued downloads stay paused during
+and after this operation. Metadata and checksum requests can still occur.
 
 Excluding a game from automatic updates pauses its queued or active automatic download.
 Removing the exclusion resumes jobs paused for this reason and queues any known update that

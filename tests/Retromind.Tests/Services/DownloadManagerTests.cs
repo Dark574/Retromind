@@ -866,6 +866,247 @@ public sealed class DownloadManagerTests
         finally { await manager.StopAsync(); manager.Release(); }
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PausedDownloads_AllowExplicitPreparedGogInstallationAndKeepOtherJobsHeld(bool pauseBeforeStart)
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var installer = PreparedGogJob("install");
+        var automatic = PreparedGogJob("automatic") with { State = DownloadState.Paused };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([installer, automatic]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var begin = Signal();
+        var installed = Signal();
+        var starts = 0;
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot().Any(row => row.Job.Id == installer.Id && row.Job.State == DownloadState.Completed))
+                installed.TrySetResult();
+        };
+        manager.Start(new() { AutomaticUpdates = AutomaticUpdateMode.DownloadAndInstall }, async (work, ct) =>
+        {
+            Assert.Equal("install", work.Job.ItemId);
+            Interlocked.Increment(ref starts);
+            entered.TrySetResult();
+            await begin.Task.WaitAsync(ct);
+            Assert.True(manager.IsQueuePaused);
+            Assert.True(work.MayInstall);
+            Assert.True(work.BeginInstallation());
+            return new(DownloadState.Completed);
+        });
+        try
+        {
+            if (pauseBeforeStart)
+                manager.ToggleQueuePause();
+            Assert.True(manager.Change(installer.Id, DownloadAction.Install));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (!pauseBeforeStart)
+                manager.ToggleQueuePause();
+            Assert.True(manager.Enqueue("download", DownloadStore.Gog, DownloadKind.Update));
+            Assert.True(manager.Change(automatic.Id, DownloadAction.Resume));
+
+            begin.TrySetResult();
+            await installed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(manager.IsQueuePaused);
+            Assert.Equal(1, starts);
+            Assert.All(manager.Snapshot().Where(row => row.Job.Id != installer.Id),
+                row => Assert.Equal(DownloadState.Queued, row.Job.State));
+        }
+        finally { begin.TrySetResult(); await manager.StopAsync(); manager.Release(); }
+    }
+
+    [Fact]
+    public async Task PausedDownloads_PreparedInstallationWaitsForInterruptedTransferToUnwind()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var installer = PreparedGogJob("install");
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([installer]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var downloading = Signal();
+        var interrupted = Signal();
+        var unwind = Signal();
+        var installed = Signal();
+        manager.Start(new(), async (work, ct) =>
+        {
+            if (work.Job.ItemId == "download")
+            {
+                downloading.TrySetResult();
+                try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                {
+                    interrupted.TrySetResult();
+                    await unwind.Task;
+                    throw;
+                }
+            }
+            Assert.Equal("install", work.Job.ItemId);
+            Assert.True(work.BeginInstallation());
+            installed.TrySetResult();
+            return new(DownloadState.Completed);
+        });
+        try
+        {
+            Assert.True(manager.Enqueue("download", DownloadStore.Gog, DownloadKind.Update));
+            await downloading.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            manager.ToggleQueuePause();
+            await interrupted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(manager.Change(installer.Id, DownloadAction.Install));
+            Assert.False(installed.Task.IsCompleted);
+            unwind.TrySetResult();
+            await installed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(manager.IsQueuePaused);
+        }
+        finally { unwind.TrySetResult(); await manager.StopAsync(); manager.Release(); }
+        Assert.Equal(DownloadState.Queued, manager.Snapshot().Single(row => row.Job.ItemId == "download").Job.State);
+    }
+
+    [Fact]
+    public async Task PausedDownloads_ChangedOrMissingPayloadReturnsToQueueWithoutStartingAnotherDownload()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var installer = PreparedGogJob("install");
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([installer]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var requeued = Signal();
+        var attempts = 0;
+        manager.Changed += () =>
+        {
+            if (manager.Snapshot().Any(row => row.Job.Reason == DownloadReason.GogPayloadChanged))
+                requeued.TrySetResult();
+        };
+        manager.Start(new(), (work, _) =>
+        {
+            Interlocked.Increment(ref attempts);
+            Assert.True(work.BeginInstallation());
+            return Task.FromResult(new DownloadOutcome(DownloadState.Queued, DownloadReason.GogPayloadChanged,
+                RedownloadRequired: true));
+        });
+        try
+        {
+            manager.ToggleQueuePause();
+            Assert.True(manager.Change(installer.Id, DownloadAction.Install));
+            await requeued.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+        var job = Assert.Single(manager.Snapshot()).Job;
+        Assert.True(manager.IsQueuePaused);
+        Assert.Equal(1, attempts);
+        Assert.Equal(DownloadState.Queued, job.State);
+        Assert.Equal(DownloadReason.GogPayloadChanged, job.Reason);
+        Assert.False(job.InstallRequested || job.PayloadReady);
+        Assert.Null(job.PayloadRevision);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task PausedDownloads_PreparedInstallationCanStillBeCancelledOrStoppedBeforeInstallation(bool stop)
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var installer = PreparedGogJob("install");
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([installer]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        var entered = Signal();
+        var cancelled = Signal();
+        manager.Start(new(), async (_, ct) =>
+        {
+            entered.TrySetResult();
+            try { await Task.Delay(Timeout.InfiniteTimeSpan, ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { cancelled.TrySetResult(); throw; }
+            throw new InvalidOperationException("The preflight must be cancelled.");
+        });
+        try
+        {
+            manager.ToggleQueuePause();
+            Assert.True(manager.Change(installer.Id, DownloadAction.Install));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (stop)
+                await manager.StopAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            else
+                Assert.True(manager.Change(installer.Id, DownloadAction.Cancel));
+            await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+        Assert.True(manager.IsQueuePaused);
+        Assert.False(manager.IsInstalling);
+        if (!stop)
+            AssertInstallReady(Assert.Single(manager.Snapshot()).Job, installer.Id, DownloadReason.ManualGogInstallation, true);
+    }
+
+    [Fact]
+    public async Task PausedDownloads_CommandsOnlyAllowPreparedGogInstallers()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var installer = PreparedGogJob("install");
+        var epic = Job("epic", DownloadState.InstallationPending) with { Store = DownloadStore.Epic };
+        var incomplete = PreparedGogJob("incomplete") with { PayloadRevision = null };
+        var repair = PreparedGogJob("repair") with { State = DownloadState.RepairRequired };
+        using (var store = new DownloadQueueStore(path))
+        {
+            store.Load();
+            store.Save([installer, epic, incomplete, repair]);
+        }
+        var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
+        manager.Start(new(), (_, _) => throw new InvalidOperationException("No unapproved operation may run."));
+        try
+        {
+            await AvaloniaTestDispatcher.InvokeAsync(dispatcher =>
+            {
+                using var vm = new DownloadManagerViewModel(manager, id => id, null, () => null,
+                    _ => false, (_, _) => { }, _ => Task.FromResult(false));
+                vm.Selected = vm.Entries.Single(row => row.Job.Id == epic.Id);
+                Assert.True(vm.Install.CanExecute(null));
+                vm.Selected = vm.Entries.Single(row => row.Job.Id == repair.Id);
+                Assert.True(vm.Repair.CanExecute(null));
+                vm.ToggleQueuePause.Execute(null);
+                dispatcher.RunJobs();
+
+                foreach (var blocked in new[] { epic, incomplete })
+                {
+                    vm.Selected = vm.Entries.Single(row => row.Job.Id == blocked.Id);
+                    Assert.False(vm.Install.CanExecute(null));
+                    Assert.False(manager.Change(blocked.Id, DownloadAction.Install));
+                }
+                vm.Selected = vm.Entries.Single(row => row.Job.Id == repair.Id);
+                Assert.False(vm.Repair.CanExecute(null));
+                Assert.False(manager.Change(repair.Id, DownloadAction.Repair));
+                vm.Selected = vm.Entries.Single(row => row.Job.Id == installer.Id);
+                Assert.True(vm.Install.CanExecute(null));
+                Assert.True(manager.IsQueuePaused);
+            });
+        }
+        finally { await manager.StopAsync(); manager.Release(); }
+    }
+
+    private static DownloadJob PreparedGogJob(string id) => Job(id, DownloadState.InstallationPending) with
+    {
+        Revision = new string('A', 64), PayloadRevision = new string('A', 64), PayloadReady = true,
+        Reason = DownloadReason.ManualGogInstallation
+    };
+
     private static DownloadJob Job(string id, DownloadState state) => new(Guid.NewGuid(), id, DownloadStore.Gog,
         DownloadKind.Update, "", true, false, false, state);
 

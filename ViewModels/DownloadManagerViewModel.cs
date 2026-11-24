@@ -129,6 +129,8 @@ public sealed class DownloadManagerViewModel : ViewModelBase, IDisposable
         new RelayCommand(() => { if (Selected is { } selected) _manager.Change(selected.Job.Id, action); },
             () => !QueueUnavailable && (action != DownloadAction.Start || !_manager.IsQueuePaused) &&
                   Selected is { } selected && (action != DownloadAction.Resume || selected.Job.Reason != DownloadReason.Excluded) &&
+                  (!_manager.IsQueuePaused || action != DownloadAction.Repair &&
+                      (action != DownloadAction.Install || DownloadManagerService.HasPreparedGogInstaller(selected.Job))) &&
                   allowed.Contains(selected.Job.State));
 
     private void Enqueue(DownloadKind kind, string? platform = null)

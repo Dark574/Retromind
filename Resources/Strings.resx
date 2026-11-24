@@ -1679,7 +1679,7 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
     <value>Resume download queue</value>
   </data>
   <data name="Downloads.QueuePauseHint" xml:space="preserve">
-    <value>Installations already in progress finish even when the queue is paused.</value>
+    <value>Other queued downloads stay paused. You can manually start prepared GOG installations, including required DLC downloads. Epic updates and repairs require resuming the queue. Installations already in progress finish.</value>
   </data>
   <data name="Downloads.Cancel" xml:space="preserve">
     <value>Cancel</value>

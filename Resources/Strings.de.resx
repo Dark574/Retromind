@@ -1681,7 +1681,7 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
     <value>Download-Warteschlange fortsetzen</value>
   </data>
   <data name="Downloads.QueuePauseHint" xml:space="preserve">
-    <value>Bereits laufende Installationen werden auch bei pausierter Warteschlange abgeschlossen.</value>
+    <value>Andere Downloadaufträge bleiben pausiert. Vorbereitete GOG-Installationen können manuell gestartet werden, einschließlich nötiger DLC-Downloads. Für Epic-Updates und Reparaturen muss die Warteschlange fortgesetzt werden. Bereits laufende Installationen werden abgeschlossen.</value>
   </data>
   <data name="Downloads.Cancel" xml:space="preserve">
     <value>Abbrechen</value>
