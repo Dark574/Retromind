@@ -14,9 +14,10 @@ public sealed class GogQueuedDownloadTests
         using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
         var settings = new DownloadSettings { GogArchiveDirectory = "Offline" };
         var package = Package();
+        var dlc = package with { GameId = "456", InstallerName = "DLC", Version = "2",
+            Files = [new("https://example.test/dlc", "dlc.sh", 13)] };
         var first = GogInstallerArchive.GetPackageDirectory(settings, package);
-        var second = GogInstallerArchive.GetPackageDirectory(settings,
-            package with { GameId = "456", InstallerName = "DLC", Version = "2" }, "123", "Game");
+        var second = GogInstallerArchive.GetPackageDirectory(settings, dlc, "123", "Game");
         Assert.Equal(first, second);
         Assert.StartsWith(temp.GetPath("Offline"), first);
 
@@ -24,12 +25,13 @@ public sealed class GogQueuedDownloadTests
         var file = Path.Combine(staging, "setup.sh");
         await File.WriteAllTextAsync(file, "installer");
         var downloaded = new GogDownloadedInstallerPackage(staging, file, [file]);
-        await GogInstallerArchive.PublishAsync(first, downloaded, CancellationToken.None);
-        await GogInstallerArchive.PublishAsync(first, downloaded, CancellationToken.None);
+        Assert.Equal(first, await GogInstallerArchive.PublishAsync(first, package, downloaded, CancellationToken.None));
+        Assert.Equal(first, await GogInstallerArchive.PublishAsync(first, package, downloaded, CancellationToken.None));
         var dlcFile = Path.Combine(staging, "dlc.sh");
         await File.WriteAllTextAsync(dlcFile, "dlc installer");
-        await GogInstallerArchive.PublishAsync(second, new(staging, dlcFile, [dlcFile]), CancellationToken.None);
-        Assert.Equal(["dlc.sh", "setup.sh"], Directory.GetFiles(first).Select(Path.GetFileName).Order());
+        Assert.Equal(first, await GogInstallerArchive.PublishAsync(second, dlc, new(staging, dlcFile, [dlcFile]), CancellationToken.None));
+        Assert.True(GogInstallerArchive.HasFlatPackageMarker(first, package));
+        Assert.True(GogInstallerArchive.HasFlatPackageMarker(first, dlc));
         Assert.Equal("dlc installer", await File.ReadAllTextAsync(Path.Combine(first, "dlc.sh")));
         Assert.Empty(Directory.GetDirectories(first));
         Assert.Equal(first, GogInstallerArchive.GetPackageDirectory(settings, package, gameTitle: "Renamed Game"));
@@ -41,8 +43,12 @@ public sealed class GogQueuedDownloadTests
         await File.WriteAllTextAsync(file, "changed");
         var extra = Path.Combine(staging, "extra.bin");
         await File.WriteAllTextAsync(extra, "extra");
-        await Assert.ThrowsAsync<IOException>(() => GogInstallerArchive.PublishAsync(first,
-            new(staging, file, [extra, file]), CancellationToken.None));
+        var next = package with { Version = "3", Files = [package.Files[0], new("https://example.test/part", "extra.bin", 5)] };
+        var conflict = await GogInstallerArchive.PublishAsync(first, next, new(staging, file, [extra, file]), CancellationToken.None);
+        Assert.Equal(GogInstallerArchive.GetConflictDirectory(first, next), conflict);
+        Assert.Equal("changed", await File.ReadAllTextAsync(Path.Combine(conflict, "setup.sh")));
+        Assert.Equal("extra", await File.ReadAllTextAsync(Path.Combine(conflict, "extra.bin")));
+        Assert.False(GogInstallerArchive.HasFlatPackageMarker(first, next));
         Assert.Equal("installer", await File.ReadAllTextAsync(Path.Combine(first, "setup.sh")));
         Assert.False(File.Exists(Path.Combine(first, "extra.bin")));
         Assert.True(File.Exists(file));
@@ -95,7 +101,7 @@ public sealed class GogQueuedDownloadTests
         var file = Path.Combine(source, "setup.sh");
         await File.WriteAllTextAsync(file, "installer");
 
-        await Assert.ThrowsAsync<IOException>(() => GogInstallerArchive.PublishAsync(archive,
+        await Assert.ThrowsAsync<IOException>(() => GogInstallerArchive.PublishAsync(archive, Package(),
             new(source, file, [file]), CancellationToken.None));
 
         Assert.Equal("keep", await File.ReadAllTextAsync(target));

@@ -213,7 +213,8 @@ internal sealed partial class DesktopGogWorkflow
             return false;
         }
 
-        if (queuedPayload != null && GogInstallerArchive.GetRevision(installerPackage) != queuedPayload.Revision)
+        var revision = GogInstallerArchive.GetRevision(installerPackage);
+        if (queuedPayload != null && revision != queuedPayload.Revision)
         {
             queuedPayload.NeedsRedownload();
             return false;
@@ -225,12 +226,8 @@ internal sealed partial class DesktopGogWorkflow
             installRequest.InstallPath,
             ".retromind-gog-installers",
             storeGameId,
-            platformFolder);
-        if (queuedPayload != null)
-        {
-            // The version-specific cache is checked before copying, including after an interrupted preparation.
-            stagingRoot = Path.Combine(stagingRoot, queuedPayload.Revision);
-        }
+            platformFolder,
+            revision);
 
         if (!await ConfirmGogInstallSpaceAsync(
                 owner,

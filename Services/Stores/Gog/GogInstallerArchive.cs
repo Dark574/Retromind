@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -16,6 +17,9 @@ namespace Retromind.Services.Stores.Gog;
 /// </summary>
 internal static class GogInstallerArchive
 {
+    private const string FlatPackageMarkerPrefix = ".retromind-gog-";
+    private const string VersionsDirectoryName = "Versions";
+
     internal static string DefaultRoot => Path.Combine(AppPaths.DataRoot, "GogOfflineInstallers");
 
     internal static string GetPackageDirectory(DownloadSettings settings, GogInstallerPackage package,
@@ -38,6 +42,23 @@ internal static class GogInstallerArchive
     internal static string GetLegacyPackageDirectory(DownloadSettings settings, GogInstallerPackage package) =>
         Path.Combine(GetArchiveRoot(settings), GetGameDirectoryName(package),
             GetPlatformName(package.Platform), GetRevision(package));
+
+    internal static string GetConflictDirectory(string gameDirectory, GogInstallerPackage package) =>
+        Path.Combine(gameDirectory, VersionsDirectoryName,
+            $"{PrefixPathHelper.SanitizePrefixFolderName(GogInstallerFingerprint.NormalizeVersion(package.Version))} ({GetPackageKey(package)})");
+
+    internal static bool HasFlatPackageMarker(string directory, GogInstallerPackage package)
+    {
+        var marker = GetFlatPackageMarker(directory, package);
+        EnsureSafeFile(marker);
+        return File.Exists(marker);
+    }
+
+    private static string GetFlatPackageMarker(string directory, GogInstallerPackage package) =>
+        Path.Combine(directory, FlatPackageMarkerPrefix + GetPackageKey(package));
+
+    private static string GetPackageKey(GogInstallerPackage package) =>
+        $"{GetGameDirectoryName(package)}-{GetPlatformName(package.Platform)}-{GetRevision(package)}";
 
     private static string GetArchiveRoot(DownloadSettings settings)
     {
@@ -117,69 +138,109 @@ internal static class GogInstallerArchive
         var names = package.Files.Select(file => GogInstallerStagingPathHelper.SanitizeFileName(file.FileName)).ToArray();
         if (names.Length == 0 || names.Distinct(StringComparer.Ordinal).Count() != names.Length ||
             names.Intersect(names.Select(name => name + ".part"), StringComparer.Ordinal).Any() ||
-            names.Any(name => name is "." or ".." or "retromind-install.log"))
+            names.Any(name => name is "." or ".." or "retromind-install.log" ||
+                              name.StartsWith(FlatPackageMarkerPrefix, StringComparison.OrdinalIgnoreCase) ||
+                              name.Equals(VersionsDirectoryName, StringComparison.OrdinalIgnoreCase)))
             throw new IOException("The installer package has unsafe or conflicting file names.");
         return names;
     }
 
-    internal static async Task PublishAsync(string directory, GogDownloadedInstallerPackage package, CancellationToken ct)
+    internal static async Task<string> PublishAsync(string directory, GogInstallerPackage package,
+        GogDownloadedInstallerPackage downloaded, CancellationToken ct)
     {
-        EnsureSafeDirectory(directory);
-        var parent = Path.GetDirectoryName(directory)!;
-        Directory.CreateDirectory(parent);
+        var names = GetSafeFileNames(package);
+        if (!names.Order(StringComparer.Ordinal).SequenceEqual(
+                downloaded.DownloadedFiles.Select(Path.GetFileName).Order(StringComparer.Ordinal), StringComparer.Ordinal))
+            throw new IOException("The downloaded files do not match the installer package.");
 
-        // Prepare all files before merging. Existing files are never replaced.
+        EnsureSafeDirectory(directory);
+        var conflictDirectory = GetConflictDirectory(directory, package);
+        if (Directory.Exists(conflictDirectory))
+        {
+            EnsureSafeDirectory(conflictDirectory);
+            foreach (var source in downloaded.DownloadedFiles)
+            {
+                if (!await MatchesExistingFileAsync(source, conflictDirectory, ct).ConfigureAwait(false))
+                    throw new IOException($"The archived installer package differs from the downloaded package: {conflictDirectory}");
+            }
+            return conflictDirectory;
+        }
+
+        var missing = new List<string>();
+        var destination = directory;
+        foreach (var source in downloaded.DownloadedFiles)
+        {
+            var target = Path.Combine(directory, Path.GetFileName(source));
+            EnsureSafeFile(target);
+            if (!File.Exists(target))
+                missing.Add(source);
+            else if (!await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
+            {
+                // Keep the entire package together, including any identically named multipart files.
+                destination = conflictDirectory;
+                missing.Clear();
+                missing.AddRange(downloaded.DownloadedFiles);
+                break;
+            }
+        }
+
+        EnsureSafeDirectory(destination);
+        var parent = Path.GetDirectoryName(destination)!;
+        Directory.CreateDirectory(parent);
         var temporary = Path.Combine(parent, ".incoming-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try
         {
-            var totalBytes = package.DownloadedFiles.Aggregate(0L,
+            var totalBytes = missing.Aggregate(0L,
                 (total, path) => StoreDiskSpaceHelper.SaturatingAdd(total, new FileInfo(path).Length));
-            GogInstallSpaceService.EnsureDownloadCanFit(Path.Combine(directory, "installer"), totalBytes);
-            foreach (var path in package.DownloadedFiles)
+            if (totalBytes > 0)
+                GogInstallSpaceService.EnsureDownloadCanFit(Path.Combine(destination, "installer"), totalBytes);
+            foreach (var path in missing)
             {
                 ct.ThrowIfCancellationRequested();
                 await CopyFileAsync(path, Path.Combine(temporary, Path.GetFileName(path)), ct).ConfigureAwait(false);
             }
             ct.ThrowIfCancellationRequested();
-            EnsureSafeDirectory(directory);
-            Directory.CreateDirectory(directory);
-            var files = Directory.GetFiles(temporary);
-            foreach (var source in files)
+            EnsureSafeDirectory(destination);
+            if (destination == conflictDirectory)
             {
-                var target = Path.Combine(directory, Path.GetFileName(source));
-                EnsureSafeFile(target);
-                if (File.Exists(target) && !await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
-                    throw new IOException($"An archived installer with different contents already exists: {target}");
+                Directory.Move(temporary, conflictDirectory);
+                return conflictDirectory;
             }
-            foreach (var source in files)
+
+            var marker = GetFlatPackageMarker(directory, package);
+            EnsureSafeFile(marker);
+            Directory.CreateDirectory(directory);
+            foreach (var source in Directory.GetFiles(temporary))
             {
                 ct.ThrowIfCancellationRequested();
                 var target = Path.Combine(directory, Path.GetFileName(source));
                 EnsureSafeDirectory(directory);
                 EnsureSafeFile(target);
-                if (File.Exists(target))
-                {
-                    if (!await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
-                        throw new IOException($"An archived installer with different contents already exists: {target}");
-                    continue;
-                }
-                try
-                {
-                    File.Move(source, target);
-                }
-                catch (IOException) when (File.Exists(target))
-                {
-                    EnsureSafeFile(target);
-                    if (!await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
-                        throw;
-                }
+                File.Move(source, target);
             }
+
+            // A flat archive is reusable only after every file has been published.
+            ct.ThrowIfCancellationRequested();
+            EnsureSafeFile(marker);
+            if (!File.Exists(marker))
+            {
+                using var registration = new FileStream(marker, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
+                registration.Flush(flushToDisk: true);
+            }
+            return directory;
         }
         finally
         {
             StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(temporary);
         }
+    }
+
+    private static async Task<bool> MatchesExistingFileAsync(string source, string directory, CancellationToken ct)
+    {
+        var target = Path.Combine(directory, Path.GetFileName(source));
+        EnsureSafeFile(target);
+        return File.Exists(target) && await FilesEqualAsync(source, target, ct).ConfigureAwait(false);
     }
 
     private static async Task<bool> FilesEqualAsync(string first, string second, CancellationToken ct)

@@ -143,6 +143,74 @@ public sealed class GogInstallServiceDownloadIntegrityTests
     private static HttpResponseMessage TokenResponse() => JsonResponse(
         """{"access_token":"test-access","refresh_token":"test-refresh","user_id":"test-user","expires_in":3600}""");
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task QueuedUpdate_DownloadsSameSizeNewVersionAndReusesItsConflictArchive(bool markOldPackage)
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var transfers = 0;
+        using var client = new HttpClient(new StubHandler(request => request.RequestUri!.AbsolutePath switch
+        {
+            "/token" => TokenResponse(),
+            "/products/123" => JsonResponse("""
+                {"downloads":{"installers":[{"os":"linux","version":"1.1","files":[{"downlink":"https://api.gog.com/first","size":4}]}]}}
+                """),
+            "/first" => JsonResponse("""{"downlink":"https://cdn.gog.test/setup.sh"}"""),
+            "/setup.sh" => Download(),
+            _ => throw new InvalidOperationException("Unexpected endpoint.")
+        }));
+        HttpResponseMessage Download()
+        {
+            transfers++;
+            return BytesResponse(Encoding.UTF8.GetBytes("new!"));
+        }
+        var installer = await CreateAuthenticatedServiceAsync(client);
+        var package = (await installer.ResolveInstallerPackageAsync("123", GogInstallPlatform.Linux))!;
+        var old = package with { Version = "1.0" };
+        var settings = new DownloadSettings { KeepGogInstallers = true };
+        var archive = GogInstallerArchive.GetPackageDirectory(settings, package, gameTitle: "Game");
+        if (markOldPackage)
+        {
+            var source = temp.CreateDirectory("source");
+            var oldFile = Path.Combine(source, "setup.sh");
+            await File.WriteAllTextAsync(oldFile, "old!");
+            await GogInstallerArchive.PublishAsync(archive, old, new(source, oldFile, [oldFile]), CancellationToken.None);
+        }
+        else
+        {
+            Directory.CreateDirectory(archive);
+            await File.WriteAllTextAsync(Path.Combine(archive, "setup.sh"), "old!");
+        }
+
+        var revision = GogInstallerArchive.GetRevision(package);
+        var job = new DownloadJob(Guid.NewGuid(), "item", DownloadStore.Gog, DownloadKind.Update, revision,
+            false, false, false, DownloadState.Queued);
+        var execution = new DownloadExecution(job, settings, false, _ => { }, () => true);
+        var downloads = new GogQueuedDownloadService(installer);
+        var result = await downloads.DownloadAsync(execution, "123", GogInstallPlatform.Linux,
+            null, null, CancellationToken.None, "Game");
+        Assert.Equal(DownloadState.InstallationPending, result.State);
+        Assert.True(result.PayloadReady);
+        Assert.Equal(revision, result.PayloadRevision);
+        Assert.Equal(1, transfers);
+        Assert.Equal("old!", await File.ReadAllTextAsync(Path.Combine(archive, "setup.sh")));
+        var conflict = GogInstallerArchive.GetConflictDirectory(archive, package);
+        Assert.Equal("new!", await File.ReadAllTextAsync(Path.Combine(conflict, "setup.sh")));
+        Assert.False(Directory.Exists(GogInstallerArchive.GetStagingDirectory(package)));
+        Assert.Equal(markOldPackage ? archive : null,
+            await installer.FindArchivedPackageAsync(old, archive, null, CancellationToken.None));
+
+        var repeated = await downloads.DownloadAsync(execution, "123", GogInstallPlatform.Linux,
+            null, null, CancellationToken.None, "Game");
+        Assert.Equal(result, repeated);
+        var prepared = await installer.DownloadInstallerPackageAsync(package, temp.GetPath("install-staging"), null,
+            null, null, CancellationToken.None, archiveDirectory: archive, requireCachedPayload: true);
+        Assert.Equal("new!", await File.ReadAllTextAsync(prepared.EntryFilePath));
+        Assert.Equal(1, transfers);
+    }
+
     private static HttpResponseMessage JsonResponse(string json) => new(HttpStatusCode.OK)
     {
         Content = new StringContent(json, Encoding.UTF8, "application/json")
@@ -205,7 +273,8 @@ public sealed class GogInstallServiceDownloadIntegrityTests
         var unrelated = Path.Combine(staging, "unrelated.part");
         await File.WriteAllTextAsync(unrelated, "keep");
 
-        await service.ArchiveQueuedPackageAsync(package, archive, downloaded, CancellationToken.None);
+        Assert.Equal(archive, await service.ArchivePackageAsync(package, archive, downloaded,
+            CancellationToken.None, releaseQueueStaging: true));
 
         Assert.False(File.Exists(downloaded.EntryFilePath));
         Assert.Equal("keep", await File.ReadAllTextAsync(unrelated));
@@ -216,12 +285,6 @@ public sealed class GogInstallServiceDownloadIntegrityTests
             null, null, staging, CancellationToken.None, archiveDirectory: archive, requireCachedPayload: true);
         Assert.Equal(1, networkDownloads);
         Assert.Equal(payload, await File.ReadAllBytesAsync(working.EntryFilePath));
-
-        await File.WriteAllBytesAsync(downloaded.EntryFilePath, new byte[payload.Length]);
-        await Assert.ThrowsAsync<IOException>(() =>
-            service.ArchiveQueuedPackageAsync(package, archive, downloaded, CancellationToken.None));
-        Assert.Equal(new byte[payload.Length], await File.ReadAllBytesAsync(downloaded.EntryFilePath));
-        Assert.Equal(payload, await File.ReadAllBytesAsync(archivedFile));
     }
 
     [Fact]
@@ -264,7 +327,8 @@ public sealed class GogInstallServiceDownloadIntegrityTests
             if (archiveSucceeds == false)
                 return new DownloadOutcome(DownloadState.Failed, DownloadReason.ArchiveUnavailable);
             if (archiveSucceeds == true)
-                await service.ArchiveQueuedPackageAsync(package, archive, new(staging, file, [file]), CancellationToken.None);
+                await service.ArchivePackageAsync(package, archive, new(staging, file, [file]),
+                    CancellationToken.None, releaseQueueStaging: true);
             return new DownloadOutcome(DownloadState.Completed, PayloadReady: true);
         });
 

@@ -49,8 +49,7 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
                 legacyArchive = GogInstallerArchive.GetLegacyPackageDirectory(request.Settings, package);
                 GogInstallerArchive.EnsureSeparateFromInstallation(archive, installPath);
                 GogInstallerArchive.EnsureSeparateFromInstallation(legacyArchive, installPath);
-                if (await installer.ValidateArchivedPackageAsync(package, archive, ct).ConfigureAwait(false) ||
-                    await installer.ValidateArchivedPackageAsync(package, legacyArchive, ct).ConfigureAwait(false))
+                if (await installer.FindArchivedPackageAsync(package, archive, legacyArchive, ct).ConfigureAwait(false) != null)
                     return Ready(offlineOnly, revision);
             }
         }
@@ -81,7 +80,8 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
             {
                 try
                 {
-                    await installer.ArchiveQueuedPackageAsync(package, archive, downloaded, ct).ConfigureAwait(false);
+                    await installer.ArchivePackageAsync(package, archive, downloaded, ct, releaseQueueStaging: true)
+                        .ConfigureAwait(false);
                 }
                 catch (IOException ex) when (ex is not GogInsufficientDiskSpaceException)
                 {

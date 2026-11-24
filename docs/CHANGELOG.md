@@ -18,6 +18,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
+- reuse GOG offline installers only for the matching revision and archive new versions alongside existing files if installer names collide
 - allow manually starting downloaded GOG installations with DLC reinstallation while other queued downloads stay paused
 - complete matching download-manager updates after manual GOG or Epic installation, update or repair, and clear stale installation notices
 - show pending library saves after queued GOG installations and free reused download space after successful manual GOG installations

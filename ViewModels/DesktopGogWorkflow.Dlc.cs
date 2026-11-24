@@ -203,7 +203,8 @@ internal sealed partial class DesktopGogWorkflow
                     ".retromind-gog-installers",
                     "dlc",
                     entry.ProductId,
-                    platformFolder);
+                    platformFolder,
+                    GogInstallerArchive.GetRevision(installerPackage));
 
                 if (!await ConfirmGogInstallSpaceAsync(
                         owner,

@@ -48,8 +48,9 @@ DLCs. Retromind clears the temporary installer staging after a successful
 installation and keeps it available if the requested archive could not be saved.
 Both queued downloads and manual installations use one readable archive folder per base game,
 for example `GogOfflineInstallers/My_Game (123)/`. Main-game and DLC installer files are stored
-directly together in that folder, without product, platform or version subfolders. The installed
-game directory is unchanged. Editing the library title does not create a second archive folder.
+directly together in that folder when their names are distinct. If filenames match and contents differ,
+the incoming package goes into its own folder inside `Versions/` with its original filenames.
+Editing the library title does not create a second archive folder.
 
 ## Runtime and storage
 
@@ -69,14 +70,15 @@ An interrupted critical installation becomes **Repair required**. The repair act
 repair pipeline for Epic or opens the existing GOG reinstall workflow. **Remove from list** asks for
 confirmation before dismissing a repair notice and preserves the game files and downloads.
 
-GOG resumable files remain staged by product, platform and revision below `State/Downloads/Gog`.
+GOG stages offline installer files by product, platform and revision.
+The download queue uses `State/Downloads/Gog`.
 The archive groups packages by base-game ID, using the library title for a readable folder name.
-The same GOG package validator checks reused files, including files in the old
-`<product>/<platform>/<revision>` archive layout. Existing archives are not moved or deleted.
-Archive publication prepares files in a sibling temporary directory before merging them into the
-game folder. Identical files can be reused; different contents under the same filename are never
-overwritten. Such a collision fails a queued archive request or retains manual-install staging with
-an archive warning, so both the existing archive and the new installer remain available.
+Retromind validates the requested package after matching the product, platform and revision.
+Hidden `.retromind-gog-*` files provide that association for flat archives. Keep them with the
+installers when backing up the archive for reuse in Retromind. Version folders and the old
+`<product>/<platform>/<revision>` layout identify the package through their paths.
+Flat files without a marker are preserved. Retromind can register them after comparing them with a
+verified download. If the contents differ, Retromind archives the verified package under `Versions/`.
 After a queued package is published, its completed installer files are removed from queue staging.
 Later installation reuses the archive through a writable staging directory for the installer and its logs.
 Existing archived files are preserved. The archive destination is checked against symlinks,

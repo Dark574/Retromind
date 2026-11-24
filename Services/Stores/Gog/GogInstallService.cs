@@ -633,14 +633,8 @@ public sealed class GogInstallService
         try
         {
             // Queue staging can be removed after publication while a manual install waits for the transfer lock.
-            if (archiveDirectory != null &&
-                await ValidateArchivedPackageAsync(package, archiveDirectory, ct).ConfigureAwait(false))
-                cachedPackageDirectory = archiveDirectory;
-            else if (legacyArchiveDirectory != null &&
-                     await ValidateArchivedPackageAsync(package, legacyArchiveDirectory, ct).ConfigureAwait(false))
-                cachedPackageDirectory = legacyArchiveDirectory;
-            else if (!Directory.Exists(cachedPackageDirectory))
-                cachedPackageDirectory = null;
+            cachedPackageDirectory = await FindArchivedPackageAsync(package, archiveDirectory, legacyArchiveDirectory, ct)
+                .ConfigureAwait(false) ?? cachedPackageDirectory;
             return await DownloadInstallerPackageCoreAsync(package, stagingDirectory, progress,
                 rateLimiter, cachedPackageDirectory, requireCachedPayload, ct).ConfigureAwait(false);
         }
@@ -650,14 +644,17 @@ public sealed class GogInstallService
         }
     }
 
-    internal async Task ArchiveQueuedPackageAsync(GogInstallerPackage package, string archiveDirectory,
-        GogDownloadedInstallerPackage downloaded, CancellationToken ct)
+    internal async Task<string> ArchivePackageAsync(GogInstallerPackage package, string archiveDirectory,
+        GogDownloadedInstallerPackage downloaded, CancellationToken ct, bool releaseQueueStaging = false)
     {
         await _transfer.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            await GogInstallerArchive.PublishAsync(archiveDirectory, downloaded, ct).ConfigureAwait(false);
-            GogInstallerArchive.DeleteArchivedQueuedFilesBestEffort(package, downloaded);
+            var directory = await GogInstallerArchive.PublishAsync(archiveDirectory, package, downloaded, ct)
+                .ConfigureAwait(false);
+            if (releaseQueueStaging)
+                GogInstallerArchive.DeleteArchivedQueuedFilesBestEffort(package, downloaded);
+            return directory;
         }
         finally
         {
@@ -1356,7 +1353,26 @@ public sealed class GogInstallService
             MaxCharactersInDocument = MaxChecksumMetadataBytes
         };
 
-    internal async Task<bool> ValidateArchivedPackageAsync(
+    internal async Task<string?> FindArchivedPackageAsync(GogInstallerPackage package, string? gameDirectory,
+        string? legacyDirectory, CancellationToken ct)
+    {
+        if (gameDirectory != null)
+        {
+            var conflictDirectory = GogInstallerArchive.GetConflictDirectory(gameDirectory, package);
+            if (await ValidateArchivedPackageAsync(package, conflictDirectory, ct).ConfigureAwait(false))
+                return conflictDirectory;
+            if (GogInstallerArchive.HasFlatPackageMarker(gameDirectory, package) &&
+                await ValidateArchivedPackageAsync(package, gameDirectory, ct).ConfigureAwait(false))
+                return gameDirectory;
+        }
+
+        return legacyDirectory != null &&
+               await ValidateArchivedPackageAsync(package, legacyDirectory, ct).ConfigureAwait(false)
+            ? legacyDirectory
+            : null;
+    }
+
+    private async Task<bool> ValidateArchivedPackageAsync(
         GogInstallerPackage package, string directory, CancellationToken ct)
     {
         if (!Directory.Exists(directory))

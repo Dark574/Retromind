@@ -1149,8 +1149,9 @@ the report never mutates JSON or deletes files.
   GOG queued downloads and manual main-game/DLC installations share the installer archive helper.
   Installer files are grouped directly in a readable base-game folder, using the base-game identity
   supplied by the desktop workflow for DLCs. Product/platform/revision queue staging is unchanged.
-  Archive reuse validates the requested package and also supports the legacy versioned layout.
-  Publishing merges files without replacing different existing contents; a collision retains staging.
+  Flat archives identify each package with a hidden marker keyed by product, platform and revision.
+  Name collisions store the complete incoming package in a revision-specific directory under
+  `Versions/`. Reuse validates the files after matching that identity or the legacy versioned path.
 - `GogUpdateCheckService` owns the background sweep, per-item check gate, and silent authentication cache. It
   compares installed snapshots with the remote base-game and DLC packages. The GOG desktop workflow captures
   snapshots, applies results on the UI thread, marks the library dirty, and owns the manual result dialog. Catalog failures

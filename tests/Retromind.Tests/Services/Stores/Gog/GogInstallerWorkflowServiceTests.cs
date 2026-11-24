@@ -127,7 +127,8 @@ public sealed class GogInstallerWorkflowServiceTests
         }
         var archive = Assert.Single(Directory.GetDirectories(GogInstallerArchive.DefaultRoot));
         Assert.Contains("Manual_Game", Path.GetFileName(archive));
-        Assert.Equal(["dlc.sh", "installer.sh"], Directory.GetFiles(archive).Select(Path.GetFileName).Order());
+        Assert.Equal(["dlc.sh", "installer.sh"], Directory.GetFiles(archive)
+            .Select(Path.GetFileName).Where(name => !name!.StartsWith('.')).Order());
         Assert.Empty(Directory.GetDirectories(archive));
         Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
         Assert.True(File.Exists(Path.Combine(installPath, "dlc-data.bin")));
@@ -354,7 +355,8 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
         Assert.True(File.Exists(Path.Combine(installPath, "dlc-data.bin")));
         var archive = GogInstallerArchive.GetPackageDirectory(settings, package, "123", item.Title);
-        Assert.Equal(["dlc.sh", "installer.sh"], Directory.GetFiles(archive).Select(Path.GetFileName).Order());
+        Assert.Equal(["dlc.sh", "installer.sh"], Directory.GetFiles(archive)
+            .Select(Path.GetFileName).Where(name => !name!.StartsWith('.')).Order());
         Assert.Empty(Directory.GetDirectories(archive));
         Assert.Single(Directory.GetDirectories(GogInstallerArchive.DefaultRoot));
         Assert.Equal(1, handler.Requests);

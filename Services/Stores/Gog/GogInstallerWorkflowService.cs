@@ -144,9 +144,10 @@ public sealed class GogInstallerWorkflowService
                 {
                     if (archive == null)
                         throw new IOException("The archive directory is unavailable.");
-                    if (!await _installService.ValidateArchivedPackageAsync(package, archive, cancellationToken).ConfigureAwait(false))
-                        await GogInstallerArchive.PublishAsync(archive, downloadedPackage, cancellationToken).ConfigureAwait(false);
-                    appendLog($"[Storage] Offline installer archive: {archive}");
+                    var archivedDirectory = await _installService.FindArchivedPackageAsync(package, archive, null, cancellationToken)
+                        .ConfigureAwait(false) ?? await _installService.ArchivePackageAsync(package, archive, downloadedPackage, cancellationToken)
+                        .ConfigureAwait(false);
+                    appendLog($"[Storage] Offline installer archive: {archivedDirectory}");
                 }
                 catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
                 {
