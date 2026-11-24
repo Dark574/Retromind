@@ -11,7 +11,8 @@ namespace Retromind.Services.Stores.Gog;
 public sealed class GogQueuedDownloadService(GogInstallService installer)
 {
     internal async Task<DownloadOutcome> DownloadAsync(DownloadExecution request, string gameId,
-        GogInstallPlatform platform, string? installPath, string? installedRevision, CancellationToken ct)
+        GogInstallPlatform platform, string? installPath, string? installedRevision, CancellationToken ct,
+        string? gameTitle = null)
     {
         GogInstallerPackage? package;
         try
@@ -32,16 +33,18 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
         var offlineOnly = request.Job.Kind == DownloadKind.OfflineInstaller;
         var staging = GogInstallerArchive.GetStagingDirectory(package);
         string? archive = null;
+        string? legacyArchive = null;
         try
         {
             if (offlineOnly || request.Settings.KeepGogInstallers)
             {
-                archive = GogInstallerArchive.GetPackageDirectory(request.Settings, package);
+                archive = GogInstallerArchive.GetPackageDirectory(request.Settings, package, gameTitle: gameTitle);
+                legacyArchive = GogInstallerArchive.GetLegacyPackageDirectory(request.Settings, package);
                 GogInstallerArchive.EnsureSeparateFromInstallation(archive, installPath);
-                if (await installer.ValidateArchivedPackageAsync(package, archive, ct).ConfigureAwait(false))
+                GogInstallerArchive.EnsureSeparateFromInstallation(legacyArchive, installPath);
+                if (await installer.ValidateArchivedPackageAsync(package, archive, ct).ConfigureAwait(false) ||
+                    await installer.ValidateArchivedPackageAsync(package, legacyArchive, ct).ConfigureAwait(false))
                     return Ready(offlineOnly, revision);
-                if (Directory.Exists(archive))
-                    return new(DownloadState.Failed, DownloadReason.ArchiveUnavailable);
             }
         }
         catch (IOException)
@@ -65,9 +68,19 @@ public sealed class GogQueuedDownloadService(GogInstallService installer)
         try
         {
             var downloaded = await installer.DownloadInstallerPackageAsync(package,
-                staging, new TransferProgress(request.Progress), limiter, null, ct).ConfigureAwait(false);
+                staging, new TransferProgress(request.Progress), limiter, null, ct,
+                archiveDirectory: archive, legacyArchiveDirectory: legacyArchive).ConfigureAwait(false);
             if (archive != null)
-                await installer.ArchiveQueuedPackageAsync(package, archive, downloaded, ct).ConfigureAwait(false);
+            {
+                try
+                {
+                    await installer.ArchiveQueuedPackageAsync(package, archive, downloaded, ct).ConfigureAwait(false);
+                }
+                catch (IOException ex) when (ex is not GogInsufficientDiskSpaceException)
+                {
+                    return new(DownloadState.Failed, DownloadReason.ArchiveUnavailable);
+                }
+            }
         }
         catch (GogInsufficientDiskSpaceException)
         {

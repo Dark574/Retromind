@@ -15,6 +15,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - pause and resume the entire download queue while Retromind is open
 
 ### Changed
+- keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
 - allow manually starting downloaded GOG installations with DLC reinstallation while other queued downloads stay paused

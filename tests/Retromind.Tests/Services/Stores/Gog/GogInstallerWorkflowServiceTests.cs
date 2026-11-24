@@ -81,7 +81,7 @@ public sealed class GogInstallerWorkflowServiceTests
             return;
         }
 
-        var archive = GogInstallerArchive.GetPackageDirectory(settings, package);
+        var archive = GogInstallerArchive.GetPackageDirectory(settings, package, "123", item.Title);
         var archivedFile = Path.Combine(archive, Path.GetFileName(installerPath));
         Assert.Equal(keepInstaller, File.Exists(archivedFile));
         if (keepInstaller)
@@ -92,6 +92,45 @@ public sealed class GogInstallerWorkflowServiceTests
             Assert.True(File.Exists(archivedFile));
             Assert.False(File.Exists(Path.Combine(archive, "retromind-install.log")));
         }
+    }
+
+    [Fact]
+    public async Task RunAsync_ManualMainGameAndDlcShareArchiveFolder()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var installPath = temp.CreateDirectory("Library", "Games", "Manual Game");
+        var item = new MediaItem("Manual Game");
+        var settings = new DownloadSettings { KeepGogInstallers = true };
+        var service = CreateService(temp.RootPath);
+        foreach (var dlc in new[] { false, true })
+        {
+            var staging = temp.CreateDirectory(dlc ? "dlc-staging" : "main-staging");
+            var source = CreateInstallerScript(staging);
+            if (dlc)
+            {
+                var renamed = Path.Combine(staging, "dlc.sh");
+                File.Move(source, renamed);
+                source = renamed;
+                File.WriteAllText(source, File.ReadAllText(source).Replace("game.x86_64", "dlc-data.bin"));
+            }
+            var package = new GogInstallerPackage(dlc ? "456" : "123", GogInstallPlatform.Linux,
+                dlc ? "DLC" : "Game", "1", [new("https://invalid.example/installer", Path.GetFileName(source),
+                    new FileInfo(source).Length)]);
+            var result = await service.RunAsync(new GogInstallerWorkflowRequest(item, "123", installPath,
+                GogInstallPlatform.Linux, package, staging, GogWindowsInstallerPreference.AutoPrefer64,
+                false, false, false, UseTemporaryLinuxDestination: !dlc, RequireLinuxPayloadChange: true,
+                DownloadSettings: settings), _ => { });
+            Assert.True(result.Success, result.ErrorMessage);
+            Assert.False(result.ArchivePending);
+            GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(staging);
+        }
+        var archive = Assert.Single(Directory.GetDirectories(GogInstallerArchive.DefaultRoot));
+        Assert.Contains("Manual_Game", Path.GetFileName(archive));
+        Assert.Equal(["dlc.sh", "installer.sh"], Directory.GetFiles(archive).Select(Path.GetFileName).Order());
+        Assert.Empty(Directory.GetDirectories(archive));
+        Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
+        Assert.True(File.Exists(Path.Combine(installPath, "dlc-data.bin")));
     }
 
     [Fact]
@@ -252,6 +291,7 @@ public sealed class GogInstallerWorkflowServiceTests
         using var client = new HttpClient(handler);
         var service = CreateService(temp.RootPath, client);
         var revision = GogInstallerArchive.GetRevision(package);
+        var settings = new DownloadSettings { KeepGogInstallers = true };
         var install = new DownloadJob(Guid.NewGuid(), item.Id, DownloadStore.Gog, DownloadKind.Update,
             revision, false, false, false, DownloadState.InstallationPending, PayloadReady: true, PayloadRevision: revision);
         var waiting = install with
@@ -284,7 +324,8 @@ public sealed class GogInstallerWorkflowServiceTests
                     item, "123", installPath, GogInstallPlatform.Linux, package,
                     Path.Combine(installPath, ".retromind-gog-installers", "123", "linux"),
                     GogWindowsInstallerPreference.AutoPrefer64, false, false, false,
-                    UseTemporaryLinuxDestination: true, RequireLinuxPayloadChange: true, RequireCachedPayload: true),
+                    UseTemporaryLinuxDestination: true, RequireLinuxPayloadChange: true, RequireCachedPayload: true,
+                    DownloadSettings: settings),
                 _ => { }, ct);
             Assert.True(baseResult.Success, baseResult.ErrorMessage);
 
@@ -293,7 +334,7 @@ public sealed class GogInstallerWorkflowServiceTests
                 item, "123", installPath, GogInstallPlatform.Linux, dlc,
                 Path.Combine(installPath, ".retromind-gog-installers", "dlc", "456", "linux"),
                 GogWindowsInstallerPreference.AutoPrefer64, false, false, false,
-                UseTemporaryLinuxDestination: false, RequireLinuxPayloadChange: true),
+                UseTemporaryLinuxDestination: false, RequireLinuxPayloadChange: true, DownloadSettings: settings),
                 _ => { }, ct);
             Assert.True(dlcResult.Success, dlcResult.ErrorMessage);
             Assert.True(manager.IsQueuePaused);
@@ -312,6 +353,10 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.True(dlcResult?.Success, dlcResult?.ErrorMessage);
         Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
         Assert.True(File.Exists(Path.Combine(installPath, "dlc-data.bin")));
+        var archive = GogInstallerArchive.GetPackageDirectory(settings, package, "123", item.Title);
+        Assert.Equal(["dlc.sh", "installer.sh"], Directory.GetFiles(archive).Select(Path.GetFileName).Order());
+        Assert.Empty(Directory.GetDirectories(archive));
+        Assert.Single(Directory.GetDirectories(GogInstallerArchive.DefaultRoot));
         Assert.Equal(1, handler.Requests);
         Assert.True(manager.IsQueuePaused);
         Assert.Equal(DownloadState.Completed, manager.Snapshot()[0].Job.State);

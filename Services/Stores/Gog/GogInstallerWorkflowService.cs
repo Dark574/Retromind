@@ -115,14 +115,18 @@ public sealed class GogInstallerWorkflowService
         {
             var queuedStaging = GogInstallerArchive.GetStagingDirectory(package);
             string? archive = null;
+            string? legacyArchive = null;
             try
             {
-                archive = GogInstallerArchive.GetPackageDirectory(settings, package);
+                archive = GogInstallerArchive.GetPackageDirectory(settings, package, request.StoreGameId, request.Item.Title);
+                legacyArchive = GogInstallerArchive.GetLegacyPackageDirectory(settings, package);
                 GogInstallerArchive.EnsureSeparateFromInstallation(archive, request.InstallPath);
+                GogInstallerArchive.EnsureSeparateFromInstallation(legacyArchive, request.InstallPath);
             }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
                 archive = null;
+                legacyArchive = null;
             }
 
             var limiter = settings.BytesPerSecond > 0
@@ -130,7 +134,8 @@ public sealed class GogInstallerWorkflowService
                 : null;
             downloadedPackage = await _installService.DownloadInstallerPackageAsync(
                     package, request.StagingDirectory, CreateDownloadProgress(appendLog), limiter, queuedStaging,
-                    cancellationToken, archiveDirectory: archive, requireCachedPayload: request.RequireCachedPayload)
+                    cancellationToken, archiveDirectory: archive, requireCachedPayload: request.RequireCachedPayload,
+                    legacyArchiveDirectory: legacyArchive)
                 .ConfigureAwait(false);
 
             if (settings.KeepGogInstallers)

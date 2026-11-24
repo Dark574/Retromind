@@ -11,14 +11,35 @@ using Retromind.Models;
 namespace Retromind.Services.Stores.Gog;
 
 /// <summary>
-/// Publishes verified installer files into an immutable, versioned archive.
+/// Publishes verified installer files into a shared archive folder for a game and its DLCs.
 /// Staging is the only destination for downloads, resume files and installer work files.
 /// </summary>
 internal static class GogInstallerArchive
 {
     internal static string DefaultRoot => Path.Combine(AppPaths.DataRoot, "GogOfflineInstallers");
 
-    internal static string GetPackageDirectory(DownloadSettings settings, GogInstallerPackage package)
+    internal static string GetPackageDirectory(DownloadSettings settings, GogInstallerPackage package,
+        string? baseGameId = null, string? gameTitle = null)
+    {
+        var root = GetArchiveRoot(settings);
+        var id = GetGameDirectoryName(package with { GameId = baseGameId ?? package.GameId });
+        var suffix = " (" + id + ")";
+        // Keep using the same archive after the library title is edited.
+        var existing = Directory.Exists(root)
+            ? Directory.EnumerateDirectories(root).Order(StringComparer.Ordinal)
+                .FirstOrDefault(path => Path.GetFileName(path).EndsWith(suffix, StringComparison.Ordinal))
+            : null;
+        var directory = existing ?? Path.Combine(root,
+            PrefixPathHelper.SanitizePrefixFolderName(gameTitle ?? package.InstallerName) + suffix);
+        EnsureSafeDirectory(directory);
+        return directory;
+    }
+
+    internal static string GetLegacyPackageDirectory(DownloadSettings settings, GogInstallerPackage package) =>
+        Path.Combine(GetArchiveRoot(settings), GetGameDirectoryName(package),
+            GetPlatformName(package.Platform), GetRevision(package));
+
+    private static string GetArchiveRoot(DownloadSettings settings)
     {
         var root = string.IsNullOrWhiteSpace(settings.GogArchiveDirectory)
             ? DefaultRoot
@@ -31,7 +52,7 @@ internal static class GogInstallerArchive
             throw new IOException("The installer archive requires a separate, safe directory.");
 
         EnsureSafeDirectory(normalized);
-        return Path.Combine(normalized, GetGameDirectoryName(package), GetPlatformName(package.Platform), GetRevision(package));
+        return normalized;
     }
 
     internal static void EnsureSeparateFromInstallation(string archiveDirectory, string? installPath)
@@ -107,7 +128,7 @@ internal static class GogInstallerArchive
         var parent = Path.GetDirectoryName(directory)!;
         Directory.CreateDirectory(parent);
 
-        // Never replace another archive. Only the temporary directory created here can be removed.
+        // Prepare all files before merging. Existing files are never replaced.
         var temporary = Path.Combine(parent, ".incoming-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try
@@ -122,12 +143,56 @@ internal static class GogInstallerArchive
             }
             ct.ThrowIfCancellationRequested();
             EnsureSafeDirectory(directory);
-            Directory.Move(temporary, directory);
+            Directory.CreateDirectory(directory);
+            var files = Directory.GetFiles(temporary);
+            foreach (var source in files)
+            {
+                var target = Path.Combine(directory, Path.GetFileName(source));
+                EnsureSafeFile(target);
+                if (File.Exists(target) && !await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
+                    throw new IOException($"An archived installer with different contents already exists: {target}");
+            }
+            foreach (var source in files)
+            {
+                ct.ThrowIfCancellationRequested();
+                var target = Path.Combine(directory, Path.GetFileName(source));
+                EnsureSafeDirectory(directory);
+                EnsureSafeFile(target);
+                if (File.Exists(target))
+                {
+                    if (!await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
+                        throw new IOException($"An archived installer with different contents already exists: {target}");
+                    continue;
+                }
+                try
+                {
+                    File.Move(source, target);
+                }
+                catch (IOException) when (File.Exists(target))
+                {
+                    EnsureSafeFile(target);
+                    if (!await FilesEqualAsync(source, target, ct).ConfigureAwait(false))
+                        throw;
+                }
+            }
         }
         finally
         {
             StoreDirectoryDeletionHelper.DeleteDirectoryTreeWithoutFollowingLinks(temporary);
         }
+    }
+
+    private static async Task<bool> FilesEqualAsync(string first, string second, CancellationToken ct)
+    {
+        EnsureSafeFile(first);
+        EnsureSafeFile(second);
+        if (new FileInfo(first).Length != new FileInfo(second).Length)
+            return false;
+        await using var input = File.OpenRead(first);
+        await using var other = File.OpenRead(second);
+        var hash = await SHA256.HashDataAsync(input, ct).ConfigureAwait(false);
+        var otherHash = await SHA256.HashDataAsync(other, ct).ConfigureAwait(false);
+        return hash.AsSpan().SequenceEqual(otherHash);
     }
 
     internal static async Task CopyFileAsync(string source, string target, CancellationToken ct)

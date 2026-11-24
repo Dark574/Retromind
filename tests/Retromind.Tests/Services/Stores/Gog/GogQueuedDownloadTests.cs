@@ -8,15 +8,16 @@ namespace Retromind.Tests.Services.Stores.Gog;
 public sealed class GogQueuedDownloadTests
 {
     [Fact]
-    public async Task Archive_PublishesVersionedCopyAndNeverOverwritesIt()
+    public async Task Archive_MergesMainGameAndDlcWithoutOverwritingDifferentFiles()
     {
         using var temp = new TemporaryDirectory();
         using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
         var settings = new DownloadSettings { GogArchiveDirectory = "Offline" };
         var package = Package();
         var first = GogInstallerArchive.GetPackageDirectory(settings, package);
-        var second = GogInstallerArchive.GetPackageDirectory(settings, package with { Version = "2" });
-        Assert.NotEqual(first, second);
+        var second = GogInstallerArchive.GetPackageDirectory(settings,
+            package with { GameId = "456", InstallerName = "DLC", Version = "2" }, "123", "Game");
+        Assert.Equal(first, second);
         Assert.StartsWith(temp.GetPath("Offline"), first);
 
         var staging = Directory.CreateDirectory(GogInstallerArchive.GetStagingDirectory(package)).FullName;
@@ -24,14 +25,44 @@ public sealed class GogQueuedDownloadTests
         await File.WriteAllTextAsync(file, "installer");
         var downloaded = new GogDownloadedInstallerPackage(staging, file, [file]);
         await GogInstallerArchive.PublishAsync(first, downloaded, CancellationToken.None);
+        await GogInstallerArchive.PublishAsync(first, downloaded, CancellationToken.None);
+        var dlcFile = Path.Combine(staging, "dlc.sh");
+        await File.WriteAllTextAsync(dlcFile, "dlc installer");
+        await GogInstallerArchive.PublishAsync(second, new(staging, dlcFile, [dlcFile]), CancellationToken.None);
+        Assert.Equal(["dlc.sh", "setup.sh"], Directory.GetFiles(first).Select(Path.GetFileName).Order());
+        Assert.Equal("dlc installer", await File.ReadAllTextAsync(Path.Combine(first, "dlc.sh")));
+        Assert.Empty(Directory.GetDirectories(first));
+        Assert.Equal(first, GogInstallerArchive.GetPackageDirectory(settings, package, gameTitle: "Renamed Game"));
         GogInstallerArchive.DeleteQueuedStagingBestEffort(package);
 
         Assert.False(Directory.Exists(staging));
         Assert.Equal("installer", await File.ReadAllTextAsync(Path.Combine(first, "setup.sh")));
         Directory.CreateDirectory(staging);
         await File.WriteAllTextAsync(file, "changed");
-        await Assert.ThrowsAsync<IOException>(() => GogInstallerArchive.PublishAsync(first, downloaded, CancellationToken.None));
+        var extra = Path.Combine(staging, "extra.bin");
+        await File.WriteAllTextAsync(extra, "extra");
+        await Assert.ThrowsAsync<IOException>(() => GogInstallerArchive.PublishAsync(first,
+            new(staging, file, [extra, file]), CancellationToken.None));
         Assert.Equal("installer", await File.ReadAllTextAsync(Path.Combine(first, "setup.sh")));
+        Assert.False(File.Exists(Path.Combine(first, "extra.bin")));
+        Assert.True(File.Exists(file));
+        Assert.DoesNotContain(Directory.GetDirectories(Path.GetDirectoryName(first)!),
+            path => Path.GetFileName(path).StartsWith(".incoming-", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Archive_SanitizesTitlesAndSeparatesDifferentGames()
+    {
+        using var temp = new TemporaryDirectory();
+        using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")));
+        var settings = new DownloadSettings { GogArchiveDirectory = "Offline" };
+        var first = GogInstallerArchive.GetPackageDirectory(settings, Package(), gameTitle: "../Spiele: Ä & Test/");
+        var second = GogInstallerArchive.GetPackageDirectory(settings, Package() with { GameId = "456" },
+            gameTitle: "../Spiele: Ä & Test/");
+        Assert.Equal(temp.GetPath("Offline"), Path.GetDirectoryName(first));
+        Assert.Contains("Ä", Path.GetFileName(first));
+        Assert.NotEqual(first, second);
+        Assert.DoesNotContain(':', Path.GetFileName(first));
     }
 
     [Fact]
@@ -50,6 +81,25 @@ public sealed class GogQueuedDownloadTests
             Files = [new("https://example.test", "file", 2), new("https://example.test", "file.part", 3)]
         }));
         Assert.Empty(Directory.EnumerateFileSystemEntries(destination));
+    }
+
+    [Fact]
+    public async Task Archive_RejectsExistingSymlinkFileWithoutChangingItsTarget()
+    {
+        using var temp = new TemporaryDirectory();
+        var archive = temp.CreateDirectory("archive");
+        var source = temp.CreateDirectory("source");
+        var target = temp.GetPath("valuable-file");
+        await File.WriteAllTextAsync(target, "keep");
+        File.CreateSymbolicLink(Path.Combine(archive, "setup.sh"), target);
+        var file = Path.Combine(source, "setup.sh");
+        await File.WriteAllTextAsync(file, "installer");
+
+        await Assert.ThrowsAsync<IOException>(() => GogInstallerArchive.PublishAsync(archive,
+            new(source, file, [file]), CancellationToken.None));
+
+        Assert.Equal("keep", await File.ReadAllTextAsync(target));
+        Assert.Single(Directory.GetFiles(archive));
     }
 
     [Fact]

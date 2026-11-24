@@ -624,14 +624,19 @@ public sealed class GogInstallService
         string? cachedPackageDirectory,
         CancellationToken ct,
         string? archiveDirectory = null,
-        bool requireCachedPayload = false)
+        bool requireCachedPayload = false,
+        string? legacyArchiveDirectory = null)
     {
         await _transfer.WaitAsync(ct).ConfigureAwait(false);
         try
         {
             // Queue staging can be removed after publication while a manual install waits for the transfer lock.
-            if (Directory.Exists(archiveDirectory))
+            if (archiveDirectory != null &&
+                await ValidateArchivedPackageAsync(package, archiveDirectory, ct).ConfigureAwait(false))
                 cachedPackageDirectory = archiveDirectory;
+            else if (legacyArchiveDirectory != null &&
+                     await ValidateArchivedPackageAsync(package, legacyArchiveDirectory, ct).ConfigureAwait(false))
+                cachedPackageDirectory = legacyArchiveDirectory;
             else if (!Directory.Exists(cachedPackageDirectory))
                 cachedPackageDirectory = null;
             return await DownloadInstallerPackageCoreAsync(package, stagingDirectory, progress,

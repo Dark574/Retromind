@@ -43,6 +43,10 @@ the default in the GOG installation and DLC dialogs. Changing it in the installa
 to the game and any DLCs reinstalled with it. In the DLC dialog the choice applies to the selected
 DLCs. Retromind clears the temporary installer staging after a successful
 installation and keeps it available if the requested archive could not be saved.
+Both queued downloads and manual installations use one readable archive folder per base game,
+for example `GogOfflineInstallers/My_Game (123)/`. Main-game and DLC installer files are stored
+directly together in that folder, without product, platform or version subfolders. The installed
+game directory is unchanged. Editing the library title does not create a second archive folder.
 
 ## Runtime and storage
 
@@ -62,12 +66,17 @@ An interrupted critical installation becomes **Repair required**. The repair act
 repair pipeline for Epic or opens the existing GOG reinstall workflow. **Remove from list** asks for
 confirmation before dismissing a repair notice and preserves the game files and downloads.
 
-GOG resumable files are staged below `State/Downloads/Gog`. The archive uses a separate directory
-per product, platform and version fingerprint. The same GOG package validator checks reused files.
-Archive publication creates a sibling temporary directory and moves it into place on completion.
+GOG resumable files remain staged by product, platform and revision below `State/Downloads/Gog`.
+The archive groups packages by base-game ID, using the library title for a readable folder name.
+The same GOG package validator checks reused files, including files in the old
+`<product>/<platform>/<revision>` archive layout. Existing archives are not moved or deleted.
+Archive publication prepares files in a sibling temporary directory before merging them into the
+game folder. Identical files can be reused; different contents under the same filename are never
+overwritten. Such a collision fails a queued archive request or retains manual-install staging with
+an archive warning, so both the existing archive and the new installer remain available.
 After a queued package is published, its completed installer files are removed from queue staging.
 Later installation reuses the archive through a writable staging directory for the installer and its logs.
-Existing archived packages are preserved. The archive destination is checked against symlinks,
+Existing archived files are preserved. The archive destination is checked against symlinks,
 managed staging, the library and the current installation. The existing GOG disk-space assessment
 accounts for staged bytes. An archive or installation on another filesystem gets a separate check.
 The installer size provides a conservative estimate of space needed to install GOG games. Legendary

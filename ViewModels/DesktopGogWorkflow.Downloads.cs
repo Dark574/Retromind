@@ -75,7 +75,7 @@ internal sealed partial class DesktopGogWorkflow
         }
 
         // Work on the provider's download service, with only a snapshot of the UI metadata.
-        return await service.DownloadAsync(execution, gameId, platform.Value, installPath, revision, ct)
+        return await service.DownloadAsync(execution, gameId, platform.Value, installPath, revision, ct, item.Title)
             .ConfigureAwait(false);
     }
 
