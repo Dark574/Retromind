@@ -1138,6 +1138,7 @@ the report never mutates JSON or deletes files.
   installers retain ownership of their own outcome. Physical success with unsaved library metadata retains
   the existing `SavePending` result. Manual Epic maintenance invalidates the shared catalog; background sweeps
   discard catalogs invalidated by a completed installation.
+  The global pause is saved with the queue state and restored before the scheduler starts.
   Queue pause suspends transfers and automatic jobs but permits an explicit GOG `Install` with a
   prepared, revision-bound payload. Selection, preflight cancellation and `BeginInstallation` use
   the same exception; stop, persistence failure, game guards and explicit cancellation still apply.

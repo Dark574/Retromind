@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Retromind.Models;
 using Retromind.Services.Downloads;
 using Retromind.Tests.TestInfrastructure;
@@ -14,14 +15,11 @@ public sealed class DownloadManagerTests
         var path = temp.GetPath("downloads.json");
         var download = Job("download", DownloadState.Downloading);
         var install = Job("install", DownloadState.Installing);
-        using (var store = new DownloadQueueStore(path))
-        {
-            store.Load();
-            store.Save([download, install]);
-        }
+        await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new[] { download, install }));
 
         var manager = new DownloadManagerService(path, new RecordingErrorService(), TimeProvider.System);
         manager.Start(new DownloadSettings(), (_, _) => throw new InvalidOperationException());
+        Assert.False(manager.IsQueuePaused);
         Assert.False(manager.Enqueue("another", DownloadStore.Gog, DownloadKind.Update, automatic: true));
         await manager.StopAsync();
 
@@ -33,7 +31,7 @@ public sealed class DownloadManagerTests
         Assert.Empty(status.PendingGogInstallations);
         manager.Release();
         using var restored = new DownloadQueueStore(path);
-        Assert.Equal(DownloadReason.InstallInterrupted, restored.Load()[1].Reason);
+        Assert.Equal(DownloadReason.InstallInterrupted, restored.Load().Jobs[1].Reason);
     }
 
     [Fact]
@@ -109,7 +107,7 @@ public sealed class DownloadManagerTests
         }
 
         using var restored = new DownloadQueueStore(path);
-        Assert.Empty(restored.Load());
+        Assert.Empty(restored.Load().Jobs);
     }
 
     [Fact]
@@ -377,7 +375,7 @@ public sealed class DownloadManagerTests
         Assert.Equal(
             [(DownloadState.Paused, DownloadReason.Excluded), (DownloadState.Queued, DownloadReason.None),
                 (DownloadState.Paused, DownloadReason.None)],
-            restored.Load().Select(job => (job.State, job.Reason)));
+            restored.Load().Jobs.Select(job => (job.State, job.Reason)));
     }
 
     [Theory]
@@ -523,7 +521,7 @@ public sealed class DownloadManagerTests
         Assert.True(drained.Task.IsCompletedSuccessfully);
         manager.Release();
         using var store = new DownloadQueueStore(path);
-        Assert.Equal(DownloadState.Queued, Assert.Single(store.Load()).State);
+        Assert.Equal(DownloadState.Queued, Assert.Single(store.Load().Jobs).State);
     }
 
     [Fact]
@@ -632,7 +630,7 @@ public sealed class DownloadManagerTests
         }
 
         using var restored = new DownloadQueueStore(path);
-        var job = Assert.Single(restored.Load());
+        var job = Assert.Single(restored.Load().Jobs);
         AssertInstallReady(job, original.Id, DownloadReason.ManualGogInstallation, payloadReady: true);
         Assert.Equal(latestRevision, job.PayloadRevision);
         Assert.Equal(latestRevision, job.Revision);
@@ -732,7 +730,7 @@ public sealed class DownloadManagerTests
         finally { await manager.StopAsync(); manager.Release(); }
 
         using var restored = new DownloadQueueStore(path);
-        Assert.Equal(DownloadState.Completed, restored.Load()[0].State);
+        Assert.Equal(DownloadState.Completed, restored.Load().Jobs[0].State);
     }
 
     [Fact]
@@ -1099,6 +1097,59 @@ public sealed class DownloadManagerTests
             });
         }
         finally { await manager.StopAsync(); manager.Release(); }
+    }
+
+    [Fact]
+    public async Task GlobalPause_SurvivesRestartAndResumeKeepsIndividualPause()
+    {
+        using var temp = new TemporaryDirectory();
+        var path = temp.GetPath("downloads.json");
+        var errors = new RecordingErrorService();
+        var first = new DownloadManagerService(path, errors, TimeProvider.System);
+        first.Start(new(), (_, _) => throw new InvalidOperationException("No jobs have been added."));
+        try
+        {
+            first.ToggleQueuePause();
+            Assert.True(first.IsQueuePaused);
+        }
+        finally { await first.StopAsync(); first.Release(); }
+
+        var second = new DownloadManagerService(path, errors, TimeProvider.System);
+        var started = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = Signal();
+        second.Changed += () =>
+        {
+            if (second.Snapshot().Any(row => row.Job is { ItemId: "game", State: DownloadState.Completed }))
+                completed.TrySetResult();
+        };
+        second.Start(new(), (execution, _) =>
+        {
+            started.TrySetResult(execution.Job.ItemId);
+            return Task.FromResult(new DownloadOutcome(DownloadState.Completed));
+        });
+        try
+        {
+            Assert.True(second.IsQueuePaused);
+            Assert.True(second.Enqueue("individual", DownloadStore.Gog, DownloadKind.Update));
+            var individual = Assert.Single(second.Snapshot()).Job;
+            Assert.True(second.Change(individual.Id, DownloadAction.Pause));
+            Assert.True(second.Enqueue("game", DownloadStore.Gog, DownloadKind.Update));
+            var game = second.Snapshot().Single(row => row.Job.ItemId == "game").Job;
+            Assert.False(second.Change(game.Id, DownloadAction.Start));
+            Assert.False(started.Task.IsCompleted);
+
+            second.ToggleQueuePause();
+            Assert.Equal("game", await started.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.Equal(DownloadState.Paused, second.Snapshot().Single(row => row.Job.Id == individual.Id).Job.State);
+        }
+        finally { await second.StopAsync(); second.Release(); }
+
+        using var restored = new DownloadQueueStore(path);
+        var state = restored.Load();
+        Assert.False(state.IsPaused);
+        Assert.Equal([DownloadState.Paused, DownloadState.Completed], state.Jobs.Select(job => job.State));
+        Assert.Empty(errors.Reports);
     }
 
     private static DownloadJob PreparedGogJob(string id) => Job(id, DownloadState.InstallationPending) with

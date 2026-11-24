@@ -131,7 +131,9 @@ public sealed class DownloadManagerService
             {
                 try
                 {
-                    SetJobs(_store.Load().ToList());
+                    var state = _store.Load();
+                    SetJobs(state.Jobs.ToList());
+                    _queuePaused = state.IsPaused;
                     _loaded = true;
                 }
                 catch (Exception ex)
@@ -211,7 +213,7 @@ public sealed class DownloadManagerService
     {
         lock (_gate)
         {
-            if (!_loaded || _stopping || _persistenceFailed)
+            if (_stopping || !Persist(_jobs, !_queuePaused))
                 return;
 
             _queuePaused = !_queuePaused;
@@ -586,16 +588,24 @@ public sealed class DownloadManagerService
 
     private bool Save(List<DownloadJob> next)
     {
+        if (!Persist(next, _queuePaused))
+            return false;
+
+        SetJobs(next);
+        var ids = next.Select(job => job.Id).ToHashSet();
+        foreach (var id in _progress.Keys.Where(id => !ids.Contains(id)).ToArray())
+            _progress.Remove(id);
+        Notify();
+        return true;
+    }
+
+    private bool Persist(List<DownloadJob> jobs, bool isPaused)
+    {
         if (!_loaded || _persistenceFailed)
             return false;
         try
         {
-            _store.Save(next);
-            SetJobs(next);
-            var ids = next.Select(job => job.Id).ToHashSet();
-            foreach (var id in _progress.Keys.Where(id => !ids.Contains(id)).ToArray())
-                _progress.Remove(id);
-            Notify();
+            _store.Save(jobs, isPaused);
             return true;
         }
         catch (Exception ex)

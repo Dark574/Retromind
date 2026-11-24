@@ -19,9 +19,9 @@ manual and queued installations. GOG clears the installed revision from queue st
 library save and any requested archive copy. An active transfer of that package keeps its staging until
 it finishes. Failed transfers or archive writes keep their files for retry.
 
-**Pause all downloads** suspends active transfers and holds new jobs in the queue while
-Retromind is open. Closing the download manager window keeps the pause in effect. **Resume download
-queue** restores normal scheduling and keeps individually paused jobs paused. An installation
+**Pause all downloads** suspends active transfers and holds new jobs in the queue. Retromind
+remembers the pause after a restart. **Resume download queue** restores normal scheduling and
+keeps individually paused jobs paused. An installation
 already in progress, including a combined Epic download and update, runs to completion.
 You can also explicitly start a fully downloaded GOG update with **Install** while downloads stay
 paused. It waits for an interrupted transfer to finish unwinding and leaves other downloads held.
@@ -64,7 +64,8 @@ until the current operation finishes. The game launch and store workflows share 
 with queued installation, covering game sessions that Retromind can still track.
 
 `State/downloads.json` sits under Retromind's data directory and uses atomic replacements. It stores
-library item and store game IDs, provider, operation, a hashed update revision and queue state. The store resolves
+the global pause and the jobs, including library item and store game IDs, provider, operation, a
+hashed update revision and job state. Older job lists load with the global pause off. The store resolves
 authorization and download URLs at execution. Restart returns an interrupted transfer to the queue.
 An interrupted critical installation becomes **Repair required**. The repair action uses Legendary's
 repair pipeline for Epic or opens the existing GOG reinstall workflow. **Remove from list** asks for

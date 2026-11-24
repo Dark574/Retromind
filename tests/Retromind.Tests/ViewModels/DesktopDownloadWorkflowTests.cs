@@ -194,7 +194,7 @@ public sealed class DesktopDownloadWorkflowTests
             downloads.Release();
         }
         using var restored = new DownloadQueueStore(path);
-        Assert.Equal(DownloadState.Completed, Assert.Single(restored.Load()).State);
+        Assert.Equal(DownloadState.Completed, Assert.Single(restored.Load().Jobs).State);
         Assert.Empty(errors.Reports);
     }
 

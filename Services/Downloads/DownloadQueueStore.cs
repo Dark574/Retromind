@@ -12,7 +12,9 @@ internal sealed class DownloadQueueStore(string path) : IDisposable
     internal const int Capacity = 1000;
     private FileStream? _lease;
 
-    internal DownloadJob[] Load()
+    internal sealed record QueueState(bool IsPaused, IReadOnlyList<DownloadJob> Jobs);
+
+    internal QueueState Load()
     {
         var directory = Path.GetDirectoryName(path)!;
         if (StoreDirectoryDeletionHelper.ContainsSymbolicLinkInPath(directory) ||
@@ -25,21 +27,25 @@ internal sealed class DownloadQueueStore(string path) : IDisposable
             throw new IOException("The download queue path is unsafe.");
 
         if (!File.Exists(path))
-            return [];
+            return new(false, []);
 
         using var stream = File.OpenRead(path);
         if (stream.Length > 2 * 1024 * 1024)
             throw new InvalidDataException("The download queue exceeds its size limit.");
 
-        var jobs = JsonSerializer.Deserialize<DownloadJob[]>(stream);
-        if (jobs == null || jobs.Length > Capacity || jobs.Any(job => !IsValid(job)) ||
-            jobs.Select(job => job.Id).Distinct().Count() != jobs.Length)
+        using var document = JsonDocument.Parse(stream);
+        var root = document.RootElement;
+        var state = root.ValueKind == JsonValueKind.Array
+            ? new QueueState(false, root.Deserialize<DownloadJob[]>()!)
+            : root.Deserialize<QueueState>();
+        if (state?.Jobs is not { } jobs || jobs.Count > Capacity || jobs.Any(job => !IsValid(job)) ||
+            jobs.Select(job => job.Id).Distinct().Count() != jobs.Count)
             throw new InvalidDataException("The download queue could not be validated.");
 
-        return jobs;
+        return state;
     }
 
-    internal void Save(IReadOnlyList<DownloadJob> jobs)
+    internal void Save(IReadOnlyList<DownloadJob> jobs, bool isPaused = false)
     {
         if (_lease == null)
             throw new InvalidOperationException("The download queue is not open.");
@@ -49,7 +55,7 @@ internal sealed class DownloadQueueStore(string path) : IDisposable
         {
             using (var stream = new FileStream(temporaryPath, FileMode.CreateNew, FileAccess.Write, FileShare.None))
             {
-                JsonSerializer.Serialize(stream, jobs);
+                JsonSerializer.Serialize(stream, new QueueState(isPaused, jobs));
                 stream.Flush(flushToDisk: true);
             }
             File.Move(temporaryPath, path, overwrite: true);
