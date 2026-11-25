@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
+- report aborted GOG setups as incomplete and retain installer and Wine logs after download cleanup
 - wrap the prefix help text in the media editor so it stays readable
 - keep Windows templates and default profile folders inside newly created portable prefixes
 - use the effective Wine or Proton prefix consistently for launch, setup and Winetricks, and prevent known starts from creating a second Windows tree or replacing custom UMU prefix links

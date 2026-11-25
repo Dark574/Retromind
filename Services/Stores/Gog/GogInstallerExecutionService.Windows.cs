@@ -25,7 +25,8 @@ internal sealed record GogWindowsInstallerExecutionRequest(
     GogWindowsInstallerPreference InstallerPreference,
     bool CreateDesktopShortcut,
     bool CreateStartMenuShortcuts,
-    PrefixResolution? ResolvedPrefix = null);
+    PrefixResolution? ResolvedPrefix = null,
+    string? LogDirectory = null);
 
 public sealed partial class GogInstallerExecutionService
 {
@@ -86,16 +87,19 @@ public sealed partial class GogInstallerExecutionService
             return Fail("Windows installer entry file was not found.");
 
         appendLog($"[Windows installer] Using: {installerPath}");
-        var payloadBaseline = GogInstallPayloadTracker.Capture(request.InstallPath);
         var prefixPayloadBaseline = GogInstallPayloadTracker.Capture(prefixDrivePath);
+        var logDirectory = request.LogDirectory ?? request.DownloadedPackage.StagingDirectory;
+        var logId = Guid.NewGuid().ToString("N");
         var profiles = BuildWindowsInstallerArgumentProfiles(
             request.CreateDesktopShortcut,
             request.CreateStartMenuShortcuts);
-        GogInstallerProcessResult? lastExecution = null;
+        string? lastError = null;
+        var targetChanged = false;
 
         for (var attemptIndex = 0; attemptIndex < profiles.Count; attemptIndex++)
         {
             var profile = profiles[attemptIndex];
+            var payloadBaseline = GogInstallPayloadTracker.Capture(request.InstallPath);
             var startInfo = EmulatorResolverHelper.BuildWineInstallStartInfo(request.WinePath, prefixRoot);
             if (prefix.PortableProfile)
                 startInfo.Environment["USER"] = WinePrefixService.PortableProfileUser;
@@ -121,11 +125,7 @@ public sealed partial class GogInstallerExecutionService
             if (!string.IsNullOrEmpty(directoryArgument))
                 startInfo.ArgumentList.Add(directoryArgument);
 
-            var innoLogHostPath = attemptIndex == 0
-                ? Path.Combine(request.DownloadedPackage.StagingDirectory, "inno-setup.log")
-                : Path.Combine(
-                    request.DownloadedPackage.StagingDirectory,
-                    $"inno-setup-{profile.Name}.log");
+            var innoLogHostPath = Path.Combine(logDirectory, $"inno-setup-{logId}-{attemptIndex + 1}.log");
             startInfo.ArgumentList.Add(BuildInnoSetupLogArgument(innoLogHostPath));
 
             appendLog($"[Windows installer] Inno log path: {innoLogHostPath}");
@@ -165,7 +165,6 @@ public sealed partial class GogInstallerExecutionService
             if (!execution.Started)
                 return Fail(execution.StartErrorMessage ?? "Installer process could not be started.");
 
-            lastExecution = execution;
             appendLog(
                 $"[Windows installer] Process outcome: exit={execution.ExitCode}, " +
                 $"durationMs={execution.DurationMs}, runtimeCrash={execution.HasRuntimeCrashError}, " +
@@ -173,14 +172,22 @@ public sealed partial class GogInstallerExecutionService
                 $"shellParse={execution.HasShellParsingError}, " +
                 $"terminalSpawn={execution.HasTerminalSpawnError}");
 
-            bool payloadDetected;
+            lastError = GetWindowsInstallerFailure(execution, innoLogHostPath);
             try
             {
-                payloadDetected = await GogInstallPayloadTracker.WaitForChangeAsync(
-                    request.InstallPath,
-                    payloadBaseline,
-                    TimeSpan.FromSeconds(25),
-                    cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                if (lastError == null && await GogInstallPayloadTracker.WaitForChangeAsync(
+                        request.InstallPath,
+                        payloadBaseline,
+                        TimeSpan.FromSeconds(25),
+                        cancellationToken).ConfigureAwait(false))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (attemptIndex > 0)
+                        appendLog("[Windows installer] Interactive fallback completed; install payload detected.");
+
+                    return new GogInstallerExecutionResult(true);
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -188,13 +195,9 @@ public sealed partial class GogInstallerExecutionService
                 await StopInstallerWinePrefixAsync(request.WinePath, prefixRoot, appendLog).ConfigureAwait(false);
                 throw;
             }
-            if (payloadDetected)
-            {
-                if (attemptIndex > 0)
-                    appendLog("[Windows installer] Interactive fallback succeeded; install payload detected.");
-
-                return new GogInstallerExecutionResult(true);
-            }
+            lastError ??= "Windows installer did not place or update files in the target directory.";
+            targetChanged |= GogInstallPayloadTracker.HasChanged(request.InstallPath, payloadBaseline);
+            appendLog($"[Windows installer] {lastError}");
 
             if (attemptIndex < profiles.Count - 1)
             {
@@ -204,20 +207,57 @@ public sealed partial class GogInstallerExecutionService
             }
         }
 
-        if (lastExecution is { ExitCode: not 0 })
-        {
-            appendLog($"[Windows installer] Warning: Exit code {lastExecution.ExitCode}. Payload unchanged.");
-            return Fail($"Windows installer exited with code {lastExecution.ExitCode} and did not place files.");
-        }
-
-        if (GogInstallPayloadTracker.HasChanged(prefixDrivePath, prefixPayloadBaseline))
+        if (!targetChanged && GogInstallPayloadTracker.HasChanged(prefixDrivePath, prefixPayloadBaseline))
         {
             appendLog(
                 $"Installer changed files inside prefix drive_c ({prefixDrivePath}), " +
                 "but target path stayed unchanged. /DIR may have been ignored.");
         }
 
-        return Fail("Windows installer did not complete successfully.");
+        lastError ??= "Windows installer did not complete successfully.";
+        if (targetChanged)
+            lastError += " The target directory was modified and may contain an incomplete installation.";
+
+        return Fail(lastError);
+    }
+
+    private static string? GetWindowsInstallerFailure(GogInstallerProcessResult execution, string innoLogPath)
+    {
+        if (execution.HasRuntimeCrashError)
+            return $"Windows installer crashed (exit code {execution.ExitCode}).";
+        if (execution.ExitCode != 0)
+            return $"Windows installer exited with code {execution.ExitCode}.";
+        if (execution.HasUnsupportedFlagsError || execution.HasShellParsingError || execution.HasTerminalSpawnError)
+            return "Windows installer reported a startup error.";
+
+        try
+        {
+            // Some Windows installers ignore /LOG. When Inno does write a log, check
+            // both markers because a Wine loader can exit without forwarding a child crash.
+            var installationSucceeded = false;
+            string? lastLine = null;
+            foreach (var line in File.ReadLines(innoLogPath))
+            {
+                if (GogInstallerProcessService.LooksLikeRuntimeCrashError(line))
+                    return "Windows installer log reports a crash.";
+                if (line.EndsWith("Installation process succeeded.", StringComparison.Ordinal))
+                    installationSucceeded = true;
+                if (!string.IsNullOrWhiteSpace(line))
+                    lastLine = line;
+            }
+
+            return installationSucceeded && lastLine?.EndsWith("Log closed.", StringComparison.Ordinal) == true
+                ? null
+                : "Windows installer log does not confirm a completed installation.";
+        }
+        catch (FileNotFoundException)
+        {
+            return null;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return $"Could not read Windows installer log: {ex.Message}";
+        }
     }
 
     private async Task StopInstallerWinePrefixAsync(string winePath, string prefixRoot, Action<string> appendLog)

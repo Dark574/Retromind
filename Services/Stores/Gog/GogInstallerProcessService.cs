@@ -333,6 +333,8 @@ public sealed class GogInstallerProcessService
 
         return line.IndexOf("Unhandled exception code", StringComparison.OrdinalIgnoreCase) >= 0 ||
                line.IndexOf("EXCEPTION_ACCESS_VIOLATION", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               line.IndexOf("wine: Unhandled page fault", StringComparison.OrdinalIgnoreCase) >= 0 ||
+               line.IndexOf("Segmentation fault", StringComparison.OrdinalIgnoreCase) >= 0 ||
                line.IndexOf("NtRaiseException", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 }

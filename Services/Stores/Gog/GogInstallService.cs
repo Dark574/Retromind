@@ -278,16 +278,16 @@ public sealed class GogInstallService
             return true;
 
         if (AppPaths.IsPathInsideDataRoot(fullPath))
-            return GogInstallDirectorySafety.HasValidMarker(fullPath, item);
+            return GogInstallDirectorySafety.HasOwnershipMarker(fullPath, item);
 
         var libraryRootWithSep = libraryRoot.EndsWith(Path.DirectorySeparatorChar.ToString())
             ? libraryRoot
             : libraryRoot + Path.DirectorySeparatorChar;
 
         if (fullPath.StartsWith(libraryRootWithSep, StringComparison.Ordinal))
-            return GogInstallDirectorySafety.HasValidMarker(fullPath, item);
+            return GogInstallDirectorySafety.HasOwnershipMarker(fullPath, item);
 
-        return GogInstallDirectorySafety.HasValidMarker(fullPath, item);
+        return GogInstallDirectorySafety.HasOwnershipMarker(fullPath, item);
     }
     
     public async Task<IReadOnlyList<GogInstallPlatform>> GetAvailableInstallerPlatformsAsync(

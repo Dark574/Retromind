@@ -40,7 +40,8 @@ internal sealed record GogInstallerWorkflowRequest(
     bool RequireLinuxPayloadChange,
     DownloadSettings? DownloadSettings = null,
     bool RequireCachedPayload = false,
-    PrefixResolution? ResolvedPrefix = null);
+    PrefixResolution? ResolvedPrefix = null,
+    bool TrackBaseGameInstallation = false);
 
 internal sealed record GogInstallerWorkflowResult(
     bool Success,
@@ -60,16 +61,28 @@ public sealed class GogInstallerWorkflowService
     private readonly GogInstallService _installService;
     private readonly GogInstallerExecutionService _executionService;
     private readonly ProtonPrefixRelocationService _protonPrefixRelocationService;
+    private readonly string _logRoot;
 
     public GogInstallerWorkflowService(
         GogInstallService installService,
         GogInstallerExecutionService executionService,
         ProtonPrefixRelocationService protonPrefixRelocationService)
+        : this(installService, executionService, protonPrefixRelocationService,
+            Path.Combine(AppPaths.DataRoot, "Logs", "GogInstall"))
+    {
+    }
+
+    internal GogInstallerWorkflowService(
+        GogInstallService installService,
+        GogInstallerExecutionService executionService,
+        ProtonPrefixRelocationService protonPrefixRelocationService,
+        string logRoot)
     {
         _installService = installService ?? throw new ArgumentNullException(nameof(installService));
         _executionService = executionService ?? throw new ArgumentNullException(nameof(executionService));
         _protonPrefixRelocationService = protonPrefixRelocationService ??
                                          throw new ArgumentNullException(nameof(protonPrefixRelocationService));
+        _logRoot = logRoot;
     }
 
     internal async Task<GogInstallerWorkflowResult> RunAsync(
@@ -284,38 +297,38 @@ public sealed class GogInstallerWorkflowService
         Action<string> appendLog,
         CancellationToken cancellationToken)
     {
+        string? installerLogPath = null;
+        void AppendInstallerLog(string line)
+        {
+            if (installerLogPath != null)
+                TryAppendLineToInstallerLogFile(installerLogPath, line);
+            appendLog(line);
+        }
+
         try
         {
+            var logDirectory = CreateInstallerLogDirectory(appendLog);
+            installerLogPath = Path.Combine(logDirectory, "retromind-install.log");
+            InitializeInstallerLogFile(installerLogPath, request.InstallPath, downloadedPackage.StagingDirectory);
+            AppendInstallerLog($"Detailed log file: {installerLogPath}");
+
             var windowsPrefix = request.Platform == GogInstallPlatform.Windows
                 ? request.ResolvedPrefix ?? _executionService.ResolveWindowsPrefix(
                     request.StoreGameId, request.Item.Title, request.Item.PrefixPath)
                 : null;
             if (windowsPrefix is { } windows && (!windows.CanPrepare ||
                 windows.FromOverride && !WinePrefixService.StillSelectsSameTree(windows)))
-                return ExecutionFailure("The Windows prefix could not be safely selected. Check the prefix layout and overrides.");
+                return Fail("The Windows prefix could not be safely selected. Check the prefix layout and overrides.");
             if (request.CleanInstall && windowsPrefix?.ResolvedWindowsPrefix is { } prefixPath)
             {
                 var installPath = Path.TrimEndingDirectorySeparator(Path.GetFullPath(request.InstallPath));
                 if (IsSubPathOfOrEqual(prefixPath, installPath) ||
                     IsSubPathOfOrEqual(windowsPrefix.CompatRoot, installPath))
-                    return ExecutionFailure("The Windows prefix is inside the game directory. A clean installation would delete it.");
+                    return Fail("The Windows prefix is inside the game directory. A clean installation would delete it.");
             }
 
             Directory.CreateDirectory(request.InstallPath);
             Directory.CreateDirectory(downloadedPackage.StagingDirectory);
-
-            var installerLogPath = Path.Combine(downloadedPackage.StagingDirectory, "retromind-install.log");
-            InitializeInstallerLogFile(
-                installerLogPath,
-                request.InstallPath,
-                downloadedPackage.StagingDirectory);
-            void AppendInstallerLog(string line)
-            {
-                TryAppendLineToInstallerLogFile(installerLogPath, line);
-                appendLog(line);
-            }
-
-            AppendInstallerLog($"Detailed log file: {installerLogPath}");
 
             if (request.CleanInstall)
             {
@@ -327,13 +340,14 @@ public sealed class GogInstallerWorkflowService
                         AppendInstallerLog,
                         out var cleanError))
                 {
-                    return ExecutionFailure(cleanError ?? "Clean install preparation failed.");
+                    return Fail(cleanError ?? "Clean install preparation failed.");
                 }
             }
 
             GogInstallerExecutionResult result;
             if (request.Platform == GogInstallPlatform.Linux)
             {
+                MarkBaseGameIncomplete();
                 result = await _executionService.RunLinuxAsync(
                         new GogLinuxInstallerExecutionRequest(
                             request.StoreGameId,
@@ -349,7 +363,7 @@ public sealed class GogInstallerWorkflowService
             {
                 var winePath = EmulatorResolverHelper.ResolveSystemWine();
                 if (string.IsNullOrWhiteSpace(winePath))
-                    return ExecutionFailure("Windows installation requires a system wine version.");
+                    return Fail("Windows installation requires a system wine version.");
 
                 foreach (var line in WinePrefixService.Describe(windowsPrefix!))
                     AppendInstallerLog($"[Windows prefix] {line}");
@@ -364,13 +378,13 @@ public sealed class GogInstallerWorkflowService
 
                     if (prefixRepair.FailedLinks > 0)
                     {
-                        return ExecutionFailure(
+                        return Fail(
                             $"Could not repair {prefixRepair.FailedLinks} relocated Proton prefix link(s).");
                     }
 
                     if (prefixRepair.ProtonRootPath == null && prefixRepair.UnresolvedLinks > 0)
                     {
-                        return ExecutionFailure(
+                        return Fail(
                             "The existing prefix contains relocated Proton links, but its configured Proton runner is unavailable.");
                     }
 
@@ -382,6 +396,7 @@ public sealed class GogInstallerWorkflowService
                     }
                 }
 
+                MarkBaseGameIncomplete();
                 result = await _executionService.RunWindowsAsync(
                         new GogWindowsInstallerExecutionRequest(
                             request.StoreGameId,
@@ -393,7 +408,8 @@ public sealed class GogInstallerWorkflowService
                             request.WindowsInstallerPreference,
                             request.CreateDesktopShortcut,
                             request.CreateStartMenuShortcuts,
-                            windowsPrefix),
+                            windowsPrefix,
+                            logDirectory),
                         AppendInstallerLog,
                         cancellationToken)
                     .ConfigureAwait(false);
@@ -401,23 +417,21 @@ public sealed class GogInstallerWorkflowService
 
             return result.Success
                 ? new GogInstallerWorkflowResult(true, GogInstallerWorkflowFailureStage.None)
-                : ExecutionFailure(result.ErrorMessage);
+                : Fail(result.ErrorMessage);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 2)
         {
-            appendLog("Error: executable not found.");
             Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
-            return ExecutionFailure(ex.Message);
+            return Fail($"Executable not found: {ex.Message}");
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 13)
         {
-            appendLog("Error: permission denied while starting installer.");
             Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
-            return ExecutionFailure(ex.Message);
+            return Fail($"Permission denied while starting installer: {ex.Message}");
         }
         catch (OperationCanceledException)
         {
-            appendLog("Installer execution cancelled by user.");
+            AppendInstallerLog("Installer execution cancelled by user.");
             Debug.WriteLine("[GOG] Installer execution cancelled by user.");
             return new GogInstallerWorkflowResult(
                 false,
@@ -427,13 +441,37 @@ public sealed class GogInstallerWorkflowService
         catch (Exception ex)
         {
             Debug.WriteLine($"[GOG] Installer execution failed: {ex.Message}");
-            appendLog($"Error: {ex.Message}");
-            return ExecutionFailure(ex.Message);
+            return Fail(ex.Message);
+        }
+
+        void MarkBaseGameIncomplete()
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (request.TrackBaseGameInstallation && !request.CleanInstall)
+                GogInstallDirectorySafety.WriteMarker(request.InstallPath, request.Item, incomplete: true);
+        }
+
+        GogInstallerWorkflowResult Fail(string? message)
+        {
+            AppendInstallerLog($"[Install] {message ?? "Installer execution failed."}");
+            return new GogInstallerWorkflowResult(false, GogInstallerWorkflowFailureStage.Execution, message);
         }
     }
 
-    private static GogInstallerWorkflowResult ExecutionFailure(string? message) =>
-        new(false, GogInstallerWorkflowFailureStage.Execution, message);
+    private string CreateInstallerLogDirectory(Action<string> appendLog)
+    {
+        var folder = $"{DateTimeOffset.UtcNow:yyyyMMdd-HHmmss}-{Guid.NewGuid():N}";
+        try
+        {
+            return Directory.CreateDirectory(Path.Combine(_logRoot, folder)).FullName;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            var temporaryDirectory = Directory.CreateTempSubdirectory("retromind-gog-install-").FullName;
+            appendLog($"Could not write to the installer log directory. Using {temporaryDirectory}: {ex.Message}");
+            return temporaryDirectory;
+        }
+    }
 
     private static IProgress<GogInstallerDownloadProgress> CreateDownloadProgress(Action<string> appendLog)
     {
@@ -517,6 +555,16 @@ public sealed class GogInstallerWorkflowService
         }
 
         Directory.CreateDirectory(fullInstallPath);
+        try
+        {
+            GogInstallDirectorySafety.WriteMarker(fullInstallPath, item, incomplete: true);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Failed to mark the Retromind installation as incomplete: {ex.Message}";
+            return false;
+        }
+
         var preservedPaths = new List<string>
         {
             Path.Combine(fullInstallPath, GogInstallDirectorySafety.MarkerFileName)
@@ -549,17 +597,6 @@ public sealed class GogInstallerWorkflowService
                 appendLog(errorMessage);
                 return false;
             }
-        }
-
-        try
-        {
-            GogInstallDirectorySafety.WriteMarker(fullInstallPath, item);
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Failed to restore the Retromind install marker: {ex.Message}";
-            appendLog(errorMessage);
-            return false;
         }
 
         return true;

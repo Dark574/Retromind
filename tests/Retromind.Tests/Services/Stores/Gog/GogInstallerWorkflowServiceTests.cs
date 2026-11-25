@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Net;
 using System.Text;
+using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
 using Retromind.Services.Downloads;
@@ -79,6 +80,100 @@ public sealed class GogInstallerWorkflowServiceTests
     }
 
     [Theory]
+    [InlineData("success", null)]
+    [InlineData("signal", "code 139")]
+    [InlineData("error", "code 4")]
+    [InlineData("truncated-log", "log does not confirm")]
+    [InlineData("wine-crash", "crashed (exit code 0)")]
+    [InlineData("fallback-success", null)]
+    [InlineData("fallback-no-change", "did not place or update files")]
+    public async Task WindowsInstall_RequiresSuccessfulSetupAndRetainsLogs(string scenario, string? expectedError)
+    {
+        using var temp = new TemporaryDirectory();
+        var bin = temp.CreateDirectory("bin");
+        using var environment = new EnvironmentVariableScope(("PATH", bin));
+        var install = temp.CreateDirectory("Game");
+        var staging = temp.CreateDirectory(".retromind-gog-installers", "123", "windows");
+        var installer = Path.Combine(staging, "setup.exe");
+        File.WriteAllText(installer, "fixture");
+        var save = temp.CreateFile("Game/save.dat", "existing save");
+        var partial = temp.GetPath("Game/game.exe");
+        var wine = temp.CreateFile("bin/wine", $$"""
+            #!/bin/sh
+            ulimit -c 0
+            silent=no
+            for arg do
+                case "$arg" in
+                    /LOG=Z:*) log=$(printf '%s' "${arg#/LOG=Z:}" | /usr/bin/tr '\\' '/') ;;
+                    /SILENT) silent=yes ;;
+                esac
+            done
+            printf 'Wine setup stderr (%s)\n' "$silent" >&2
+            if [ '{{scenario}}' != fallback-no-change ] || [ "$silent" = yes ]; then
+                printf 'partial payload (%s)' "$silent" > '{{partial}}'
+            fi
+            printf '2026-11-25 08:27:00.000   Starting the installation process.\n' > "$log"
+            case '{{scenario}}' in
+                signal) kill -s SEGV "$$" ;;
+                error) exit 4 ;;
+                truncated-log) exit 0 ;;
+                wine-crash) echo 'wine: Unhandled page fault on read access' >&2; exit 0 ;;
+                fallback-*) [ "$silent" = no ] || exit 4 ;;
+            esac
+            printf '2026-11-25 08:27:02.000   Installation process succeeded.\n' >> "$log"
+            printf '2026-11-25 08:27:02.001   Log closed.\n' >> "$log"
+            """);
+        File.SetUnixFileMode(wine, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        var item = new MediaItem("Game") { Files = [new() { Path = partial }] };
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = "gog";
+        item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "123";
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = install;
+        GogInstallDirectorySafety.WriteMarker(install, item);
+        var package = new GogInstallerPackage("123", GogInstallPlatform.Windows, "Game", "1",
+            [new("https://invalid.example/setup.exe", "setup.exe", new FileInfo(installer).Length)]);
+        var output = new ConcurrentQueue<string>();
+
+        var result = await CreateService(temp.RootPath).RunAsync(new(item, "123", install, GogInstallPlatform.Windows,
+            package, staging, GogWindowsInstallerPreference.AutoPrefer64, false, false, false, false, false,
+            TrackBaseGameInstallation: true), output.Enqueue);
+
+        Assert.Equal(expectedError == null, result.Success);
+        var fallbackExpected = scenario != "success";
+        Assert.Equal(fallbackExpected, output.Any(line => line.Contains("Starting interactive fallback", StringComparison.Ordinal)));
+        Assert.Contains("Wine setup stderr (yes)", output);
+        Assert.Equal("existing save", File.ReadAllText(save));
+        var lastWriter = fallbackExpected && scenario != "fallback-no-change" ? "no" : "yes";
+        Assert.Equal($"partial payload ({lastWriter})", File.ReadAllText(partial));
+        Assert.Equal(GogInstallDirectoryStatus.OwnedDirectory,
+            GogInstallDirectorySafety.Assess(install, item, rejectSymbolicLinks: true).Status);
+        Assert.True(GogInstallDirectorySafety.IsIncomplete(install, item));
+        Assert.False(GogMediaItemStateHelper.IsInstalled(item));
+        Assert.True(GogMediaItemStateHelper.ShouldOfferInstall(item));
+        if (expectedError == null)
+        {
+            // The library workflow writes the final marker after resolving the executable.
+            GogInstallDirectorySafety.WriteMarker(install, item);
+            Assert.True(GogMediaItemStateHelper.IsInstalled(item));
+        }
+        else
+        {
+            Assert.Equal(GogInstallerWorkflowFailureStage.Execution, result.FailureStage);
+            Assert.Contains(expectedError, result.ErrorMessage);
+            Assert.Contains("may contain an incomplete installation", result.ErrorMessage);
+        }
+
+        GogInstallerWorkflowService.DeleteStagingDirectoryBestEffort(result.DownloadedPackage!.StagingDirectory);
+        Assert.False(Directory.Exists(staging));
+        var logDirectory = Assert.Single(Directory.GetDirectories(temp.GetPath("installer-logs")));
+        var logs = Directory.GetFiles(logDirectory, "inno-setup-*.log");
+        Assert.Equal(fallbackExpected ? 2 : 1, logs.Length);
+        Assert.All(logs, path => Assert.Contains("Starting the installation process.", File.ReadAllText(path)));
+        if (expectedError != null)
+            Assert.Contains(expectedError, File.ReadAllText(Path.Combine(logDirectory, "retromind-install.log")));
+        Assert.Contains("Wine setup stderr (yes)", File.ReadAllText(Path.Combine(logDirectory, "retromind-install.log")));
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
@@ -135,7 +230,8 @@ public sealed class GogInstallerWorkflowServiceTests
         Assert.True(result.Success, result.ErrorMessage);
         Assert.NotNull(result.DownloadedPackage);
         Assert.True(File.Exists(Path.Combine(installPath, "game.x86_64")));
-        Assert.True(File.Exists(Path.Combine(stagingPath, "retromind-install.log")));
+        Assert.Single(Directory.GetFiles(temporaryDirectory.GetPath("installer-logs"),
+            "retromind-install.log", SearchOption.AllDirectories));
         Assert.Contains(output, line => line.Contains("Validating 1/1", StringComparison.Ordinal));
         Assert.Contains(output, line => line.StartsWith("Detailed log file:", StringComparison.Ordinal));
         Assert.Equal(archiveBlocked, result.ArchivePending);
@@ -526,6 +622,7 @@ public sealed class GogInstallerWorkflowServiceTests
             executionService,
             new ProtonPrefixRelocationService(
                 Path.Combine(rootPath, "Library"),
-                new AppSettings()));
+                new AppSettings()),
+            Path.Combine(rootPath, "installer-logs"));
     }
 }

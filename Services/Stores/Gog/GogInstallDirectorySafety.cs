@@ -100,18 +100,22 @@ internal static class GogInstallDirectorySafety
             return new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.UnreadableDirectory, fullPath);
         }
 
-        return HasValidMarker(fullPath, item)
+        return HasOwnershipMarker(fullPath, item)
             ? new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.OwnedDirectory, fullPath)
             : new GogInstallDirectoryAssessment(GogInstallDirectoryStatus.UnownedDirectory, fullPath);
     }
 
-    public static bool HasValidMarker(string fullPath, MediaItem item)
+    public static bool HasOwnershipMarker(string fullPath, MediaItem item) => ReadOwnedMarker(fullPath, item) != null;
+
+    public static bool IsIncomplete(string fullPath, MediaItem item) => ReadOwnedMarker(fullPath, item)?.Incomplete == true;
+
+    private static InstallMarker? ReadOwnedMarker(string fullPath, MediaItem item)
     {
         var markerPath = Path.Combine(fullPath, MarkerFileName);
         if (!File.Exists(markerPath))
         {
             Debug.WriteLine($"[Warning] No install marker found at '{markerPath}'. Refusing to delete path '{fullPath}'.");
-            return false;
+            return null;
         }
 
         InstallMarker? marker;
@@ -123,32 +127,32 @@ internal static class GogInstallDirectorySafety
         catch (Exception ex)
         {
             Debug.WriteLine($"[Warning] Failed to read install marker at '{markerPath}': {ex.Message}");
-            return false;
+            return null;
         }
 
         if (marker == null ||
             !string.Equals(marker.ProviderId, StoreProviderIds.Gog, StringComparison.OrdinalIgnoreCase))
         {
-            return false;
+            return null;
         }
 
         if (!item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreGameId, out var gameId) ||
             !string.Equals(marker.StoreGameId, gameId, StringComparison.Ordinal))
         {
             Debug.WriteLine($"[Warning] Install marker StoreGameId mismatch: expected '{gameId}', got '{marker.StoreGameId}'.");
-            return false;
+            return null;
         }
 
         if (!string.Equals(marker.MediaItemId, item.Id, StringComparison.Ordinal))
         {
             Debug.WriteLine($"[Warning] Install marker MediaItemId mismatch: expected '{item.Id}', got '{marker.MediaItemId}'.");
-            return false;
+            return null;
         }
 
-        return true;
+        return marker;
     }
 
-    public static void WriteMarker(string installPath, MediaItem item)
+    public static void WriteMarker(string installPath, MediaItem item, bool incomplete = false)
     {
         if (string.IsNullOrWhiteSpace(installPath))
             throw new ArgumentException("Install path is required.", nameof(installPath));
@@ -165,10 +169,20 @@ internal static class GogInstallDirectorySafety
         var marker = new InstallMarker(
             ProviderId: StoreProviderIds.Gog,
             StoreGameId: gameId,
-            MediaItemId: item.Id);
+            MediaItemId: item.Id,
+            Incomplete: incomplete);
         var markerPath = Path.Combine(fullPath, MarkerFileName);
         var json = JsonSerializer.Serialize(marker, new JsonSerializerOptions { WriteIndented = true });
-        File.WriteAllText(markerPath, json, Encoding.UTF8);
+        var temporaryPath = markerPath + $".tmp-{Guid.NewGuid():N}";
+        try
+        {
+            File.WriteAllText(temporaryPath, json, Encoding.UTF8);
+            File.Move(temporaryPath, markerPath, overwrite: true);
+        }
+        finally
+        {
+            File.Delete(temporaryPath);
+        }
     }
 
     /// <summary>
@@ -322,5 +336,6 @@ internal static class GogInstallDirectorySafety
     private sealed record InstallMarker(
         string ProviderId,
         string StoreGameId,
-        string MediaItemId);
+        string MediaItemId,
+        bool Incomplete = false);
 }

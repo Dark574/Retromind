@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Retromind.Models;
 using Retromind.Services.Stores;
+using Retromind.Services.Stores.Gog;
 
 namespace Retromind.Helpers;
 
@@ -103,6 +104,12 @@ internal static class GogMediaItemStateHelper
 
     private static bool HasPlayableLaunchConfiguration(MediaItem item)
     {
+        if (TryResolveManagedInstallPath(item, out var installPath) &&
+            GogInstallDirectorySafety.IsIncomplete(installPath, item))
+        {
+            return false;
+        }
+
         var primaryLaunchPath = item.GetPrimaryLaunchPath();
         if (!string.IsNullOrWhiteSpace(primaryLaunchPath) && File.Exists(primaryLaunchPath))
             return true;

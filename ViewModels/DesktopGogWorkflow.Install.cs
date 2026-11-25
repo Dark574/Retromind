@@ -283,12 +283,14 @@ internal sealed partial class DesktopGogWorkflow
                     RequireLinuxPayloadChange: false,
                     DownloadSettings: downloadSettings,
                     RequireCachedPayload: queuedPayload != null,
-                    ResolvedPrefix: windowsPrefix),
+                    ResolvedPrefix: windowsPrefix,
+                    TrackBaseGameInstallation: true),
                 line => AppendProcessLog(progressLogVm, line),
                 progressLogVm.Token,
                 installationStarted);
             if (!workflowResult.Success)
             {
+                NotifyPlayAvailabilityChanged();
                 if (workflowResult.FailureStage == GogInstallerWorkflowFailureStage.PayloadUnavailable && queuedPayload != null)
                 {
                     queuedPayload.NeedsRedownload();
@@ -395,6 +397,11 @@ internal sealed partial class DesktopGogWorkflow
             try
             {
                 GogInstallDirectorySafety.WriteMarker(launchInfo.InstallRoot, item);
+                if (!FileSystemPathIdentity.Equals(Path.GetFullPath(launchInfo.InstallRoot),
+                        Path.GetFullPath(installRequest.InstallPath)))
+                {
+                    GogInstallDirectorySafety.WriteMarker(installRequest.InstallPath, item);
+                }
             }
             catch (Exception ex)
             {
@@ -568,7 +575,8 @@ internal sealed partial class DesktopGogWorkflow
             // Claim a new/empty directory before download data is written into it.
             // A later clean-install check can then prove that the directory belongs
             // to this exact GOG item.
-            GogInstallDirectorySafety.WriteMarker(assessment.FullPath, item);
+            if (assessment.Status != GogInstallDirectoryStatus.OwnedDirectory)
+                GogInstallDirectorySafety.WriteMarker(assessment.FullPath, item, incomplete: true);
             return true;
         }
         catch (Exception ex)
