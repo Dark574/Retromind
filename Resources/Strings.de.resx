@@ -763,6 +763,7 @@ Trotzdem fortfahren?</value></data>
     <data name="Gog.Install.DetectExecutableFailed" xml:space="preserve"><value>Installation abgeschlossen, aber Retromind konnte keine Startdatei automatisch erkennen. Bitte Launch-Einstellungen manuell konfigurieren.</value></data>
     <data name="Gog.Install.ApplyLaunchFailed" xml:space="preserve"><value>Installation abgeschlossen, aber die Launch-Konfiguration konnte nicht übernommen werden.</value></data>
     <data name="Gog.Install.Success" xml:space="preserve"><value>Installation abgeschlossen.</value></data>
+    <data name="Gog.Install.SuccessUnverified" xml:space="preserve"><value>Installation abgeschlossen. Dateiintegrität nicht verifiziert.</value></data>
     <data name="Gog.Install.PickInstallPathTitle" xml:space="preserve"><value>Installationsordner auswählen</value></data>
     <data name="Gog.Install.PickExecutableTitle" xml:space="preserve"><value>Startdatei auswählen</value></data>
     <!-- GOG Uninstall -->

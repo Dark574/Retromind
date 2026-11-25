@@ -26,7 +26,8 @@ internal sealed record GogWindowsInstallerExecutionRequest(
     bool CreateDesktopShortcut,
     bool CreateStartMenuShortcuts,
     PrefixResolution? ResolvedPrefix = null,
-    string? LogDirectory = null);
+    string? LogDirectory = null,
+    bool ValidatePackageFiles = false);
 
 public sealed partial class GogInstallerExecutionService
 {
@@ -87,6 +88,16 @@ public sealed partial class GogInstallerExecutionService
             return Fail("Windows installer entry file was not found.");
 
         appendLog($"[Windows installer] Using: {installerPath}");
+        var manifest = request.ValidatePackageFiles
+            ? await GogPackageHashDbReader.TryReadAsync(request.DownloadedPackage, installerPath,
+                request.StoreGameId, appendLog, cancellationToken).ConfigureAwait(false)
+            : null;
+        if (manifest != null)
+            appendLog($"[Package files] Loaded {manifest.Count} expected files from the selected installer package.");
+        else if (request.ValidatePackageFiles)
+            appendLog("[Package files] No usable package HashDB. File integrity cannot be verified.");
+
+        var verifyAllHashes = Environment.GetEnvironmentVariable("RETROMIND_GOG_VERIFY_MD5") == "1";
         var prefixPayloadBaseline = GogInstallPayloadTracker.Capture(prefixDrivePath);
         var logDirectory = request.LogDirectory ?? request.DownloadedPackage.StagingDirectory;
         var logId = Guid.NewGuid().ToString("N");
@@ -100,6 +111,7 @@ public sealed partial class GogInstallerExecutionService
         {
             var profile = profiles[attemptIndex];
             var payloadBaseline = GogInstallPayloadTracker.Capture(request.InstallPath);
+            var existingFiles = manifest?.CaptureExistingFiles(request.InstallPath, cancellationToken);
             var startInfo = EmulatorResolverHelper.BuildWineInstallStartInfo(request.WinePath, prefixRoot);
             if (prefix.PortableProfile)
                 startInfo.Environment["USER"] = WinePrefixService.PortableProfileUser;
@@ -176,17 +188,38 @@ public sealed partial class GogInstallerExecutionService
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (lastError == null && await GogInstallPayloadTracker.WaitForChangeAsync(
+                if (lastError == null && manifest != null)
+                {
+                    lastError = await manifest.ValidateAsync(request.InstallPath, existingFiles!, verifyAllHashes,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else if (lastError == null && !await GogInstallPayloadTracker.WaitForChangeAsync(
                         request.InstallPath,
                         payloadBaseline,
                         TimeSpan.FromSeconds(25),
                         cancellationToken).ConfigureAwait(false))
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    if (attemptIndex > 0)
-                        appendLog("[Windows installer] Interactive fallback completed; install payload detected.");
+                    lastError = "Windows installer did not place or update files in the target directory.";
+                }
 
-                    return new GogInstallerExecutionResult(true);
+                if (lastError == null)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (manifest != null)
+                    {
+                        appendLog(verifyAllHashes
+                            ? "[Package files] Installation completed. All package file checksums match."
+                            : "[Package files] Installation completed. Expected package files are present.");
+                    }
+                    else if (request.ValidatePackageFiles)
+                    {
+                        appendLog("[Package files] Installation completed. File integrity was not verified.");
+                    }
+                    if (attemptIndex > 0)
+                        appendLog("[Windows installer] Interactive fallback completed.");
+
+                    return new GogInstallerExecutionResult(true,
+                        PackageFilesVerified: request.ValidatePackageFiles ? manifest != null : null);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -195,7 +228,6 @@ public sealed partial class GogInstallerExecutionService
                 await StopInstallerWinePrefixAsync(request.WinePath, prefixRoot, appendLog).ConfigureAwait(false);
                 throw;
             }
-            lastError ??= "Windows installer did not place or update files in the target directory.";
             targetChanged |= GogInstallPayloadTracker.HasChanged(request.InstallPath, payloadBaseline);
             appendLog($"[Windows installer] {lastError}");
 

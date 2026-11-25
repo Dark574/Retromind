@@ -15,6 +15,149 @@ namespace Retromind.Tests.Services.Stores.Gog;
 public sealed class GogInstallerWorkflowServiceTests
 {
     [Theory]
+    [InlineData("recovered", true, true, 2)]
+    [InlineData("partial", false, null, 2)]
+    [InlineData("failed-with-existing", false, null, 2)]
+    [InlineData("reinstall", true, true, 1)]
+    [InlineData("stale-reinstall", false, null, 2)]
+    [InlineData("no-manifest", true, false, 1)]
+    [InlineData("invalid-manifest", true, false, 1)]
+    [InlineData("validation-disabled", true, null, 1)]
+    [InlineData("native-inno", true, true, 1)]
+    public async Task WindowsInstall_ValidatesFilesFromTheSelectedPackage(
+        string scenario, bool success, bool? verified, int attempts)
+    {
+        using var temp = new TemporaryDirectory();
+        var bin = temp.CreateDirectory("bin");
+        using var environment = new EnvironmentVariableScope(("PATH", bin), ("RETROMIND_GOG_VERIFY_MD5", null));
+        var install = temp.CreateDirectory("Game");
+        var staging = temp.CreateDirectory(".retromind-gog-installers", "123", "windows");
+        var setup = Path.Combine(staging, "setup.exe");
+        var part = Path.Combine(staging, "setup-1.bin");
+        const string manifestName = "goggame-123.hashdb";
+        var hashDb = temp.GetPath(manifestName);
+        var installedHashDb = Path.Combine(install, manifestName);
+        var game = Path.Combine(install, "game.exe");
+        var air = Path.Combine(install, "Adobe AIR.dll");
+        File.WriteAllText(setup, "fixture");
+        if (scenario != "native-inno")
+            File.WriteAllBytes(part, "Rar!\x1a\x07\0"u8.ToArray());
+        File.WriteAllBytes(hashDb, scenario == "invalid-manifest" ? [0] :
+            scenario == "native-inno"
+                ? GogPackageHashDbTests.BuildHashDb(manifestName, ("game.exe", "game"), ("Adobe AIR.dll", "air"))
+                : GogPackageHashDbTests.BuildHashDb(manifestName, ("/game.exe", "game"), ("/Adobe AIR.dll", "air")));
+        var size = new FileInfo(hashDb).Length;
+        var archiveReader = temp.CreateFile("bin/7z", $$"""
+            #!/bin/sh
+            case "$1" in
+              l)
+                [ "$6" = '{{part}}' ] || exit 5
+                /usr/bin/cat <<'INVENTORY'
+            Path = game/game.exe
+            Folder = -
+            Size = 4
+
+            Path = game/Adobe AIR.dll
+            Folder = -
+            Size = 3
+
+            Path = game/{{manifestName}}
+            Folder = -
+            Size = {{size}}
+            INVENTORY
+                ;;
+              x)
+                [ "$5" = '{{part}}' ] || exit 5
+                /usr/bin/cat '{{hashDb}}'
+                ;;
+              *) exit 5 ;;
+            esac
+            """);
+        var wine = temp.CreateFile("bin/wine", $$"""
+            #!/bin/sh
+            silent=no
+            for arg do
+                case "$arg" in
+                    /LOG=Z:*) log=$(printf '%s' "${arg#/LOG=Z:}" | /usr/bin/tr '\\' '/') ;;
+                    /SILENT) silent=yes ;;
+                esac
+            done
+            case '{{scenario}}' in
+                failed-with-existing) exit 1 ;;
+                reinstall|stale-reinstall) ;;
+                *)
+                    printf game > '{{game}}'
+                    if [ '{{scenario}}' = native-inno ] || { [ '{{scenario}}' = recovered ] && [ "$silent" = no ]; }; then
+                        printf air > '{{air}}'
+                        /usr/bin/cp '{{hashDb}}' '{{installedHashDb}}'
+                    fi
+                    ;;
+            esac
+            printf '2026-11-25 09:29:12.732   Installation process succeeded.\n' > "$log"
+            printf '2026-11-25 09:29:12.758   Log closed.\n' >> "$log"
+            """);
+        foreach (var script in new[] { wine, archiveReader })
+            File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        if (scenario == "native-inno")
+        {
+            var innoextract = temp.CreateFile("bin/innoextract", $$"""
+                #!/bin/sh
+                while [ "$#" -gt 0 ]; do
+                    case "$1" in
+                        --list-sizes) printf 'app/content with spaces/en/\n4 game.exe\n3 Adobe AIR.dll\n{{size}} {{manifestName}}\n'; exit ;;
+                        --output-dir) /usr/bin/cp '{{hashDb}}' "$2/{{manifestName}}"; exit ;;
+                    esac
+                    shift
+                done
+                exit 6
+                """);
+            File.SetUnixFileMode(innoextract, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+
+        var save = temp.CreateFile("Game/save.dat", "existing save");
+        if (scenario is "reinstall" or "stale-reinstall" or "failed-with-existing")
+        {
+            File.WriteAllText(game, "game");
+            File.WriteAllText(air, scenario == "stale-reinstall" ? "bad" : "air");
+            File.Copy(hashDb, installedHashDb);
+        }
+
+        var item = new MediaItem("Game") { Files = [new() { Path = game }] };
+        item.CustomFields[CustomFieldKeyHelper.StoreProviderId] = "gog";
+        item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "123";
+        item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = install;
+        GogInstallDirectorySafety.WriteMarker(install, item);
+        var packagePaths = scenario is "no-manifest" or "native-inno" ? new[] { setup } : [setup, part];
+        var package = new GogInstallerPackage("123", GogInstallPlatform.Windows, "Game", "1",
+            packagePaths.Select(path => new GogInstallerDownloadFile(
+                $"https://invalid.example/{Path.GetFileName(path)}", Path.GetFileName(path), new FileInfo(path).Length))
+                .ToArray());
+        var output = new ConcurrentQueue<string>();
+
+        var result = await CreateService(temp.RootPath).RunAsync(new(item, "123", install, GogInstallPlatform.Windows,
+            package, staging, GogWindowsInstallerPreference.AutoPrefer64, false, false, false, false, false,
+            TrackBaseGameInstallation: true, ValidatePackageFiles: scenario != "validation-disabled"), output.Enqueue);
+
+        Assert.True(result.Success == success, string.Join('\n', output));
+        Assert.Equal(verified, result.PackageFilesVerified);
+        Assert.Equal(attempts, output.Count(line => line.StartsWith("[Windows installer] Attempt ", StringComparison.Ordinal)));
+        Assert.Equal("existing save", File.ReadAllText(save));
+        // Only the successful UI flow may publish the final install marker.
+        Assert.True(GogInstallDirectorySafety.IsIncomplete(install, item));
+        if (!success)
+            Assert.Equal(GogInstallerWorkflowFailureStage.Execution, result.FailureStage);
+        if (scenario is "recovered" or "partial")
+            Assert.Contains(output, line => line.Contains("Required package file is missing", StringComparison.Ordinal) &&
+                line.Contains("Adobe AIR.dll", StringComparison.Ordinal));
+        if (scenario == "stale-reinstall")
+            Assert.Contains("wrong MD5", result.ErrorMessage);
+        if (verified == false)
+            Assert.Contains("[Package files] Installation completed. File integrity was not verified.", output);
+        if (scenario == "no-manifest")
+            Assert.Contains("[Package files] innoextract is not available in PATH.", output);
+    }
+
+    [Theory]
     [InlineData("GE-Proton")]
     [InlineData("Valve Proton")]
     public async Task WindowsInstall_UsesSystemWineAndSharesPortableProfileWithSelectedProton(string runnerName)

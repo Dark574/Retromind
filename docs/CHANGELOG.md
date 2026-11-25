@@ -20,6 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
+- check required game files after Windows GOG installations when the installer provides a usable file list, and retry incomplete installs interactively
 - report aborted GOG setups as incomplete and retain installer and Wine logs after download cleanup
 - wrap the prefix help text in the media editor so it stays readable
 - keep Windows templates and default profile folders inside newly created portable prefixes

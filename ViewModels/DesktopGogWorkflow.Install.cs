@@ -284,7 +284,8 @@ internal sealed partial class DesktopGogWorkflow
                     DownloadSettings: downloadSettings,
                     RequireCachedPayload: queuedPayload != null,
                     ResolvedPrefix: windowsPrefix,
-                    TrackBaseGameInstallation: true),
+                    TrackBaseGameInstallation: true,
+                    ValidatePackageFiles: operation != GogInstallOperation.Update),
                 line => AppendProcessLog(progressLogVm, line),
                 progressLogVm.Token,
                 installationStarted);
@@ -440,7 +441,9 @@ internal sealed partial class DesktopGogWorkflow
                 AppendProcessLog(progressLogVm, "Staging data deleted after successful installation.");
             }
 
-            AppendProcessLog(progressLogVm, T("Gog.Install.Success", "Installation completed."));
+            AppendProcessLog(progressLogVm, workflowResult.PackageFilesVerified == false
+                ? T("Gog.Install.SuccessUnverified", "Installation completed. File integrity was not verified.")
+                : T("Gog.Install.Success", "Installation completed."));
 
             if (installedDlcsToReapply.Length > 0)
             {

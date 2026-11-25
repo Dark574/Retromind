@@ -766,6 +766,7 @@ Continue anyway?</value></data>
     <data name="Gog.Install.DetectExecutableFailed" xml:space="preserve"><value>Installation finished, but Retromind could not detect a launch executable automatically. Configure launch settings manually.</value></data>
     <data name="Gog.Install.ApplyLaunchFailed" xml:space="preserve"><value>Installation finished, but launch configuration could not be applied.</value></data>
     <data name="Gog.Install.Success" xml:space="preserve"><value>Installation completed.</value></data>
+    <data name="Gog.Install.SuccessUnverified" xml:space="preserve"><value>Installation completed. File integrity was not verified.</value></data>
     <data name="Gog.Install.PickInstallPathTitle" xml:space="preserve"><value>Select install folder</value></data>
     <data name="Gog.Install.PickExecutableTitle" xml:space="preserve"><value>Select launch executable</value></data>
     <!-- GOG Uninstall -->

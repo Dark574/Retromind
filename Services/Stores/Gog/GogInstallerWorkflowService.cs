@@ -41,14 +41,16 @@ internal sealed record GogInstallerWorkflowRequest(
     DownloadSettings? DownloadSettings = null,
     bool RequireCachedPayload = false,
     PrefixResolution? ResolvedPrefix = null,
-    bool TrackBaseGameInstallation = false);
+    bool TrackBaseGameInstallation = false,
+    bool ValidatePackageFiles = false);
 
 internal sealed record GogInstallerWorkflowResult(
     bool Success,
     GogInstallerWorkflowFailureStage FailureStage,
     string? ErrorMessage = null,
     GogDownloadedInstallerPackage? DownloadedPackage = null,
-    bool ArchivePending = false);
+    bool ArchivePending = false,
+    bool? PackageFilesVerified = null);
 
 /// <summary>
 /// Coordinates the shared download and execution workflow for GOG base-game and DLC installers.
@@ -207,13 +209,7 @@ public sealed class GogInstallerWorkflowService
                 appendLog,
                 cancellationToken)
             .ConfigureAwait(false);
-        return executionResult.Success
-            ? new GogInstallerWorkflowResult(
-                true,
-                GogInstallerWorkflowFailureStage.None,
-                DownloadedPackage: downloadedPackage,
-                ArchivePending: archivePending)
-            : executionResult with { DownloadedPackage = downloadedPackage, ArchivePending = archivePending };
+        return executionResult with { DownloadedPackage = downloadedPackage, ArchivePending = archivePending };
     }
 
     internal static void DeleteStagingDirectoryBestEffort(string? stagingDirectory)
@@ -409,14 +405,16 @@ public sealed class GogInstallerWorkflowService
                             request.CreateDesktopShortcut,
                             request.CreateStartMenuShortcuts,
                             windowsPrefix,
-                            logDirectory),
+                            logDirectory,
+                            request.ValidatePackageFiles),
                         AppendInstallerLog,
                         cancellationToken)
                     .ConfigureAwait(false);
             }
 
             return result.Success
-                ? new GogInstallerWorkflowResult(true, GogInstallerWorkflowFailureStage.None)
+                ? new GogInstallerWorkflowResult(true, GogInstallerWorkflowFailureStage.None,
+                    PackageFilesVerified: result.PackageFilesVerified)
                 : Fail(result.ErrorMessage);
         }
         catch (Win32Exception ex) when (ex.NativeErrorCode == 2)

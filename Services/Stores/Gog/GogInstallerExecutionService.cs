@@ -17,7 +17,8 @@ internal sealed record GogLinuxInstallerExecutionRequest(
     bool UseTemporaryDestination,
     bool RequirePayloadChange);
 
-internal sealed record GogInstallerExecutionResult(bool Success, string? ErrorMessage = null);
+internal sealed record GogInstallerExecutionResult(
+    bool Success, string? ErrorMessage = null, bool? PackageFilesVerified = null);
 
 /// <summary>
 /// Owns platform-specific GOG installer workflows independently from dialogs
