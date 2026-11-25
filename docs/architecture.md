@@ -1435,30 +1435,49 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   values and arguments, and marks Legendary launch parameters and playlist publication as start-time work.
 - `LaunchEnvironmentService` owns inherited environment cleanup for AppImage and portable-home launches, applies
   resolved emulator/item variables in launch order, and enforces emulator/item XDG precedence
-- `WinePrefixService` resolves the effective compatibility root and Windows tree after launch environment
-  overrides are applied. The launcher, script-free preview, GOG Windows installer and Winetricks share the layout
-  resolver. A root, real `pfx` and relative root alias remain supported. The resolver reports partial setups,
-  separate Windows trees and unresolved links. The launch log shows planned paths and
-  external profile folders observed on disk. Registry redirects and changes in custom wrappers are not inferred
-- New Wine-compatible prefixes managed inside the library on Linux use a real `pfx` directory and a fixed
-  `steamuser` profile. A local version marker distinguishes these prefixes from existing layouts. The initial
-  directory tree is published with the marker and the standard C: and Z: mappings. The existing portable Games
-  drive is created in the resolved Windows tree. The shared resolver plans the layout without writing during
-  preview. A conflict with the fixed profile prevents preparation and launch.
-- System-Wine game launches, Windows GOG installers and standalone Winetricks select the new profile through
-  their process environment. Windows GOG setup always uses System-Wine. Proton and UMU keep their normal
-  launcher environments, as does Winetricks when run through UMU. The selected game runner is independent
-  of the installer. Existing unmarked prefixes retain their layout and profile selection.
-  File paths and the Windows profile name are portable. Different runners or Linux accounts can still
-  produce different Windows token SIDs, so data protected by SID-dependent mechanisms has separate
-  compatibility requirements.
-- Managed defaults override inherited host variables, while explicit prefix overrides retain their runner-specific
-  meaning. Retromind does not scaffold or repair an overridden prefix on game start. GOG requests confirmation
-  before using a launch override for its system Wine installer
-- `ProtonPrefixRelocationService` rebases stale Proton-managed runtime links after a portable data-root move before
-  a game launch or a later GOG installer accesses the existing prefix. It uses the selected Windows tree and
-  skips external, ambiguous and overridden targets as well as profile links. Links are rewritten only when
-  Proton's `tracked_files` manifest identifies the recognized runtime path as managed
+- `WinePrefixService` provides a shared `PrefixResolution` for launch, the launch preview, Proton link repair,
+  Windows GOG setup, and Winetricks. The result carries the compatibility root, the runner's planned Windows
+  path, and its resolved filesystem target. It distinguishes a flat root, a real `pfx/`, `pfx -> .`, and custom
+  or broken aliases. It distinguishes missing or incomplete trees from an initialized tree with registry files
+  and a Windows directory. Two separate Windows trees are reported even when one is incomplete.
+- Resolution uses the final launch environment. System Wine takes `WINEPREFIX` as its Windows tree. Direct
+  Proton takes `STEAM_COMPAT_DATA_PATH` as its compatibility root. UMU takes `WINEPREFIX` as its input root
+  and can use a real `pfx/` below it. Managed defaults replace inherited host values and preserve explicit
+  overrides. Inconsistent explicit Wine/Proton paths prevent managed preparation. Launch skips scaffolding
+  and repair for overrides. For known runners, launch guards against creating a second tree and against UMU
+  replacing a custom or broken `pfx` link.
+- Inspection and launch preview are read-only. The launch log reports planned and resolved paths, layout,
+  conflicts, V2 drive mappings, and external or unresolved links among the inspected profile folders. The
+  media editor keeps a compact prefix field. Filesystem inspection covers a fixed set of common profile folders.
+  Registry redirects and changes introduced by custom wrappers remain outside this inspection.
+- New managed prefixes under `Library/` on Linux use a real `pfx/` and the `.retromind-prefix-v2` marker in
+  the compatibility root. `WinePrefixService` publishes the scaffold and marker together by renaming a
+  temporary sibling directory. The runner initializes the registry and Windows runtime files on first use.
+  The active profile is `pfx/drive_c/users/steamuser`. The scaffold creates real Documents, Desktop,
+  Downloads, Pictures, Music, Videos, Saved Games, AppData/Roaming, AppData/Local, and AppData/LocalLow
+  directories. It also creates real `AppData/Roaming/Microsoft/Windows/Templates` in `steamuser` and
+  `Default`, and the six Wine HOME-mapped folders in `Default`.
+- Existing prefixes retain their layout and profile contents. The required structure check for marked V2
+  prefixes covers the active `steamuser` tree and its core folders. The extra `Default` and `Templates`
+  directories are prepared only at creation time. A conflict with the required V2 structure stops
+  preparation and game launch. Retromind performs no profile migration, merge, or snapshot.
+- System-Wine game launches, Windows GOG setup, and standalone Winetricks set `USER=steamuser` in the
+  relevant process environment for V2. This includes standalone Winetricks using Proton's Wine fallback.
+  Proton and UMU keep their own launch environments, including Winetricks through UMU. Wine receives the
+  selected Windows tree for GOG setup and the selected game runner is stored independently. V2 keeps
+  profile paths portable across library moves. Windows tokens and SID-dependent data such as DPAPI still
+  depend on the runner and user identity.
+- The V2 scaffold includes `c: -> ../drive_c` and `z: -> /`. `PrefixPathHelper` creates the portable
+  `Library/Games` drive under the resolved Windows tree's `dosdevices/`, which is `pfx/dosdevices/` for V2.
+  It reuses a usable existing Games mapping and prefers `R:` when creating one, with a free-letter fallback.
+  New Games links are relative so moving `Library/` preserves the mapping. Device assignments take precedence
+  over Games mappings, and unrelated existing mappings are preserved.
+- `ProtonPrefixRelocationService` uses the resolved Windows tree to rebase Proton runtime links after a
+  library or runner move. It runs before a managed Proton or UMU launch when the runner and tree are known,
+  and before Windows GOG setup when an existing Proton-managed prefix needs it. It locates `version` and
+  `tracked_files` at the tree or its compatibility root, and changes only tracked, recognized Proton runtime
+  links with an available replacement. External, ambiguous and overridden targets are excluded from repair.
+  Profile folders, saves, user links, and relative Games mappings are outside the repair scope.
 - `LaunchProcessService` owns operating-system process startup, bounded stdout/stderr capture, delegated-command
   observation, configured watch-process tracking, and the active tracked-session stop boundary. While Retromind
   is in the background, holding the configured stop combination (L1 + R1 by default) first requests an orderly
@@ -1524,7 +1543,13 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   attempt are filled on the next explicit installation attempt; invalid existing mappings prevent installer
   startup with an explanatory result rather than being overwritten. This is not general prefix repair.
   Host Wine installer processes use the existing AppImage/portable-HOME environment sanitizer while retaining
-  the explicitly selected prefix and Wine settings.
+  the selected Windows tree and Wine settings. GOG confirms explicit launch prefix overrides and rechecks the
+  resolved tree before execution. Clean game installation rejects a target that contains the compatibility root
+  or Windows tree, so the selected prefix cannot be removed by game-directory cleanup.
+  A Windows setup attempt must pass the process outcome checks before its payload is accepted. For base-game
+  installs and reinstalls with a usable HashDB from the selected package, missing or invalid required files
+  trigger the same interactive System-Wine fallback as a process failure. Package verification and the
+  unverified outcome for unsupported packages are described in [the GOG provider notes](gog-provider.md).
   Process exit and redirected-output draining use cancellation-aware `WaitForExitAsync` rather than a synchronous
   final drain that can hang when a detached Wine child inherits the pipes. Cancel still kills the directly
   launched process tree. The Windows execution path additionally requests `wineserver -k` for the exact
