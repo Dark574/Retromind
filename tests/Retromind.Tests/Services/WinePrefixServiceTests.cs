@@ -78,6 +78,50 @@ public sealed class WinePrefixServiceTests
     }
 
     [Fact]
+    public void Prepare_PrecreatesWineHomeFoldersInBothProfiles()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var item = new MediaItem("Game") { PrefixPath = Path.Combine("Prefixes", "Game") };
+        new WinePrefixService(library, new AppSettings()).Prepare(item, new ProcessStartInfo(), WinePrefixRuntime.Wine);
+        var users = Path.Combine(library, "Prefixes", "Game", "pfx", "drive_c", "users");
+
+        foreach (var user in new[] { "steamuser", "Default" })
+        foreach (var folder in new[] { "Documents", "Desktop", "Downloads", "Pictures", "Music", "Videos",
+                     "AppData/Roaming/Microsoft/Windows/Templates" })
+        {
+            var directory = new DirectoryInfo(Path.Combine(users, user, folder));
+            Assert.True(directory.Exists);
+            Assert.Null(directory.LinkTarget);
+        }
+    }
+
+    [Fact]
+    public void Prepare_PreservesTemplatesLinkInAnExistingV2Prefix()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var item = new MediaItem("Game") { PrefixPath = Path.Combine("Prefixes", "Game") };
+        var service = new WinePrefixService(library, new AppSettings());
+        service.Prepare(item, new ProcessStartInfo(), WinePrefixRuntime.Wine);
+        var users = Path.Combine(library, "Prefixes", "Game", "pfx", "drive_c", "users");
+        var templates = Path.Combine(users, "steamuser", "AppData", "Roaming", "Microsoft", "Windows", "Templates");
+        var hostTemplates = temp.CreateDirectory("Vorlagen");
+        Directory.Delete(templates);
+        Directory.CreateSymbolicLink(templates, hostTemplates);
+        Directory.Delete(Path.Combine(users, "Default"), recursive: true);
+
+        var start = new ProcessStartInfo();
+        var resolution = service.PrepareLaunch(item, start, WinePrefixRuntime.Wine, true, scaffold: true);
+
+        Assert.NotNull(resolution);
+        Assert.True(resolution.CanPrepare);
+        Assert.Equal("steamuser", start.Environment["USER"]);
+        Assert.Equal(hostTemplates, new DirectoryInfo(templates).LinkTarget);
+        Assert.False(Directory.Exists(Path.Combine(users, "Default")));
+    }
+
+    [Fact]
     public void Prepare_CreatesNestedPfxForNewProtonPrefix()
     {
         using var temp = new TemporaryDirectory();

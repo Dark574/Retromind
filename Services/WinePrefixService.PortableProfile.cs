@@ -12,10 +12,12 @@ public sealed partial class WinePrefixService
     internal const string PortableProfileConflictMessage =
         "The portable Windows profile is incomplete or conflicts with the selected prefix. Check the profile and prefix paths.";
 
+    private static readonly string[] WineHomeMappedFolders =
+        ["Documents", "Desktop", "Downloads", "Pictures", "Music", "Videos"];
+
     private static readonly string[] PortableProfileFolders =
     [
-        "Documents", "Desktop", "Downloads", "Saved Games", "AppData", "AppData/Roaming", "AppData/Local",
-        "AppData/LocalLow", "Pictures", "Music", "Videos"
+        .. WineHomeMappedFolders, "Saved Games", "AppData", "AppData/Roaming", "AppData/Local", "AppData/LocalLow"
     ];
 
     internal static PrefixResolution ResolveManaged(string prefixPath, WinePrefixRuntime runtime, string libraryRoot,
@@ -57,9 +59,9 @@ public sealed partial class WinePrefixService
             // Publish the marker with the complete directory structure. A retry can use
             // a published prefix, and a conflicting destination is never adopted as V2.
             var pfx = Path.Combine(staging, "pfx");
-            var profile = Path.Combine(pfx, "drive_c", "users", PortableProfileUser);
-            foreach (var folder in PortableProfileFolders)
-                Directory.CreateDirectory(Path.Combine(profile, folder));
+            var users = Path.Combine(pfx, "drive_c", "users");
+            CreateProfileDirectories(Path.Combine(users, PortableProfileUser), PortableProfileFolders);
+            CreateProfileDirectories(Path.Combine(users, "Default"), WineHomeMappedFolders);
 
             var dosDevices = Path.Combine(pfx, "dosdevices");
             PrefixPathHelper.EnsureDosDeviceMapping(dosDevices, "c:", "../drive_c");
@@ -82,6 +84,16 @@ public sealed partial class WinePrefixService
             if (Directory.Exists(staging))
                 Directory.Delete(staging, recursive: true);
         }
+    }
+
+    private static void CreateProfileDirectories(string profile, string[] folders)
+    {
+        foreach (var folder in folders)
+            Directory.CreateDirectory(Path.Combine(profile, folder));
+
+        // Wine links these folders to the host when initializing the active and default profiles.
+        // Templates is only prepared at creation time, so older V2 prefixes keep working as-is.
+        Directory.CreateDirectory(Path.Combine(profile, "AppData", "Roaming", "Microsoft", "Windows", "Templates"));
     }
 
     private static void RequireExistingProfile(PrefixResolution prefix)
