@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using Retromind.Helpers;
@@ -20,36 +19,6 @@ public partial class EditMediaViewModel
     public bool IsEmulatorMode => MediaType == MediaType.Emulator;
 
     public string PreviewText => FormatLaunchPreview(includeNotes: true);
-
-    protected override void OnPropertyChanged(PropertyChangedEventArgs e)
-    {
-        base.OnPropertyChanged(e);
-        if (e.PropertyName == nameof(PreviewText))
-            OnPropertyChanged(nameof(PrefixDiagnosis));
-    }
-
-    public string PrefixDiagnosis
-    {
-        get
-        {
-            try
-            {
-                if (BuildLaunchPreview() is not { } preview)
-                    return string.Empty;
-                if (preview.Prefix is { } prefix)
-                    return LaunchSecretRedactor.Redact(string.Join("\n", WinePrefixService.Describe(prefix, T)), preview.Overrides)
-                           ?? string.Empty;
-                return !string.IsNullOrWhiteSpace(PrefixPath) ||
-                       preview.Overrides.ContainsKey("WINEPREFIX") || preview.Overrides.ContainsKey("STEAM_COMPAT_DATA_PATH")
-                    ? T("Launch.Prefix.UnresolvedTarget", "The Windows prefix link could not be resolved.")
-                    : string.Empty;
-            }
-            catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or System.IO.IOException or UnauthorizedAccessException)
-            {
-                return T("Launch.Preview.Unavailable", "The current launch configuration could not be prepared.");
-            }
-        }
-    }
 
     private string FormatLaunchPreview(bool includeNotes)
     {

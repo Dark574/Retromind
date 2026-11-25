@@ -1438,7 +1438,7 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
 - `WinePrefixService` resolves the effective compatibility root and Windows tree after launch environment
   overrides are applied. The launcher, script-free preview, GOG Windows installer and Winetricks share the layout
   resolver. A root, real `pfx` and relative root alias remain supported. The resolver reports partial setups,
-  separate Windows trees and unresolved links. The Prefix section and launch log show planned paths and
+  separate Windows trees and unresolved links. The launch log shows planned paths and
   external profile folders observed on disk. Registry redirects and changes in custom wrappers are not inferred
 - New Wine-compatible prefixes managed inside the library on Linux use a real `pfx` directory and a fixed
   `steamuser` profile. A local version marker distinguishes these prefixes from existing layouts. The initial

@@ -12,7 +12,7 @@ namespace Retromind.Tests.ViewModels;
 public sealed class EditMediaViewModelLaunchPreviewTests
 {
     [Fact]
-    public void PrefixDiagnosis_ShowsExternalDocumentsWithoutCreatingOrChangingThePrefix()
+    public void PreviewText_LeavesExistingPrefixAndExternalProfileLinkUnchanged()
     {
         using var temp = new TemporaryDirectory();
         using var environment = new EnvironmentVariableScope(("APPIMAGE", temp.GetPath("Retromind.AppImage")), ("APPDIR", null));
@@ -29,9 +29,9 @@ public sealed class EditMediaViewModelLaunchPreviewTests
         node.Items.Add(item);
         using var editor = CreateEditor(item, node, new AppSettings());
 
-        Assert.Contains(prefix, editor.PrefixDiagnosis);
-        Assert.Contains($"steamuser/Documents → {documents}", editor.PrefixDiagnosis);
         Assert.Contains("WINEPREFIX=", editor.PreviewText);
+        Assert.Contains(prefix, editor.PreviewText);
+        Assert.Equal(documents, new DirectoryInfo(Path.Combine(profile, "Documents")).LinkTarget);
         Assert.False(Directory.Exists(Path.Combine(prefix, "dosdevices")));
         Assert.Equal("Prefixes/Example", item.PrefixPath);
     }
