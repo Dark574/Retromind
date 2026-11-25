@@ -1926,6 +1926,15 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
   <data name="Launch.Prefix.ExternalTarget" xml:space="preserve">
     <value>Der pfx-Link zeigt aus dem Kompatibilitätsordner heraus.</value>
   </data>
+  <data name="Launch.Prefix.PortableProfile" xml:space="preserve">
+    <value>Portables Windows-Profil</value>
+  </data>
+  <data name="Launch.Prefix.ProfileConflict" xml:space="preserve">
+    <value>Das portable Windows-Profil ist unvollständig oder steht im Konflikt mit dem gewählten Prefix. Prüfe die Profil- und Prefix-Pfade.</value>
+  </data>
+  <data name="Launch.Prefix.DriveMappings" xml:space="preserve">
+    <value>Windows-Laufwerkszuordnungen</value>
+  </data>
   <data name="Launch.Prefix.ProfileLocations" xml:space="preserve">
     <value>Externe oder nicht auflösbare Profilordner (Dateisystem)</value>
   </data>

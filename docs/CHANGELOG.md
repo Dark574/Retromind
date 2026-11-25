@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.5-alpha] - unreleased
 
 ### Added
+- keep Windows user folders and game saves inside newly managed Wine and Proton prefixes, with the same profile for GOG setup, Winetricks and game launches
 - show the planned Wine or Proton prefix, detected layout and external Windows profile folders in the media editor and launch log
 - mark GOG games that are ready to install with a download icon in the library and search results
 - queue GOG and Epic updates in the desktop download manager, set daily download hours and a GOG speed limit, and archive GOG offline installers for later use

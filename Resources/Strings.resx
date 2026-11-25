@@ -1924,6 +1924,15 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
   <data name="Launch.Prefix.ExternalTarget" xml:space="preserve">
     <value>The pfx link points outside its compatibility root.</value>
   </data>
+  <data name="Launch.Prefix.PortableProfile" xml:space="preserve">
+    <value>Portable Windows profile</value>
+  </data>
+  <data name="Launch.Prefix.ProfileConflict" xml:space="preserve">
+    <value>The portable Windows profile is incomplete or conflicts with the selected prefix. Check the profile and prefix paths.</value>
+  </data>
+  <data name="Launch.Prefix.DriveMappings" xml:space="preserve">
+    <value>Windows drive mappings</value>
+  </data>
   <data name="Launch.Prefix.ProfileLocations" xml:space="preserve">
     <value>External or unresolved profile folders (filesystem)</value>
   </data>

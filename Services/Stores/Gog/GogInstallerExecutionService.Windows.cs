@@ -46,6 +46,7 @@ public sealed partial class GogInstallerExecutionService
         var prefix = request.ResolvedPrefix ?? ResolveWindowsPrefix(request.StoreGameId, request.ItemTitle, request.PrefixPath);
         if (!prefix.CanPrepare || prefix.FromOverride && !WinePrefixService.StillSelectsSameTree(prefix))
             return Fail("The Windows prefix could not be safely selected. Check the prefix layout and overrides.");
+        WinePrefixService.PreparePortableProfile(prefix, _libraryRoot);
         var prefixRoot = prefix.ResolvedWindowsPrefix!;
         Directory.CreateDirectory(request.InstallPath);
         Directory.CreateDirectory(request.DownloadedPackage.StagingDirectory);
@@ -96,6 +97,8 @@ public sealed partial class GogInstallerExecutionService
         {
             var profile = profiles[attemptIndex];
             var startInfo = EmulatorResolverHelper.BuildWineInstallStartInfo(request.WinePath, prefixRoot);
+            if (prefix.PortableProfile)
+                startInfo.Environment["USER"] = WinePrefixService.PortableProfileUser;
             startInfo.WorkingDirectory = request.DownloadedPackage.StagingDirectory;
             GogWindowsShortcutPolicy.ApplyInstallerEnvironment(
                 startInfo,
@@ -330,7 +333,7 @@ public sealed partial class GogInstallerExecutionService
             absolutePrefixPath = Path.Combine(_libraryRoot, "Prefixes", folderName);
         }
 
-        return WinePrefixService.ResolveConfigured(absolutePrefixPath, WinePrefixRuntime.Wine);
+        return WinePrefixService.ResolveManaged(absolutePrefixPath, WinePrefixRuntime.Wine, _libraryRoot);
     }
 
     private static IReadOnlyList<WindowsInstallerArgumentProfile> BuildWindowsInstallerArgumentProfiles(

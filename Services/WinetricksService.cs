@@ -70,7 +70,7 @@ public sealed class WinetricksService
         var runner = RunnerType(isProton, isUmu);
         try
         {
-            var prefix = ResolvePrefix(prefixRoot, isProton, isUmu);
+            var prefix = ResolvePrefix(prefixRoot, isProton, isUmu, libraryRoot: _libraryRoot);
             PreparePrefixDirectories(prefix, runner);
         }
         catch (Exception ex)
@@ -147,6 +147,8 @@ public sealed class WinetricksService
         }
 
         appendLog($"Prefix: {plan.CompatRoot}");
+        if (!FileSystemPathIdentity.Equals(plan.CompatRoot, plan.WinePrefix))
+            appendLog($"Windows prefix: {plan.WinePrefix}");
         if (plan.Environment.TryGetValue("PROTONPATH", out var protonPath))
         {
             appendLog($"PROTONPATH: {protonPath}");
@@ -162,6 +164,8 @@ public sealed class WinetricksService
             appendLog($"STEAM_COMPAT_DATA_PATH: {compatPath}");
         if (plan.Environment.TryGetValue("WINEPREFIX", out var winePrefixValue))
             appendLog($"WINEPREFIX: {winePrefixValue}");
+        if (plan.Environment.TryGetValue("USER", out var user) && user == WinePrefixService.PortableProfileUser)
+            appendLog($"Wine profile: {user}");
         if (!plan.UsesUmu && request.IsProton && plan.Environment.TryGetValue("WINE", out var wineValue))
             appendLog($"WINE: {wineValue}");
 
@@ -230,7 +234,7 @@ public sealed class WinetricksService
             }
         }
 
-        var prefix = ResolvePrefix(request.PrefixRoot, request.IsProton, useUmu, environment, request.IsUmu);
+        var prefix = ResolvePrefix(request.PrefixRoot, request.IsProton, useUmu, environment, request.IsUmu, _libraryRoot);
         PreparePrefixDirectories(prefix, RunnerType(request.IsProton, useUmu),
             GetSensitiveValues(request.EnvironmentOverrides));
         if (useUmu && request.IsProton)
@@ -239,6 +243,9 @@ public sealed class WinetricksService
         var compatRoot = prefix.CompatRoot;
         var winePrefix = prefix.ResolvedWindowsPrefix!;
         ApplyPrefixEnvironment(environment, compatRoot, useUmu ? compatRoot : prefix.WindowsPrefix, request.IsProton);
+        // Standalone Winetricks calls Wine directly, including the Proton Wine fallback.
+        if (prefix.PortableProfile && !useUmu)
+            environment["USER"] = WinePrefixService.PortableProfileUser;
 
         var arguments = SplitArguments(request.Verbs);
         var fileName = "winetricks";
@@ -267,7 +274,7 @@ public sealed class WinetricksService
     }
 
     private static PrefixResolution ResolvePrefix(string prefixRoot, bool isProton, bool useUmu,
-        IReadOnlyDictionary<string, string>? environment = null, bool requestedUmu = false)
+        IReadOnlyDictionary<string, string>? environment = null, bool requestedUmu = false, string? libraryRoot = null)
     {
         var requestedRuntime = requestedUmu || useUmu ? WinePrefixRuntime.Umu :
             isProton ? WinePrefixRuntime.Proton : WinePrefixRuntime.Wine;
@@ -280,12 +287,17 @@ public sealed class WinetricksService
 
         var runtime = useUmu ? WinePrefixRuntime.Umu :
             isProton ? WinePrefixRuntime.Proton : WinePrefixRuntime.Wine;
-        var prefix = WinePrefixService.ResolveConfigured(Path.GetFullPath(prefixRoot), runtime, useProtonWine: !useUmu);
+        var path = Path.GetFullPath(prefixRoot);
+        PrefixResolution ResolveConfigured(WinePrefixRuntime selectedRuntime, bool useProtonWine = false) =>
+            libraryRoot == null
+                ? WinePrefixService.ResolveConfigured(path, selectedRuntime, useProtonWine)
+                : WinePrefixService.ResolveManaged(path, selectedRuntime, libraryRoot, useProtonWine);
+        var prefix = ResolveConfigured(runtime, useProtonWine: !useUmu);
         if (requestedRuntime != WinePrefixRuntime.Wine && environment != null &&
             WinePrefixService.TryReadPrefixOverride(environment,
                 requestedRuntime == WinePrefixRuntime.Proton ? "WINEPREFIX" : "STEAM_COMPAT_DATA_PATH", out var secondary))
         {
-            var expected = WinePrefixService.ResolveConfigured(Path.GetFullPath(prefixRoot), requestedRuntime);
+            var expected = ResolveConfigured(requestedRuntime);
             var key = requestedRuntime == WinePrefixRuntime.Proton ? "WINEPREFIX" : "STEAM_COMPAT_DATA_PATH";
             var actual = EnvironmentPathHelper.NormalizeDataRootPathIfNeeded(key, secondary);
             prefix = prefix with { ConflictingOverrides = WinePrefixService.CheckForConflictingOverrides(expected, actual).ConflictingOverrides };
@@ -302,6 +314,7 @@ public sealed class WinetricksService
         if (prefix.FromOverride)
             return; // The explicit Winetricks process owns preparation of the overridden prefix.
 
+        WinePrefixService.PreparePortableProfile(prefix, _libraryRoot);
         Directory.CreateDirectory(prefix.CompatRoot);
         Directory.CreateDirectory(prefix.ResolvedWindowsPrefix!);
         EnsurePortableGamesDriveMapping(prefix.CompatRoot, prefix.ResolvedWindowsPrefix!, runner, secrets);

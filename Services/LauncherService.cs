@@ -854,6 +854,9 @@ public sealed class LauncherService
             additionalLaunchArguments);
 
         launchLog.CaptureProcessStart(startInfo, launchFilePath, environmentOverrides, prefix);
+        if (prefix is { ProfileConflict: true })
+            throw new InvalidOperationException(Strings.ResourceManager.GetString("Launch.Prefix.ProfileConflict", Strings.Culture) ??
+                WinePrefixService.PortableProfileConflictMessage);
         if (prefix is { RuntimeUncertain: false })
         {
             if (prefix.WouldCreateSecondTree)
@@ -956,7 +959,8 @@ public sealed class LauncherService
         var prefix = shouldApplyPrefix || knownRuntime.HasValue || wineOverride || compatOverride
             ? winePrefixService.PrepareLaunch(item, startInfo, prefixRuntime, shouldApplyPrefix, scaffold: !preview,
                 wineOverride: wineOverride, compatOverride: compatOverride,
-                runtimeUncertain: !knownRuntime.HasValue || nativeWrappers is { Count: > 0 })
+                runtimeUncertain: !knownRuntime.HasValue || nativeWrappers is { Count: > 0 },
+                allowNewPortableProfile: knownRuntime.HasValue)
             : null;
         return (startInfo, prefix);
 

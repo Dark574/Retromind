@@ -242,6 +242,7 @@ public sealed class GogInstallerProcessService
             "PROTONPATH",
             "STEAM_COMPAT_DATA_PATH",
             "WINEPREFIX",
+            "USER",
             "STEAM_COMPAT_CLIENT_INSTALL_PATH",
             "STEAM_COMPAT_INSTALL_PATH",
             "PROTON_LOG",

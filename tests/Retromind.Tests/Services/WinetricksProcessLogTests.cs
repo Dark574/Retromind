@@ -32,7 +32,8 @@ public sealed class WinetricksProcessLogTests
         Assert.Equal("1", report.Context!["ExitCode"]);
         Assert.Equal("Wine", report.Context["RunnerType"]);
         Assert.Equal(request.Verbs, report.Context["Verbs"]);
-        Assert.Equal(request.PrefixRoot, report.Context["PrefixPath"]);
+        var windowsPrefix = Path.Combine(request.PrefixRoot, "pfx");
+        Assert.Equal(windowsPrefix, report.Context["PrefixPath"]);
         Assert.Contains("unsupported function", report.Context["StderrSummary"]);
         Assert.Contains("Traceback", report.Context["StderrSummary"]);
         Assert.DoesNotContain("normal output", report.Context["StderrSummary"]);
@@ -42,7 +43,7 @@ public sealed class WinetricksProcessLogTests
         var records = ReadRecords(path);
         Assert.Equal(report.CorrelationId, records[0].GetProperty("CorrelationId").GetString());
         Assert.Equal(request.Verbs, records[0].GetProperty("Verbs").GetString());
-        Assert.Equal(request.PrefixRoot, records[0].GetProperty("PrefixPath").GetString());
+        Assert.Equal(windowsPrefix, records[0].GetProperty("PrefixPath").GetString());
         Assert.Equal("Wine", records[0].GetProperty("RunnerType").GetString());
         Assert.Contains(records, record => IsOutput(record, "stdout", "normal output"));
         Assert.Contains(records, record => IsOutput(record, "stderr", "wine: Call from unsupported function"));

@@ -14,10 +14,11 @@ internal sealed record PrefixResolution(
     WinePrefixRuntime Runtime, string CompatRoot, string WindowsPrefix, string? ResolvedWindowsPrefix,
     PrefixLayout Layout, PrefixTreeState State, bool HasSeparateTrees, bool HasExternalTarget,
     bool WouldCreateSecondTree, bool FromOverride = false, bool RuntimeUncertain = false,
-    bool ConflictingOverrides = false, bool ExplicitWindowsTree = false, string? PfxLinkTarget = null)
+    bool ConflictingOverrides = false, bool ExplicitWindowsTree = false, string? PfxLinkTarget = null,
+    bool PortableProfile = false, bool CreatePortableProfile = false, bool ProfileConflict = false)
 {
     internal bool CanPrepare => ResolvedWindowsPrefix != null && (!HasSeparateTrees || ExplicitWindowsTree) &&
-        !WouldCreateSecondTree && !HasExternalTarget && !ConflictingOverrides &&
+        !WouldCreateSecondTree && !HasExternalTarget && !ConflictingOverrides && !ProfileConflict &&
         !(Layout == PrefixLayout.BrokenAlias && (Runtime != WinePrefixRuntime.Wine || WindowsPrefix != CompatRoot)) &&
         !(Runtime == WinePrefixRuntime.Umu && Layout == PrefixLayout.CustomAlias);
 
@@ -134,9 +135,16 @@ public sealed partial class WinePrefixService
                              !IsInsideOrEqual(nested.Path, root.Path);
         var wouldCreateSecondTree = isNestedTarget && !isRootAlias && nestedState == PrefixTreeState.Missing &&
                                     rootState != PrefixTreeState.Missing && runtime != WinePrefixRuntime.Wine;
+        var markedRoot = root.Path != null && HasPortableProfileMarker(root.Path);
+        var selectedPortableTree = IsPortableWindowsTree(windows.Path);
+        var compatIsWindowsTree = runtime != WinePrefixRuntime.Wine && IsPortableWindowsTree(root.Path);
+        var portable = markedRoot || selectedPortableTree || compatIsWindowsTree;
+        var profileConflict = portable && (separate || compatIsWindowsTree ||
+            markedRoot && layout != PrefixLayout.Nested ||
+            !selectedPortableTree || !HasPortableProfileDirectories(windows.Path!));
         return new PrefixResolution(runtime, compatRoot, windowsPrefix, windows.BrokenLink ? null : windows.Path, layout,
             GetTreeState(windows), separate, externalTarget, wouldCreateSecondTree, fromOverride, runtimeUncertain,
-            PfxLinkTarget: pfxLinkTarget);
+            PfxLinkTarget: pfxLinkTarget, PortableProfile: portable, ProfileConflict: profileConflict);
     }
 
     internal static IReadOnlyList<string> Describe(PrefixResolution prefix, Func<string, string, string>? localize = null)
@@ -183,6 +191,23 @@ public sealed partial class WinePrefixService
             lines.Add(T("UmuAlias", "UMU can replace the custom pfx link."));
         if (prefix.HasExternalTarget)
             lines.Add(T("ExternalTarget", "The pfx link points outside its compatibility root."));
+        if (prefix.PortableProfile)
+        {
+            var tree = prefix.ProfileConflict ? Path.Combine(prefix.CompatRoot, "pfx") : prefix.ResolvedWindowsPrefix!;
+            var profile = Path.Combine(tree, "drive_c", "users", PortableProfileUser);
+            lines.Add($"{T("PortableProfile", "Portable Windows profile")}: {profile}");
+            if (prefix.ProfileConflict)
+                lines.Add(T("ProfileConflict", PortableProfileConflictMessage));
+            if (!prefix.ProfileConflict && prefix.ResolvedWindowsPrefix is { } windowsPrefix)
+            {
+                var drives = DescribeDriveLinks(windowsPrefix);
+                if (drives.Count > 0)
+                {
+                    lines.Add(T("DriveMappings", "Windows drive mappings"));
+                    lines.AddRange(drives);
+                }
+            }
+        }
 
         var profileLocations = InspectProfileLocations(prefix.ResolvedWindowsPrefix);
         if (profileLocations.Count > 0)
@@ -191,6 +216,30 @@ public sealed partial class WinePrefixService
             lines.AddRange(profileLocations.Select(location => $"  {location}"));
         }
         return lines;
+    }
+
+    private static List<string> DescribeDriveLinks(string windowsPrefix)
+    {
+        var links = new List<string>();
+        var dosDevices = Path.Combine(windowsPrefix, "dosdevices");
+        if (!IsRealDirectory(dosDevices))
+            return links;
+
+        try
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(dosDevices).Order(StringComparer.Ordinal))
+            {
+                var drive = Path.GetFileName(entry);
+                if (drive is [>= 'a' and <= 'z', ':'] && ReadLink(entry) is { } target)
+                    links.Add($"  {char.ToUpperInvariant(drive[0])}: → {target}");
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Diagnostics remain best-effort.
+        }
+
+        return links;
     }
 
     private static List<string> InspectProfileLocations(string? windowsPrefix)

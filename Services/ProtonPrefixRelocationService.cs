@@ -63,6 +63,7 @@ public sealed class ProtonPrefixRelocationService
 
         var protonRoot = allowRunnerFallback ? ResolveProtonRoot(item, effectiveProtonPath)
             : ResolveProtonRootPath(effectiveProtonPath);
+        var trackedPrefixEntries = LoadTrackedPrefixEntries(prefixPath, protonMetadataRoot);
         if (protonRoot == null)
         {
             return new ProtonPrefixRepairResult(
@@ -70,7 +71,7 @@ public sealed class ProtonPrefixRelocationService
                 prefixPath,
                 null,
                 0,
-                CountBrokenProtonLinks(prefixPath),
+                CountBrokenProtonLinks(prefixPath, trackedPrefixEntries),
                 0);
         }
 
@@ -78,10 +79,11 @@ public sealed class ProtonPrefixRelocationService
         var repaired = 0;
         var unresolved = 0;
         var failed = 0;
-        var trackedPrefixEntries = LoadTrackedPrefixEntries(prefixPath, protonMetadataRoot);
-
         foreach (var linkPath in EnumerateSymbolicLinks(prefixPath))
         {
+            if (!IsTrackedPrefixEntry(prefixPath, linkPath, trackedPrefixEntries))
+                continue;
+
             string? oldTarget;
             try
             {
@@ -104,10 +106,6 @@ public sealed class ProtonPrefixRelocationService
                 {
                     continue;
                 }
-
-                var oldTargetExists = File.Exists(resolvedOldTarget) || Directory.Exists(resolvedOldTarget);
-                if (oldTargetExists && !IsTrackedPrefixEntry(prefixPath, linkPath, trackedPrefixEntries))
-                    continue;
 
                 replacementTarget = ResolveReplacementTarget(protonFilesRoot, relativeRuntimePath);
                 if (replacementTarget != null &&
@@ -225,7 +223,7 @@ public sealed class ProtonPrefixRelocationService
         }
         catch
         {
-            // A missing or unreadable manifest must not broaden which valid links can be rewritten.
+            // A missing or unreadable manifest cannot establish link ownership.
             trackedEntries.Clear();
         }
 
@@ -264,11 +262,14 @@ public sealed class ProtonPrefixRelocationService
             .Replace('/', Path.DirectorySeparatorChar);
     }
 
-    private static int CountBrokenProtonLinks(string prefixPath)
+    private static int CountBrokenProtonLinks(string prefixPath, IReadOnlySet<string> trackedPrefixEntries)
     {
         var count = 0;
         foreach (var linkPath in EnumerateSymbolicLinks(prefixPath))
         {
+            if (!IsTrackedPrefixEntry(prefixPath, linkPath, trackedPrefixEntries))
+                continue;
+
             try
             {
                 var target = new FileInfo(linkPath).LinkTarget;

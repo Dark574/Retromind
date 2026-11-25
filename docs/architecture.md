@@ -1440,13 +1440,25 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   resolver. A root, real `pfx` and relative root alias remain supported. The resolver reports partial setups,
   separate Windows trees and unresolved links. The Prefix section and launch log show planned paths and
   external profile folders observed on disk. Registry redirects and changes in custom wrappers are not inferred
+- New Wine-compatible prefixes managed inside the library on Linux use a real `pfx` directory and a fixed
+  `steamuser` profile. A local version marker distinguishes these prefixes from existing layouts. The initial
+  directory tree is published with the marker and the standard C: and Z: mappings. The existing portable Games
+  drive is created in the resolved Windows tree. The shared resolver plans the layout without writing during
+  preview. A conflict with the fixed profile prevents preparation and launch.
+- System-Wine game launches, Windows GOG installers and standalone Winetricks select the new profile through
+  their process environment. Windows GOG setup always uses System-Wine. Proton and UMU keep their normal
+  launcher environments, as does Winetricks when run through UMU. The selected game runner is independent
+  of the installer. Existing unmarked prefixes retain their layout and profile selection.
+  File paths and the Windows profile name are portable. Different runners or Linux accounts can still
+  produce different Windows token SIDs, so data protected by SID-dependent mechanisms has separate
+  compatibility requirements.
 - Managed defaults override inherited host variables, while explicit prefix overrides retain their runner-specific
   meaning. Retromind does not scaffold or repair an overridden prefix on game start. GOG requests confirmation
   before using a launch override for its system Wine installer
 - `ProtonPrefixRelocationService` rebases stale Proton-managed runtime links after a portable data-root move before
   a game launch or a later GOG installer accesses the existing prefix. It uses the selected Windows tree and
-  skips external, ambiguous and overridden targets as well as profile links. Reachable links are rewritten only
-  when Proton's `tracked_files` manifest identifies them as runtime-owned
+  skips external, ambiguous and overridden targets as well as profile links. Links are rewritten only when
+  Proton's `tracked_files` manifest identifies the recognized runtime path as managed
 - `LaunchProcessService` owns operating-system process startup, bounded stdout/stderr capture, delegated-command
   observation, configured watch-process tracking, and the active tracked-session stop boundary. While Retromind
   is in the background, holding the configured stop combination (L1 + R1 by default) first requests an orderly

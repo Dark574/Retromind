@@ -33,9 +33,12 @@ public sealed class WinetricksServiceTests : IDisposable
 
         service.PreparePrefix(prefixRoot, isProton: false, isUmu: false);
 
-        var dosDevices = Path.Combine(prefixRoot, "dosdevices");
-        Assert.True(Directory.Exists(Path.Combine(prefixRoot, "drive_c")));
+        var pfx = Path.Combine(prefixRoot, "pfx");
+        var dosDevices = Path.Combine(pfx, "dosdevices");
+        Assert.True(Directory.Exists(Path.Combine(pfx, "drive_c", "users", "steamuser", "Pictures")));
+        Assert.False(Directory.Exists(Path.Combine(prefixRoot, "dosdevices")));
         Assert.Equal("../drive_c", new DirectoryInfo(Path.Combine(dosDevices, "c:")).LinkTarget);
+        Assert.Equal("/", new DirectoryInfo(Path.Combine(dosDevices, "z:")).LinkTarget);
         Assert.NotNull(new DirectoryInfo(Path.Combine(dosDevices, "r:")).LinkTarget);
         Assert.True(Directory.Exists(Path.Combine(libraryRoot, "Games")));
     }
@@ -53,7 +56,7 @@ public sealed class WinetricksServiceTests : IDisposable
         var plan = service.PrepareExecution(new WinetricksRequest(
             prefixRoot,
             "vcrun2022 \"dxvk hud\"",
-            new Dictionary<string, string> { ["PROTONPATH"] = protonRoot },
+            new Dictionary<string, string> { ["PROTONPATH"] = protonRoot, ["USER"] = "linux-user" },
             IsProton: true,
             IsUmu: true,
             UmuRunnerPath: "/usr/bin/umu-run"));
@@ -62,9 +65,10 @@ public sealed class WinetricksServiceTests : IDisposable
         Assert.Equal("/usr/bin/umu-run", plan.FileName);
         Assert.Equal(["winetricks", "vcrun2022", "dxvk hud"], plan.Arguments);
         Assert.Equal(prefixRoot, plan.CompatRoot);
-        Assert.Equal(prefixRoot, plan.WinePrefix);
+        Assert.Equal(Path.Combine(prefixRoot, "pfx"), plan.WinePrefix);
         Assert.Equal(prefixRoot, plan.Environment["STEAM_COMPAT_DATA_PATH"]);
         Assert.Equal(prefixRoot, plan.Environment["WINEPREFIX"]);
+        Assert.Equal("linux-user", plan.Environment["USER"]);
         Assert.Null(plan.MissingBundledWinetricksPath);
     }
 
@@ -92,6 +96,8 @@ public sealed class WinetricksServiceTests : IDisposable
         Assert.Equal("winetricks", plan.FileName);
         Assert.Equal(["corefonts"], plan.Arguments);
         Assert.Equal(Path.Combine(prefixRoot, "pfx"), plan.WinePrefix);
+        Assert.Equal(plan.WinePrefix, plan.Environment["WINEPREFIX"]);
+        Assert.Equal("steamuser", plan.Environment["USER"]);
         Assert.Equal(wine, plan.Environment["WINE"]);
         Assert.Equal(wineserver, plan.Environment["WINESERVER"]);
         Assert.Equal(wine64, plan.Environment["WINE64"]);
@@ -99,6 +105,25 @@ public sealed class WinetricksServiceTests : IDisposable
         Assert.Equal(
             Path.Combine(protonRoot, "protonfixes", "winetricks"),
             plan.MissingBundledWinetricksPath);
+    }
+
+    [Fact]
+    public void PrepareExecution_StandaloneWinetricksSelectsTheExistingPortableProfile()
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var prefix = temp.GetPath("Library", "Prefixes", "Game");
+        new WinePrefixService(library, new AppSettings()).Prepare(
+            new MediaItem("Game") { PrefixPath = prefix }, new ProcessStartInfo(), WinePrefixRuntime.Proton);
+        var service = new WinetricksService(library, new RecordingErrorService());
+
+        var plan = service.PrepareExecution(Request(temp) with { Verbs = "list-installed" });
+
+        Assert.Equal("winetricks", plan.FileName);
+        Assert.False(plan.UsesUmu);
+        Assert.Equal(Path.Combine(prefix, "pfx"), plan.Environment["WINEPREFIX"]);
+        Assert.Equal("steamuser", plan.Environment["USER"]);
+        Assert.NotNull(new FileInfo(Path.Combine(plan.WinePrefix, "dosdevices", "r:")).LinkTarget);
     }
 
     [Fact]
@@ -215,7 +240,7 @@ public sealed class WinetricksServiceTests : IDisposable
             Assert.Equal(nameof(WinetricksService), report.Component);
             Assert.Equal("17", report.Context!["ExitCode"]);
             Assert.Equal("Wine", report.Context["RunnerType"]);
-            Assert.Equal(Request(temp).PrefixRoot, report.Context["PrefixPath"]);
+            Assert.Equal(Path.Combine(Request(temp).PrefixRoot, "pfx"), report.Context["PrefixPath"]);
         }
         Assert.All(errors.Notifications, Assert.Null);
     }

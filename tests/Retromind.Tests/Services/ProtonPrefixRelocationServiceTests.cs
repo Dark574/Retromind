@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
@@ -7,6 +8,82 @@ namespace Retromind.Tests.Services;
 
 public sealed class ProtonPrefixRelocationServiceTests
 {
+    [Theory]
+    [InlineData("v2", true, false)]
+    [InlineData("v2", false, true)]
+    [InlineData("v2", true, true)]
+    [InlineData("root", true, true)]
+    [InlineData("alias", true, true)]
+    [InlineData("nested", true, true)]
+    public void Repair_AfterMovesRepairsOnlyTrackedRuntimeLinksInTheResolvedTree(
+        string layout, bool moveLibrary, bool moveRunner)
+    {
+        using var temp = new TemporaryDirectory();
+        var library = temp.CreateDirectory("Library");
+        var runner = temp.CreateDirectory("Proton");
+        var relative = Path.Combine("Prefixes", "Move Game");
+        var item = new MediaItem("Move Game") { PrefixPath = relative };
+        var root = Path.Combine(library, relative);
+        var runtimeFile = Path.Combine("files", "lib", "wine", "x86_64-windows", "kernel32.dll");
+        var target = temp.CreateFile(Path.Combine("Proton", runtimeFile), "builtin");
+        var nested = layout is "v2" or "nested";
+        var tree = nested ? Path.Combine(root, "pfx") : root;
+        if (layout == "v2")
+            new WinePrefixService(library, new AppSettings()).Prepare(item, new ProcessStartInfo(), WinePrefixRuntime.Wine);
+        else if (layout == "alias")
+            Directory.CreateSymbolicLink(Path.Combine(Directory.CreateDirectory(root).FullName, "pfx"), ".");
+
+        var system = Directory.CreateDirectory(Path.Combine(tree, "drive_c", "windows", "system32")).FullName;
+        var profile = Directory.CreateDirectory(Path.Combine(tree, "drive_c", "users", "steamuser", "Documents")).FullName;
+        var save = Path.Combine(profile, "save.dat");
+        File.WriteAllText(save, "keep");
+        var drives = Path.Combine(tree, "dosdevices");
+        PrefixPathHelper.EnsurePortableGamesDriveMapping(root, drives, library);
+        var r = new FileInfo(Path.Combine(drives, "r:")).LinkTarget;
+        Assert.NotNull(r);
+        Assert.False(Path.IsPathRooted(r));
+        var runtimeLink = Path.Combine(system, "kernel32.dll");
+        File.CreateSymbolicLink(runtimeLink, target);
+        var customTarget = temp.GetPath("Absent Data", runtimeFile);
+        File.CreateSymbolicLink(Path.Combine(system, "custom.dll"), customTarget);
+        File.CreateSymbolicLink(Path.Combine(profile, "custom.dll"), customTarget);
+        File.WriteAllText(Path.Combine(root, "version"), "11.0-100");
+        File.WriteAllText(Path.Combine(root, "tracked_files"),
+            "drive_c/windows/system32/kernel32.dll\ndrive_c/users/steamuser/Documents/custom.dll\n");
+
+        if (moveLibrary)
+        {
+            var destination = temp.GetPath("Moved Library");
+            Directory.Move(library, destination);
+            library = destination;
+        }
+        if (moveRunner)
+        {
+            var destination = temp.GetPath("Moved Proton");
+            Directory.Move(runner, destination);
+            runner = destination;
+        }
+
+        root = Path.Combine(library, relative);
+        tree = nested ? Path.Combine(root, "pfx") : root;
+        var plan = WinePrefixService.ResolveManaged(root, WinePrefixRuntime.Wine, library);
+        var repair = new ProtonPrefixRelocationService(library, new AppSettings()).Repair(item, plan, runner);
+        Assert.Equal(tree, repair.PrefixPath);
+        Assert.True(repair.IsProtonManagedPrefix);
+        Assert.Equal(moveRunner ? 1 : 0, repair.RepairedLinks);
+        Assert.Equal(0, repair.FailedLinks);
+        Assert.Equal(Path.Combine(runner, runtimeFile),
+            new FileInfo(Path.Combine(tree, "drive_c", "windows", "system32", "kernel32.dll")).LinkTarget);
+        Assert.Equal(customTarget,
+            new FileInfo(Path.Combine(tree, "drive_c", "windows", "system32", "custom.dll")).LinkTarget);
+        Assert.Equal(customTarget,
+            new FileInfo(Path.Combine(tree, "drive_c", "users", "steamuser", "Documents", "custom.dll")).LinkTarget);
+        Assert.Equal("keep", File.ReadAllText(Path.Combine(tree, "drive_c", "users", "steamuser", "Documents", "save.dat")));
+        drives = Path.Combine(tree, "dosdevices");
+        Assert.Equal(r, new FileInfo(Path.Combine(drives, "r:")).LinkTarget);
+        Assert.Equal(Path.Combine(library, "Games"), Path.GetFullPath(Path.Combine(drives, r)));
+    }
+
     [Fact]
     public void Repair_RebasesBrokenProtonRuntimeLinksToConfiguredRunner()
     {

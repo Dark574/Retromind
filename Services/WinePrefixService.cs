@@ -37,13 +37,15 @@ public sealed partial class WinePrefixService
 
     internal PrefixResolution? PrepareLaunch(MediaItem item, ProcessStartInfo startInfo, WinePrefixRuntime runtime,
         bool applyManagedPrefix, bool scaffold, bool wineOverride = false, bool compatOverride = false,
-        bool runtimeUncertain = false)
+        bool runtimeUncertain = false, bool allowNewPortableProfile = true)
     {
         string? pathToSave = null;
         PrefixResolution? configured = null;
         if (applyManagedPrefix)
         {
-            configured = ResolveConfigured(ResolvePrefixPath(item, out pathToSave), runtime);
+            configured = ResolveManaged(ResolvePrefixPath(item, out pathToSave), runtime, _libraryRootPath,
+                allowNewPortableProfile: allowNewPortableProfile && !wineOverride &&
+                                         (runtime == WinePrefixRuntime.Wine || !compatOverride));
 
             // Explicit launch overrides have already been applied. Managed defaults
             // replace inherited host values only, leaving explicit values intact.
@@ -78,6 +80,9 @@ public sealed partial class WinePrefixService
             prefix = CheckForConflictingOverrides(prefix, startInfo.Environment["WINEPREFIX"]);
         if (runtime == WinePrefixRuntime.Umu && compatOverride)
             prefix = CheckForConflictingOverrides(prefix, startInfo.Environment["STEAM_COMPAT_DATA_PATH"]);
+
+        if (prefix is { PortableProfile: true, ProfileConflict: false } && runtime == WinePrefixRuntime.Wine)
+            startInfo.Environment["USER"] = PortableProfileUser;
 
         if (scaffold && applyManagedPrefix && prefix.CanPrepare && !prefix.FromOverride)
         {
@@ -123,6 +128,7 @@ public sealed partial class WinePrefixService
 
     private void ScaffoldPrefix(PrefixResolution prefix)
     {
+        PreparePortableProfile(prefix, _libraryRootPath);
         var target = prefix.ResolvedWindowsPrefix!;
         Directory.CreateDirectory(target);
 

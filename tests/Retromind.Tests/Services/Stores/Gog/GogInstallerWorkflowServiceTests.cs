@@ -14,6 +14,71 @@ namespace Retromind.Tests.Services.Stores.Gog;
 public sealed class GogInstallerWorkflowServiceTests
 {
     [Theory]
+    [InlineData("GE-Proton")]
+    [InlineData("Valve Proton")]
+    public async Task WindowsInstall_UsesSystemWineAndSharesPortableProfileWithSelectedProton(string runnerName)
+    {
+        using var temp = new TemporaryDirectory();
+        var bin = temp.CreateDirectory("bin");
+        using var environment = new EnvironmentVariableScope(
+            ("APPIMAGE", temp.GetPath("Retromind.AppImage")), ("PATH", bin), ("USER", "linux-user"));
+        var library = temp.CreateDirectory("Library");
+        var install = temp.CreateDirectory("Library", "Games", "Game");
+        var staging = temp.CreateDirectory("staging");
+        var installer = temp.CreateFile("staging/setup.exe", "fixture");
+        var runnerRoot = temp.CreateDirectory(runnerName);
+        var wine = temp.CreateFile("bin/wine", """
+            #!/bin/sh
+            [ "$USER" = steamuser ] || exit 2
+            [ -d "$WINEPREFIX/dosdevices/c:" ] && [ -d "$WINEPREFIX/dosdevices/z:" ] || exit 3
+            printf 'save' > "$WINEPREFIX/drive_c/users/steamuser/Documents/setup-save"
+            printf 'installed' > "$WINEPREFIX/dosdevices/r:/Game/game.exe"
+            printf 'installer used system wine\n'
+            """);
+        var umu = temp.CreateFile("bin/umu-run", """
+            #!/bin/sh
+            [ "$USER" = linux-user ] || exit 2
+            [ -d "$PROTONPATH" ] || exit 3
+            [ "$WINEPREFIX" = "$STEAM_COMPAT_DATA_PATH" ] || exit 4
+            [ -f "$WINEPREFIX/pfx/drive_c/users/steamuser/Documents/setup-save" ] || exit 5
+            [ -f "$WINEPREFIX/pfx/dosdevices/r:/Game/game.exe" ] || exit 6
+            printf 'runner saw installer profile\n'
+            exit 23
+            """);
+        foreach (var script in new[] { wine, umu })
+            File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+        var item = new MediaItem("Game")
+        {
+            MediaType = MediaType.Emulator,
+            LauncherPath = umu,
+            PrefixPath = Path.Combine("Prefixes", "Game"),
+            RunnerVersionId = runnerName,
+            Files = [new() { Path = Path.Combine(install, "game.exe") }]
+        };
+        var package = new GogInstallerPackage("123", GogInstallPlatform.Windows, "Game", "1",
+            [new("https://invalid.example/setup.exe", "setup.exe", new FileInfo(installer).Length)]);
+        var output = new ConcurrentQueue<string>();
+
+        var result = await CreateService(temp.RootPath).RunAsync(new(item, "123", install, GogInstallPlatform.Windows,
+            package, staging, GogWindowsInstallerPreference.AutoPrefer64, true, true, false, false, false),
+            output.Enqueue);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Contains("installer used system wine", output);
+        Assert.Equal(runnerName, item.RunnerVersionId);
+        var launcher = new LauncherService(library, new AppSettings(), new LaunchLogService(temp.GetPath("launch-logs")));
+        var launch = await launcher.LaunchAsync(item, environmentOverrides: new Dictionary<string, string>
+        {
+            ["PROTONPATH"] = runnerRoot
+        }, recordStatistics: false);
+
+        Assert.Equal(23, launch.ExitCode);
+        Assert.Contains("runner saw installer profile", launch.ConsoleOutput);
+        Assert.Equal(runnerName, item.RunnerVersionId);
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]

@@ -181,7 +181,7 @@ public sealed class GogInstallerExecutionServiceTests
         var installerPath = Path.Combine(stagingPath, "setup_game_x64.exe");
         File.WriteAllText(installerPath, "installer");
         var compatRoot = Path.Combine(temporaryDirectory.RootPath, "Library", "Prefixes", "gog_789_Test_Game");
-        var prefixPath = nested ? Path.Combine(compatRoot, "pfx") : compatRoot;
+        var prefixPath = nested || !incompletePrefix ? Path.Combine(compatRoot, "pfx") : compatRoot;
         if (incompletePrefix)
         {
             var dosdevices = Directory.CreateDirectory(Path.Combine(prefixPath, "dosdevices")).FullName;
@@ -194,6 +194,7 @@ public sealed class GogInstallerExecutionServiceTests
             $"""
             #!/bin/sh
             printf 'Windows prefix: %s\n' "$WINEPREFIX"
+            printf 'Wine user: %s\n' "$USER"
             printf 'C mapping before Wine: %s\n' "$(readlink "$WINEPREFIX/dosdevices/c:")"
             printf 'Z mapping before Wine: %s\n' "$(readlink "$WINEPREFIX/dosdevices/z:")"
             [ -d "$WINEPREFIX/dosdevices/c:" ] && echo 'C drive accessible before Wine'
@@ -220,8 +221,13 @@ public sealed class GogInstallerExecutionServiceTests
 
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Contains($"Windows prefix: {prefixPath}", output);
-        if (nested)
+        if (nested || !incompletePrefix)
             Assert.False(Directory.Exists(Path.Combine(compatRoot, "drive_c")));
+        if (!incompletePrefix)
+        {
+            Assert.Contains("Wine user: steamuser", output);
+            Assert.True(Directory.Exists(Path.Combine(prefixPath, "drive_c", "users", "steamuser", "Pictures")));
+        }
         Assert.Contains("C mapping before Wine: ../drive_c", output);
         Assert.Contains("Z mapping before Wine: /", output);
         Assert.Contains("C drive accessible before Wine", output);
@@ -330,7 +336,7 @@ public sealed class GogInstallerExecutionServiceTests
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => execution.WaitAsync(TimeSpan.FromSeconds(8)));
             if (serverAvailable)
             {
-                Assert.Equal(temp.GetPath("Library", "Prefixes", "gog_cancel_Game"), File.ReadAllText(stoppedPrefix));
+                Assert.Equal(temp.GetPath("Library", "Prefixes", "gog_cancel_Game", "pfx"), File.ReadAllText(stoppedPrefix));
                 Assert.Equal("-k", File.ReadAllText(stoppedArgs));
             }
             else
