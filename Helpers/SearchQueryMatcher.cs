@@ -67,7 +67,39 @@ public sealed class SearchQueryMatcher
         return new SearchQueryMatcher(true, root);
     }
 
-    public bool Matches(MediaItem item)
+    public bool Matches(MediaItem item) => Matches(new SearchQueryData(item));
+
+    internal bool Matches(MediaSearchDocument item) => Matches(new SearchQueryData(item));
+
+    internal bool NeedsSearchTags => UsesField(_root, QueryField.Tag);
+    internal bool NeedsSearchCustomFields => UsesField(_root, QueryField.CustomAny) || UsesField(_root, QueryField.CustomKey) ||
+        UsesField(_root, QueryField.CustomValue) || UsesField(_root, QueryField.CustomNamedKey);
+    internal bool NeedsSearchAssets => UsesField(_root, QueryField.Asset);
+    internal bool NeedsSearchStore => UsesField(_root, QueryField.Store);
+    internal bool NeedsSearchGogUpdate => UsesField(_root, QueryField.GogUpdate);
+
+    internal bool NeedsSearchField(string property) => property switch
+    {
+        nameof(MediaItem.SortTitle) => UsesField(_root, QueryField.SortTitle),
+        nameof(MediaItem.Description) => UsesField(_root, QueryField.Description),
+        nameof(MediaItem.Developer) => UsesField(_root, QueryField.Developer),
+        nameof(MediaItem.Publisher) => UsesField(_root, QueryField.Publisher),
+        nameof(MediaItem.Platform) => UsesField(_root, QueryField.Platform),
+        nameof(MediaItem.Source) => UsesField(_root, QueryField.Source),
+        nameof(MediaItem.Genre) => UsesField(_root, QueryField.Genre),
+        nameof(MediaItem.Series) => UsesField(_root, QueryField.Series),
+        nameof(MediaItem.ReleaseType) => UsesField(_root, QueryField.ReleaseType),
+        nameof(MediaItem.PlayMode) => UsesField(_root, QueryField.PlayMode),
+        nameof(MediaItem.MaxPlayers) => UsesField(_root, QueryField.MaxPlayers),
+        nameof(MediaItem.ReleaseDate) => UsesField(_root, QueryField.ReleaseDate) || UsesField(_root, QueryField.Year),
+        nameof(MediaItem.Rating) => UsesField(_root, QueryField.Rating),
+        nameof(MediaItem.Status) => UsesField(_root, QueryField.Status),
+        nameof(MediaItem.IsFavorite) => UsesField(_root, QueryField.Favorite),
+        nameof(MediaItem.HasPlayedForSearch) => UsesField(_root, QueryField.Played),
+        _ => false
+    };
+
+    private bool Matches(SearchQueryData item)
     {
         if (!IsActive || _root == null)
             return true;
@@ -129,27 +161,27 @@ public sealed class SearchQueryMatcher
 
     private abstract record QueryNode
     {
-        public abstract bool Evaluate(MediaItem item);
+        public abstract bool Evaluate(SearchQueryData item);
     }
 
     private sealed record TermNode(QueryTerm Term) : QueryNode
     {
-        public override bool Evaluate(MediaItem item) => EvaluateTerm(item, Term);
+        public override bool Evaluate(SearchQueryData item) => EvaluateTerm(item, Term);
     }
 
     private sealed record NotNode(QueryNode Inner) : QueryNode
     {
-        public override bool Evaluate(MediaItem item) => !Inner.Evaluate(item);
+        public override bool Evaluate(SearchQueryData item) => !Inner.Evaluate(item);
     }
 
     private sealed record AndNode(QueryNode Left, QueryNode Right) : QueryNode
     {
-        public override bool Evaluate(MediaItem item) => Left.Evaluate(item) && Right.Evaluate(item);
+        public override bool Evaluate(SearchQueryData item) => Left.Evaluate(item) && Right.Evaluate(item);
     }
 
     private sealed record OrNode(QueryNode Left, QueryNode Right) : QueryNode
     {
-        public override bool Evaluate(MediaItem item) => Left.Evaluate(item) || Right.Evaluate(item);
+        public override bool Evaluate(SearchQueryData item) => Left.Evaluate(item) || Right.Evaluate(item);
     }
 
     private static bool TryParseExpression(IReadOnlyList<QueryToken> tokens, out QueryNode root)
@@ -540,7 +572,7 @@ public sealed class SearchQueryMatcher
         }
     }
 
-    private static bool EvaluateTerm(MediaItem item, QueryTerm term)
+    private static bool EvaluateTerm(SearchQueryData item, QueryTerm term)
     {
         return term.Kind switch
         {
@@ -552,7 +584,7 @@ public sealed class SearchQueryMatcher
         };
     }
 
-    private static bool MatchesContains(MediaItem item, QueryTerm term)
+    private static bool MatchesContains(SearchQueryData item, QueryTerm term)
     {
         var value = term.Value ?? string.Empty;
         switch (term.Field)
@@ -589,7 +621,7 @@ public sealed class SearchQueryMatcher
                 return item.ReleaseDate.HasValue &&
                        ContainsIgnoreCase(item.ReleaseDate.Value.ToString("yyyy-MM-dd"), value);
             case QueryField.Tag:
-                return item.Tags.Any(tag => ContainsIgnoreCase(tag, value));
+                return MatchesTag(item, value);
             case QueryField.CustomAny:
                 return MatchesCustomAny(item.CustomFields, value);
             case QueryField.CustomKey:
@@ -612,15 +644,13 @@ public sealed class SearchQueryMatcher
                 return MatchesRating(item.Rating, value);
             case QueryField.Asset:
                 return TryGetAssetType(term.CustomKey, out var assetType) &&
-                       item.Assets.Any(asset =>
-                           asset.Type == assetType &&
-                           ContainsIgnoreCase(asset.RelativePath, value));
+                       MatchesAsset(item, assetType, value);
             default:
                 return false;
         }
     }
 
-    private static bool IsMissing(MediaItem item, QueryField field, string? customKey)
+    private static bool IsMissing(SearchQueryData item, QueryField field, string? customKey)
     {
         switch (field)
         {
@@ -654,7 +684,7 @@ public sealed class SearchQueryMatcher
             case QueryField.ReleaseDate:
                 return !item.ReleaseDate.HasValue;
             case QueryField.Tag:
-                return item.Tags.Count == 0 || !item.Tags.Any(v => !string.IsNullOrWhiteSpace(v));
+                return !HasTag(item);
             case QueryField.CustomAny:
                 return item.CustomFields.Count == 0;
             case QueryField.CustomKey:
@@ -668,21 +698,47 @@ public sealed class SearchQueryMatcher
             case QueryField.Favorite:
                 return false;
             case QueryField.Played:
-                return !MediaPlayStateHelper.HasPlayEvidence(item);
+                return !item.HasPlayed;
             case QueryField.Store:
-                return StoreProviderBadgeHelper.GetProviderId(item) == null;
+                return item.StoreProviderId == null;
             case QueryField.GogUpdate:
                 return !item.GogUpdateSearchState.HasUpdate;
             case QueryField.Rating:
                 return item.Rating <= 0d;
             case QueryField.Asset:
                 return !TryGetAssetType(customKey, out var assetType) ||
-                       !item.Assets.Any(asset =>
-                           asset.Type == assetType &&
-                           !string.IsNullOrWhiteSpace(asset.RelativePath));
+                       !HasAsset(item, assetType);
             default:
                 return false;
         }
+    }
+
+    private static bool MatchesTag(SearchQueryData item, string value)
+    {
+        for (var i = 0; i < item.TagCount; i++)
+            if (ContainsIgnoreCase(item.TagAt(i), value)) return true;
+        return false;
+    }
+
+    private static bool HasTag(SearchQueryData item)
+    {
+        for (var i = 0; i < item.TagCount; i++)
+            if (!string.IsNullOrWhiteSpace(item.TagAt(i))) return true;
+        return false;
+    }
+
+    private static bool MatchesAsset(SearchQueryData item, AssetType type, string value)
+    {
+        for (var i = 0; i < item.AssetCount; i++)
+            if (item.AssetTypeAt(i) == type && ContainsIgnoreCase(item.AssetPathAt(i), value)) return true;
+        return false;
+    }
+
+    private static bool HasAsset(SearchQueryData item, AssetType type)
+    {
+        for (var i = 0; i < item.AssetCount; i++)
+            if (item.AssetTypeAt(i) == type && !string.IsNullOrWhiteSpace(item.AssetPathAt(i))) return true;
+        return false;
     }
 
     private static bool TryParseAssetType(string key, out AssetType assetType)
@@ -745,7 +801,7 @@ public sealed class SearchQueryMatcher
     private static bool TryGetAssetType(string? value, out AssetType assetType) =>
         Enum.TryParse(value, ignoreCase: true, out assetType) && assetType != AssetType.Unknown;
 
-    private static bool IsCustomNamedValueMissing(Dictionary<string, string> customFields, string? customKey)
+    private static bool IsCustomNamedValueMissing(IReadOnlyDictionary<string, string> customFields, string? customKey)
     {
         if (customFields.Count == 0 || string.IsNullOrWhiteSpace(customKey))
             return true;
@@ -826,9 +882,9 @@ public sealed class SearchQueryMatcher
         return ContainsIgnoreCase(favoriteText, rawValue);
     }
 
-    private static bool MatchesPlayed(MediaItem item, string rawValue)
+    private static bool MatchesPlayed(SearchQueryData item, string rawValue)
     {
-        var hasPlayEvidence = MediaPlayStateHelper.HasPlayEvidence(item);
+        var hasPlayEvidence = item.HasPlayed;
         var normalized = rawValue.Trim().ToLowerInvariant();
         if (normalized is "1" or "true" or "yes" or "y")
             return hasPlayEvidence;
@@ -838,9 +894,9 @@ public sealed class SearchQueryMatcher
         return false;
     }
 
-    private static bool MatchesStore(MediaItem item, string rawValue)
+    private static bool MatchesStore(SearchQueryData item, string rawValue)
     {
-        var providerId = StoreProviderBadgeHelper.GetProviderId(item);
+        var providerId = item.StoreProviderId;
         if (providerId == null)
             return false;
 
@@ -851,7 +907,7 @@ public sealed class SearchQueryMatcher
         return ContainsIgnoreCase(providerId, expectedProvider);
     }
 
-    private static bool MatchesGogUpdate(MediaItem item, string rawValue)
+    private static bool MatchesGogUpdate(SearchQueryData item, string rawValue)
     {
         var (isGog, hasUpdate) = item.GogUpdateSearchState;
         if (!isGog)
@@ -879,7 +935,7 @@ public sealed class SearchQueryMatcher
         return ContainsIgnoreCase(maxPlayers, rawValue);
     }
 
-    private static bool MatchesCustomAny(Dictionary<string, string>? customFields, string rawValue)
+    private static bool MatchesCustomAny(IReadOnlyDictionary<string, string>? customFields, string rawValue)
     {
         if (customFields == null || customFields.Count == 0)
             return false;
@@ -893,7 +949,7 @@ public sealed class SearchQueryMatcher
         return false;
     }
 
-    private static bool MatchesCustomNamedKey(Dictionary<string, string>? customFields, string? customKey, string rawValue)
+    private static bool MatchesCustomNamedKey(IReadOnlyDictionary<string, string>? customFields, string? customKey, string rawValue)
     {
         if (customFields == null || customFields.Count == 0 || string.IsNullOrWhiteSpace(customKey))
             return false;

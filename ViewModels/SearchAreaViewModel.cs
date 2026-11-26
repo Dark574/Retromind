@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Collections.Specialized;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,6 +11,7 @@ using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
 using Retromind.Services;
+using Retromind.Services.Search;
 
 namespace Retromind.ViewModels;
 
@@ -36,7 +36,12 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private readonly IReadOnlyList<MediaNode> _rootNodesSnapshot;
     private readonly IErrorService _errorService;
     private readonly ObservableCollection<MediaNode>? _rootNodesObservable;
-    private readonly HashSet<MediaNode> _trackedNodes = new();
+    private readonly LibrarySearchChangeObserver _libraryObserver;
+    private long _libraryRevision;
+
+    // Per-instance boundary also permits deterministic publication/cancellation tests.
+    internal Func<LibrarySearchSnapshot, LibrarySearchQuery, CancellationToken, Action<LibrarySearchHit>?, Task<IReadOnlyList<LibrarySearchHit>>> EvaluateSearchAsync { private get; init; }
+        = LibrarySearchEvaluator.EvaluateAsync;
     private readonly HashSet<string> _selectedScopeNodeIds = new(StringComparer.Ordinal);
     private bool _hasExplicitScopeSelection;
     private bool _parentalFilterActive;
@@ -150,12 +155,8 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         _parentalFilterActive = parentalFilterActive;
         _rootNodesSnapshot = rootNodes.ToList();
         _rootNodesObservable = rootNodes as ObservableCollection<MediaNode>;
-        if (_rootNodesObservable != null)
-        {
-            _rootNodesObservable.CollectionChanged += OnRootNodesChanged;
-            foreach (var node in _rootNodesObservable)
-                TrackNodeRecursive(node);
-        }
+        _libraryObserver = new LibrarySearchChangeObserver(RootNodes, OnLibraryChanged);
+        MediaSortHelper.TitleSortRuleChanged += OnSortRuleChanged;
 
         EnsureDefaultScopeSelection();
         UpdateRootAvailability();
@@ -276,275 +277,127 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         RequestSearch();
     }
 
-    private void TrackNodeRecursive(MediaNode node)
+    private void OnSortRuleChanged() => OnLibraryChanged(structure: false);
+
+    private void OnLibraryChanged(bool structure)
     {
-        if (!_trackedNodes.Add(node))
-            return;
-
-        node.Children.CollectionChanged += OnRootChildrenChanged;
-        node.Items.CollectionChanged += OnRootItemsChanged;
-
-        foreach (var child in node.Children)
-            TrackNodeRecursive(child);
-    }
-
-    private void UntrackNodeRecursive(MediaNode node)
-    {
-        if (!_trackedNodes.Remove(node))
-            return;
-
-        node.Children.CollectionChanged -= OnRootChildrenChanged;
-        node.Items.CollectionChanged -= OnRootItemsChanged;
-
-        foreach (var child in node.Children)
-            UntrackNodeRecursive(child);
-    }
-
-    private void RebuildTrackedNodes()
-    {
-        foreach (var node in _trackedNodes.ToList())
-        {
-            node.Children.CollectionChanged -= OnRootChildrenChanged;
-            node.Items.CollectionChanged -= OnRootItemsChanged;
-        }
-
-        _trackedNodes.Clear();
-
-        foreach (var root in RootNodes)
-            TrackNodeRecursive(root);
-    }
-
-    private void OnRootNodesChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
+        // Invalidate immediately, even if notification delivery must be marshaled to the UI.
+        Interlocked.Increment(ref _libraryRevision);
         if (!UiThreadHelper.CheckAccess())
         {
-            UiThreadHelper.Post(() => OnRootNodesChanged(sender, e));
+            UiThreadHelper.Post(() => RefreshAfterLibraryChange(structure));
             return;
         }
-
-        if (e.OldItems != null)
-        {
-            foreach (var oldItem in e.OldItems.OfType<MediaNode>())
-                UntrackNodeRecursive(oldItem);
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (var newItem in e.NewItems.OfType<MediaNode>())
-                TrackNodeRecursive(newItem);
-        }
-
-        if (e.Action == NotifyCollectionChangedAction.Reset)
-            RebuildTrackedNodes();
-
-        RefreshScopesAndSearch();
+        RefreshAfterLibraryChange(structure);
     }
 
-    private void OnRootChildrenChanged(object? sender, NotifyCollectionChangedEventArgs e)
+    private void RefreshAfterLibraryChange(bool structure)
     {
-        if (!UiThreadHelper.CheckAccess())
+        if (_disposed) return;
+        if (structure)
         {
-            UiThreadHelper.Post(() => OnRootChildrenChanged(sender, e));
-            return;
+            UpdateRootAvailability();
+            SyncScopeSelection();
         }
-
-        if (e.OldItems != null)
-        {
-            foreach (var oldItem in e.OldItems.OfType<MediaNode>())
-                UntrackNodeRecursive(oldItem);
-        }
-
-        if (e.NewItems != null)
-        {
-            foreach (var newItem in e.NewItems.OfType<MediaNode>())
-                TrackNodeRecursive(newItem);
-        }
-
-        if (e.Action == NotifyCollectionChangedAction.Reset)
-            RebuildTrackedNodes();
-
-        RefreshScopesAndSearch();
-    }
-
-    private void OnRootItemsChanged(object? sender, NotifyCollectionChangedEventArgs e)
-    {
-        if (!UiThreadHelper.CheckAccess())
-        {
-            UiThreadHelper.Post(() => OnRootItemsChanged(sender, e));
-            return;
-        }
-
-        RefreshScopesAndSearch();
-    }
-
-    private void RefreshScopesAndSearch()
-    {
-        if (_disposed)
-            return;
-
-        UpdateRootAvailability();
-        SyncScopeSelection();
-
-        if (!string.IsNullOrWhiteSpace(SearchText) ||
-            !string.IsNullOrWhiteSpace(SearchYear) ||
-            OnlyFavorites ||
-            SelectedStatus != null)
-        {
-            RequestSearch();
-        }
+        RequestSearch(keepSelectionVisible: true);
     }
 
     private void RequestSearch(bool keepSelectionVisible = false)
     {
-        if (_disposed)
+        if (!UiThreadHelper.CheckAccess())
+        {
+            UiThreadHelper.Post(() => RequestSearch(keepSelectionVisible));
             return;
-
-        // Cancel previous pending search (debounce + background evaluation)
+        }
+        if (_disposed) return;
         _searchCts?.Cancel();
         var cts = new CancellationTokenSource();
         _searchCts = cts;
-
-        var token = cts.Token;
-
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
-                if (token.IsCancellationRequested) return;
-
-                await ExecuteSearchAsync(token, cts, keepSelectionVisible).ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-                // Expected when the user keeps typing or changes scopes quickly
-            }
-        }, token);
+        // Freeze request settings on the owning thread, never in the worker.
+        var query = new LibrarySearchQuery(SearchText, SearchYear, OnlyFavorites, SelectedStatus);
+        var scopes = GetSelectedScopeIdsSnapshot();
+        var parentalFilterActive = _parentalFilterActive;
+        var revision = Interlocked.Read(ref _libraryRevision);
+        _ = RunSearchAsync(query, scopes, parentalFilterActive, revision, cts, keepSelectionVisible);
     }
 
-    private async Task ExecuteSearchAsync(
-        CancellationToken token,
-        CancellationTokenSource cts,
-        bool keepSelectionVisible)
+    private async Task RunSearchAsync(LibrarySearchQuery query, IReadOnlySet<string> scopes,
+        bool parentalFilterActive, long revision, CancellationTokenSource cts, bool keepSelectionVisible)
     {
-        if (_disposed)
-            return;
-
-        var query = SearchText?.Trim();
-        var queryMatcher = SearchQueryMatcher.Create(query);
-        var yearText = SearchYear?.Trim();
-        var favoritesOnly = OnlyFavorites;
-        var statusFilter = SelectedStatus;
-        var hasQuery = !string.IsNullOrWhiteSpace(query);
-        var hasYearText = !string.IsNullOrWhiteSpace(yearText);
-        var parsedYear = 0;
-        var hasValidYear = hasYearText && int.TryParse(yearText, out parsedYear);
-        var showNodeHitCounts = queryMatcher.IsActive || hasValidYear || favoritesOnly || statusFilter != null;
-
-        // If all filters are empty and "favorites only" is off, do not show the entire library
-        if (!hasQuery &&
-            !hasValidYear &&
-            !favoritesOnly &&
-            statusFilter == null)
+        var token = cts.Token;
+        bool IsCurrent() => !_disposed && !token.IsCancellationRequested &&
+            ReferenceEquals(_searchCts, cts) && revision == Interlocked.Read(ref _libraryRevision);
+        try
         {
+            await Task.Delay(SearchDebounceDelay, token).ConfigureAwait(false);
+            LibrarySearchSnapshot? snapshot = null;
             await UiThreadHelper.InvokeAsync(() =>
             {
-                if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
-                    return;
-
-                SearchResults.Clear();
-                ItemRows.Clear();
-                SelectedMediaItem = null;
-                ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: false);
-                OnPropertyChanged(nameof(HasResults));
-                OnPropertyChanged(nameof(HasNoResults));
-                OnPropertyChanged(nameof(ShowNoResults));
-                (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+                if (!IsCurrent()) return;
+                _libraryObserver.RefreshSubscriptions();
+                if (query.HasCriteria)
+                    snapshot = LibrarySearchSnapshot.Capture(RootNodes, scopes, parentalFilterActive, token: token, query: query);
             });
-            return;
-        }
-
-        int? filterYear = hasValidYear ? parsedYear : null;
-
-        // Snapshot active scopes on the UI thread (avoid cross-thread collection access).
-        var activeScopes = new List<MediaNode>();
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            foreach (var root in RootNodes)
-                CollectActiveScopes(root, _selectedScopeNodeIds, activeScopes);
-        });
-
-        if (activeScopes.Count == 0)
-        {
-            await UiThreadHelper.InvokeAsync(() =>
-            {
-                if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
-                    return;
-
-                SearchResults.Clear();
-                ItemRows.Clear();
-                SelectedMediaItem = null;
-                ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: showNodeHitCounts);
-                OnPropertyChanged(nameof(HasResults));
-                OnPropertyChanged(nameof(HasNoResults));
-                OnPropertyChanged(nameof(ShowNoResults));
-                (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
-            });
-            return;
-        }
-
-        var results = new List<MediaItem>(capacity: 256);
-        var seen = new HashSet<string>(StringComparer.Ordinal);
-        Dictionary<string, int>? nodeHitCounts = showNodeHitCounts
-            ? new Dictionary<string, int>(StringComparer.Ordinal)
-            : null;
-
-        // Evaluate in background; only UI assignment is marshaled
-        for (int i = 0; i < activeScopes.Count; i++)
-        {
             token.ThrowIfCancellationRequested();
-            await CollectMatchesRecursiveAsync(
-                activeScopes[i],
-                results,
-                seen,
-                queryMatcher,
-                filterYear,
-                favoritesOnly,
-                statusFilter,
-                _parentalFilterActive,
-                nodeHitCounts,
-                new List<string>(capacity: 16),
-                token);
-        }
-
-        // Global sort across all scopes: SortTitle first, fallback Title.
-        results.Sort(MediaSortHelper.DisplayOrderComparer);
-        
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            if (!ReferenceEquals(_searchCts, cts) || token.IsCancellationRequested)
-                return;
-
-            var resultsChanged = !MediaGridRows.HaveSameItemOrder(SearchResults, results);
-            if (resultsChanged)
+            if (revision != Interlocked.Read(ref _libraryRevision)) return;
+            var showNodeHitCounts = query.Matcher.IsActive || query.Year.HasValue || query.OnlyFavorites || query.Status.HasValue;
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            void CountHit(LibrarySearchHit hit)
             {
-                SearchResults.ReplaceAll(results);
-                UpdateGridLayout(itemsChanged: true);
+                for (var index = hit.NodeIndex; index >= 0; index = snapshot!.Nodes[index].ParentIndex)
+                    IncrementNodeHitCount(counts, snapshot.Nodes[index].Id);
             }
-
-            EnsureSelectionIsValid(SearchResults);
-            ApplyNodeHitCountsToTree(RootNodes, nodeHitCounts, showNodeHitCounts);
-
-            OnPropertyChanged(nameof(HasResults));
-            OnPropertyChanged(nameof(HasNoResults));
-            OnPropertyChanged(nameof(ShowNoResults));
-
-            // Keep "Play random" enabled state accurate
-            (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
-
-            if (keepSelectionVisible && resultsChanged && SelectedMediaItem is { } selectedItem)
-                RequestScrollIntoView?.Invoke(selectedItem);
-        });
+            var hits = snapshot == null ? Array.Empty<LibrarySearchHit>() :
+                await EvaluateSearchAsync(snapshot, query, token, showNodeHitCounts ? CountHit : null).ConfigureAwait(false);
+            // Read only the opaque references here; their mutable properties remain on the UI thread.
+            var results = hits.Select(hit => hit.Item).ToList();
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (!IsCurrent()) return;
+                var resultsChanged = !MediaGridRows.HaveSameItemOrder(SearchResults, results);
+                if (resultsChanged)
+                {
+                    SearchResults.ReplaceAll(results);
+                    UpdateGridLayout(itemsChanged: true);
+                }
+                EnsureSelectionIsValid(SearchResults);
+                ApplyNodeHitCountsToTree(RootNodes, counts, showNodeHitCounts);
+                OnPropertyChanged(nameof(HasResults));
+                OnPropertyChanged(nameof(HasNoResults));
+                OnPropertyChanged(nameof(ShowNoResults));
+                (PlayRandomCommand as RelayCommand)?.NotifyCanExecuteChanged();
+                if (keepSelectionVisible && resultsChanged && SelectedMediaItem is { } selectedItem)
+                    RequestScrollIntoView?.Invoke(selectedItem);
+            });
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            // A newer request or disposal owns the UI now.
+        }
+        catch (Exception ex)
+        {
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (IsCurrent())
+                {
+                    try
+                    {
+                        _errorService.Report(new ErrorReport("Search.EvaluationFailed", ErrorSeverity.Error,
+                            nameof(SearchAreaViewModel), "The library search could not be evaluated.",
+                            Context: new Dictionary<string, string> { ["FailureType"] = ex.GetType().Name }));
+                    }
+                    catch { /* Diagnostic output must not fault an unobserved search task. */ }
+                }
+            });
+        }
+        finally
+        {
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                if (ReferenceEquals(_searchCts, cts)) _searchCts = null;
+                cts.Dispose();
+            });
+        }
     }
 
     private void UpdateGridLayout(bool itemsChanged = false)
@@ -600,127 +453,13 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         _disposed = true;
 
         _searchCts?.Cancel();
-        _searchCts?.Dispose();
         _searchCts = null;
 
-        if (_rootNodesObservable != null)
-            _rootNodesObservable.CollectionChanged -= OnRootNodesChanged;
-
-        foreach (var node in _trackedNodes.ToList())
-        {
-            node.Children.CollectionChanged -= OnRootChildrenChanged;
-            node.Items.CollectionChanged -= OnRootItemsChanged;
-        }
-
-        _trackedNodes.Clear();
+        _libraryObserver.Dispose();
+        MediaSortHelper.TitleSortRuleChanged -= OnSortRuleChanged;
 
         ApplyNodeHitCountsToTree(RootNodes, counts: null, showCounts: false);
         ItemRows.Clear();
-    }
-
-    private static async Task CollectMatchesRecursiveAsync(
-        MediaNode node,
-        List<MediaItem> matches,
-        HashSet<string> seen,
-        SearchQueryMatcher queryMatcher,
-        int? filterYear,
-        bool favoritesOnly,
-        PlayStatus? statusFilter,
-        bool parentalFilterActive,
-        Dictionary<string, int>? nodeHitCounts,
-        List<string> nodePath,
-        CancellationToken token)
-    {
-        token.ThrowIfCancellationRequested();
-        nodePath.Add(node.Id);
-
-        // Scan items in this node
-        List<MediaItem> items = new();
-        List<MediaNode> children = new();
-
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            items = node.Items.ToList();
-            children = node.Children.ToList();
-        });
-
-        for (int i = 0; i < items.Count; i++)
-        {
-            token.ThrowIfCancellationRequested();
-
-            var item = items[i];
-
-            if (parentalFilterActive && item.IsProtected)
-                continue;
-
-            if (!Matches(item, queryMatcher, filterYear, favoritesOnly, statusFilter))
-                continue;
-
-            if (nodeHitCounts != null)
-            {
-                for (var pathIndex = 0; pathIndex < nodePath.Count; pathIndex++)
-                    IncrementNodeHitCount(nodeHitCounts, nodePath[pathIndex]);
-            }
-
-            if (string.IsNullOrWhiteSpace(item.Id))
-            {
-                matches.Add(item);
-            }
-            else if (seen.Add(item.Id))
-            {
-                matches.Add(item);
-            }
-        }
-
-        // Recurse into child nodes.
-        for (int i = 0; i < children.Count; i++)
-        {
-            await CollectMatchesRecursiveAsync(
-                children[i],
-                matches,
-                seen,
-                queryMatcher,
-                filterYear,
-                favoritesOnly,
-                statusFilter,
-                parentalFilterActive,
-                nodeHitCounts,
-                nodePath,
-                token);
-        }
-
-        nodePath.RemoveAt(nodePath.Count - 1);
-    }
-
-    private static bool Matches(
-        MediaItem item,
-        SearchQueryMatcher queryMatcher,
-        int? filterYear,
-        bool favoritesOnly,
-        PlayStatus? statusFilter)
-    {
-        // 1) Favorites filter
-        if (favoritesOnly && !item.IsFavorite)
-            return false;
-
-        // 2) Status filter
-        if (statusFilter.HasValue && item.Status != statusFilter.Value)
-            return false;
-
-        // 3) Text filter:
-        // - plain text: title-only (legacy behavior)
-        // - power syntax (key:value / key=value): metadata-aware query
-        if (queryMatcher.IsActive && !queryMatcher.Matches(item))
-            return false;
-
-        // 4) Year filter
-        if (filterYear.HasValue)
-        {
-            if (item.ReleaseDate?.Year != filterYear.Value)
-                return false;
-        }
-
-        return true;
     }
 
     private static void IncrementNodeHitCount(IDictionary<string, int> counts, string nodeId)
@@ -734,30 +473,17 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
         IReadOnlyDictionary<string, int>? counts,
         bool showCounts)
     {
-        foreach (var root in roots)
-            ApplyNodeHitCountsRecursive(root, counts, showCounts);
-    }
-
-    private static void ApplyNodeHitCountsRecursive(
-        MediaNode node,
-        IReadOnlyDictionary<string, int>? counts,
-        bool showCounts)
-    {
-        if (showCounts)
+        var stack = new Stack<MediaNode>(roots);
+        var visited = new HashSet<MediaNode>();
+        while (stack.TryPop(out var node))
         {
-            node.GlobalSearchHitCount = counts != null && counts.TryGetValue(node.Id, out var count)
-                ? count
-                : 0;
-            node.ShowGlobalSearchHitCount = true;
+            if (!visited.Add(node)) continue;
+            node.GlobalSearchHitCount = showCounts
+                ? counts != null && counts.TryGetValue(node.Id, out var count) ? count : 0
+                : null;
+            node.ShowGlobalSearchHitCount = showCounts;
+            foreach (var child in node.Children) stack.Push(child);
         }
-        else
-        {
-            node.ShowGlobalSearchHitCount = false;
-            node.GlobalSearchHitCount = null;
-        }
-
-        foreach (var child in node.Children)
-            ApplyNodeHitCountsRecursive(child, counts, showCounts);
     }
 
     private void PlayRandom()
@@ -841,49 +567,29 @@ public partial class SearchAreaViewModel : ViewModelBase, IDisposable
     private int CountSelectedNodes()
     {
         var total = 0;
-        foreach (var root in RootNodes)
-            total += CountSelectedNodesRecursive(root, _selectedScopeNodeIds);
-
+        var stack = new Stack<(MediaNode Node, bool Selected)>();
+        foreach (var root in RootNodes) stack.Push((root, false));
+        var visited = new HashSet<MediaNode>();
+        while (stack.TryPop(out var current))
+        {
+            if (!visited.Add(current.Node)) continue;
+            var selected = current.Selected || _selectedScopeNodeIds.Contains(current.Node.Id);
+            if (selected) total++;
+            foreach (var child in current.Node.Children) stack.Push((child, selected));
+        }
         return total;
     }
 
-    private static int CountSelectedNodesRecursive(MediaNode node, HashSet<string> selectedIds)
+    private static void CollectNodeIds(MediaNode root, HashSet<string> ids)
     {
-        if (selectedIds.Contains(node.Id))
-            return CountAllNodes(node);
-
-        var count = 0;
-        foreach (var child in node.Children)
-            count += CountSelectedNodesRecursive(child, selectedIds);
-
-        return count;
-    }
-
-    private static int CountAllNodes(MediaNode node)
-    {
-        var count = 1;
-        foreach (var child in node.Children)
-            count += CountAllNodes(child);
-
-        return count;
-    }
-
-    private static void CollectNodeIds(MediaNode node, HashSet<string> ids)
-    {
-        ids.Add(node.Id);
-        foreach (var child in node.Children)
-            CollectNodeIds(child, ids);
-    }
-
-    private static void CollectActiveScopes(MediaNode node, HashSet<string> selectedIds, List<MediaNode> active)
-    {
-        if (selectedIds.Contains(node.Id))
+        var stack = new Stack<MediaNode>();
+        stack.Push(root);
+        var visited = new HashSet<MediaNode>();
+        while (stack.TryPop(out var node))
         {
-            active.Add(node);
-            return;
+            if (!visited.Add(node)) continue;
+            ids.Add(node.Id);
+            foreach (var child in node.Children) stack.Push(child);
         }
-
-        foreach (var child in node.Children)
-            CollectActiveScopes(child, selectedIds, active);
     }
 }

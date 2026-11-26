@@ -1067,6 +1067,55 @@ Global search uses a dedicated `SearchAreaViewModel`:
 - media completeness queries use the existing `has:` / `missing:` syntax for every supported item asset type;
   presence is based on stored asset references and deliberately avoids filesystem access during filtering
 
+Search evaluation is shared through `Services/Search` (Stage 5):
+
+- `LibrarySearchQuery` freezes the request's matcher and favorite, status and year filters. The existing
+  `SearchQueryMatcher` remains the only parser and matching engine; its value adapter also accepts immutable
+  `MediaSearchDocument` rows. Node-view live matching retains the same semantics.
+- `LibrarySearchSnapshot.Capture` runs on the model-owning/UI thread, once after the desktop's unchanged
+  250 ms debounce. Null scope means the entire forest; selected category IDs include descendants, and an
+  empty scope means no categories. Each row carries frozen item/owner IDs and opaque live references for
+  UI use. Workers never inspect the referenced models. Natural-sort keys and culture are frozen as well.
+- Search values use read-only columns; only fields required by the query/filters are copied. Tags and asset
+  references use flat values and per-row offsets to avoid per-item collection allocations. Query-specific
+  snapshots reject evaluation with another query object. A full snapshot can explicitly be requested by
+  omitting the query. Neither form is a persistent index or a cache retained between requests.
+- `LibrarySearchEvaluator` provides synchronous and cancelable asynchronous evaluation with the existing
+  ID deduplication and natural display ordering. It owns no query, results, cancellation source, selection,
+  UI counters or subscriptions. Independent consumers may evaluate concurrently without canceling each other.
+  An optional match callback over frozen values lets the desktop compute its own subtree counters, retaining
+  counting before ID deduplication and starting counter paths at the selected scope root.
+- `LibrarySearchChangeObserver` watches observable structure, search-relevant item values, tags and asset
+  paths for one consumer. Structural subscriptions are reconciled after debounce and before capture. The
+  desktop immediately increments its revision and replaces/cancels its request on changes. Publication on
+  the UI thread requires the same request, revision, uncanceled token and a live view model; disposal also
+  cancels and detaches subscriptions. Each request disposes its own cancellation source after completion.
+- The snapshot applies item protection and accepts a consumer-specific effective node-visibility policy
+  that excludes whole subtrees. Desktop preserves its existing protected-item rule and scope-dialog tree
+  visibility. BigMode must supply its effective policy and use its own request/revision and selection state;
+  it must not invoke the desktop counter callback. Lock changes require a new capture. Search hits are not
+  launch authorization: revalidate current visibility/existence at reveal or launch, as before. Frozen item
+  IDs can feed `BigModeNavigationSession.TryReveal`, and owner IDs identify the actual category.
+
+The model-owning thread must serialize edits and capture. Ordinary observable metadata changes and explicit
+editor `RefreshResults` calls invalidate requests. In-place mutations of non-observable dictionaries/file
+lists or asset types must use the existing explicit editor refresh; observing these silent writes would
+require changing model contracts. Result rows, bulk selection, selected item, counters and scroll requests
+remain in `SearchAreaViewModel`. There is no BigMode search overlay, keyboard or new binding in Stage 5.
+
+Search parity, scope/owner, protection, concurrent-worker and stale-publication regressions live in the search
+service and search-view-model tests. Reproduce the synthetic 10,000/50,000-item Release measurements with
+`DOTNET_TieredCompilation=0 RETROMIND_SEARCH_BENCHMARK=1 dotnet test tests/Retromind.Tests/Retromind.Tests.csproj -c Release --filter FullyQualifiedName~LibrarySearchPerformanceTests --logger "console;verbosity=detailed"`.
+They report capture/evaluation time and allocations separately, compare the former per-category UI-handoff
+pipeline, and exercise cancellation. Pipeline measurements exclude the unchanged debounce, result rendering
+and desktop counter application; observer attachment/disposal is measured separately. These in-memory
+fixtures are not an end-to-end UI or slow-drive benchmark, and absolute timing is hardware/GC dependent.
+Consistency has a measurable upfront cost: the Stage 5 comparison improved broad 50,000-item title searches
+but still showed slower selective metadata queries and higher allocations than the previous live-model
+pipeline. Query-specific columns, flat nested values and reused observer delegates reduce this cost;
+they do not establish performance neutrality. Include capture, observer setup and UI responsiveness in
+practical acceptance tests before treating the performance requirement as satisfied.
+
 The search-scope dialog uses `SearchScopeNode` tri-state selection: a parent is checked only when all children
 are checked, unchecked only when all are unchecked, and indeterminate for every other combination, including
 indeterminate children. Restoration computes descendants before their parent; an explicitly selected category

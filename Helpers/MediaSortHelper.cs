@@ -73,7 +73,7 @@ public static class MediaSortHelper
         return GetTitleSortKey(item.Title);
     }
 
-    private static string GetTitleSortKey(string? title)
+    internal static string GetTitleSortKey(string? title)
     {
         var trimmed = title?.Trim() ?? string.Empty;
         if (!_ignoreLeadingArticlesInTitleSort || string.IsNullOrWhiteSpace(trimmed))
