@@ -114,7 +114,8 @@ internal static class GogInstallDirectorySafety
         var markerPath = Path.Combine(fullPath, MarkerFileName);
         if (!File.Exists(markerPath))
         {
-            Debug.WriteLine($"[Warning] No install marker found at '{markerPath}'. Refusing to delete path '{fullPath}'.");
+            // Read-only install-state checks also reach this method. Missing
+            // markers are normal for legacy installs or stale install metadata.
             return null;
         }
 
