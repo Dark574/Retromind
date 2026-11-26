@@ -92,6 +92,14 @@ public partial class BigModeViewModel
     private bool _mainVideoIsPlayingB;
 
     private bool _suspendPreviewDuringScroll;
+    private bool _selectionVideoResolved;
+    private MediaItem? _selectionVideoItem;
+    private MediaNode? _selectionVideoNode;
+    private bool _selectionVideoIsMedia;
+    private string? _selectionVideoPath;
+    // Counts/provides file probes in deterministic pipeline tests; production uses the filesystem.
+    internal Func<string, bool>? PreviewFileExistsOverride { get; set; }
+    private bool PreviewFileExists(string path) => (PreviewFileExistsOverride ?? File.Exists)(path);
     private bool _previewPausedForScroll;
     private string? _pausedPreviewVideoPath;
     private int _pausedPreviewIndex = -1;
@@ -406,6 +414,11 @@ public partial class BigModeViewModel
 
     private void StopVideoIfPreviewPathChanged(string? targetVideoPath)
     {
+        // The direction press precedes selection. Re-evaluate after each move:
+        // only a different effective video needs to be paused/canceled.
+        if (_suspendPreviewDuringScroll)
+            PausePreviewForScroll();
+
         if (FileSystemPathIdentity.Equals(_currentPreviewVideoPath, targetVideoPath))
             return;
 
@@ -428,6 +441,8 @@ public partial class BigModeViewModel
     /// </summary>
     private void TriggerPreviewPlaybackWithDebounce()
     {
+        if (_disposed != 0)
+            return;
         if (!UiThreadHelper.CheckAccess())
         {
             UiThreadHelper.Post(TriggerPreviewPlaybackWithDebounce, DispatcherPriority.Background);
@@ -481,7 +496,11 @@ public partial class BigModeViewModel
         if (_previewDebounceTimer != null)
             _previewDebounceTimer.IsEnabled = false;
 
-        TriggerPreviewPlayback();
+        // Recheck missing/sibling files at the settled playback boundary. Negative
+        // results are shared only within a selection, never across navigation.
+        _selectionVideoResolved = false;
+        if (_disposed == 0 && !_suspendPreviewDuringScroll && !_isLaunching && !IsAchievementsOverlayOpen)
+            TriggerPreviewPlayback();
     }
 
     private void CancelPreviewDebounce()
@@ -844,23 +863,21 @@ public partial class BigModeViewModel
 
     private string? ResolvePreviewVideoPath()
     {
-        if (IsHomeActive)
-        {
-            if (SelectedHomeEntry?.Item != null)
-                return ResolveItemVideoPath(SelectedHomeEntry.Item, SelectedHomeEntry.SourceNode);
+        var item = IsHomeActive ? SelectedHomeEntry?.Item : SelectedItem;
+        var isMedia = IsHomeActive ? item != null : IsGameListActive;
+        var node = IsHomeActive
+            ? (isMedia ? SelectedHomeEntry?.SourceNode : SelectedHomeEntry?.Node)
+            : (isMedia ? ThemeContextNode ?? CurrentNode : SelectedCategory);
+        if (_selectionVideoResolved && ReferenceEquals(item, _selectionVideoItem) &&
+            ReferenceEquals(node, _selectionVideoNode) && isMedia == _selectionVideoIsMedia)
+            return _selectionVideoPath;
 
-            return SelectedHomeEntry?.Node is { } homeNode
-                ? ResolveNodeVideoPath(homeNode)
-                : null;
-        }
-
-        var node = ThemeContextNode ?? CurrentNode;
-
-        return IsGameListActive
-            ? ResolveItemVideoPath(SelectedItem, node)
-            : SelectedCategory == null
-                ? null
-                : ResolveNodeVideoPath(SelectedCategory);
+        _selectionVideoItem = item;
+        _selectionVideoNode = node;
+        _selectionVideoIsMedia = isMedia;
+        _selectionVideoPath = isMedia ? ResolveItemVideoPath(item, node) : ResolveNodeVideoPath(node);
+        _selectionVideoResolved = true;
+        return _selectionVideoPath;
     }
 
     /// <summary>
@@ -906,7 +923,7 @@ public partial class BigModeViewModel
         if (!string.IsNullOrEmpty(relativeVideoPath))
         {
             var candidate = AppPaths.ResolveDataPathInsideRootOrEmpty(relativeVideoPath);
-            if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+            if (!string.IsNullOrWhiteSpace(candidate) && PreviewFileExists(candidate))
             {
                 videoPath = candidate;
                 hasItemVideo = true;
@@ -921,7 +938,7 @@ public partial class BigModeViewModel
 
             if (!string.IsNullOrWhiteSpace(primary) &&
                 Path.IsPathRooted(primary) &&
-                File.Exists(primary))
+                PreviewFileExists(primary))
             {
                 try
                 {
@@ -940,7 +957,7 @@ public partial class BigModeViewModel
                             foreach (var ext in VideoExtensionOrder)
                             {
                                 var candidate = Path.Combine(dir, name + ext);
-                                if (File.Exists(candidate))
+                                if (PreviewFileExists(candidate))
                                 {
                                     videoPath = candidate;
                                     hasItemVideo = true;
@@ -987,7 +1004,7 @@ public partial class BigModeViewModel
         if (!string.IsNullOrEmpty(videoAsset?.RelativePath))
         {
             var candidate = AppPaths.ResolveDataPathInsideRootOrEmpty(videoAsset.RelativePath);
-            if (!string.IsNullOrWhiteSpace(candidate) && File.Exists(candidate))
+            if (!string.IsNullOrWhiteSpace(candidate) && PreviewFileExists(candidate))
                 videoPath = candidate;
         }
 
@@ -1229,8 +1246,48 @@ public partial class BigModeViewModel
         if (_previewPausedForScroll)
             return;
 
+        var targetVideoPath = ResolvePreviewVideoPath();
+        var activePlayerIsPlaying = _activePreviewIndex switch
+        {
+            0 => _mainVideoIsPlayingA,
+            1 => _mainVideoIsPlayingB,
+            _ => false
+        };
+        // Play() has already returned, but its first-frame notification may be
+        // queued behind controller input. The pending-start fields have been
+        // cleared by then, so this is a distinct phase from a render-waiting start.
+        var startingPlayerIsPlaying = _expectedPreviewSurfaceIndex switch
+        {
+            0 => _mainVideoIsPlayingA,
+            1 => _mainVideoIsPlayingB,
+            _ => false
+        };
+        var awaitingFirstFrame = _expectedPreviewSurfaceIndex != _activePreviewIndex &&
+                                 _expectedPreviewFrameGeneration == _previewPlayGeneration &&
+                                 startingPlayerIsPlaying;
+        if (!string.IsNullOrEmpty(targetVideoPath) &&
+            FileSystemPathIdentity.Equals(_currentPreviewVideoPath, targetVideoPath) &&
+            (FileSystemPathIdentity.Equals(_pendingPreviewVideoPath, targetVideoPath) ||
+             awaitingFirstFrame ||
+             (activePlayerIsPlaying && FileSystemPathIdentity.Equals(_presentedPreviewVideoPath, targetVideoPath))))
+        {
+            // Shared node fallbacks must keep their playback position, including
+            // a first start that is still waiting for render/the initial frame.
+            return;
+        }
+
         _previewPausedForScroll = true;
-        _pausedPreviewVideoPath = _currentPreviewVideoPath;
+        // A start already waiting for render must not begin behind a held direction.
+        if (_pendingPreviewVideoPath != null ||
+            (_expectedPreviewSurfaceIndex is 0 or 1 && _expectedPreviewSurfaceIndex != _activePreviewIndex))
+        {
+            Interlocked.Increment(ref _previewPlayGeneration);
+            if (_expectedPreviewSurfaceIndex != _activePreviewIndex)
+                StopPreviewPlayer(_expectedPreviewSurfaceIndex);
+            ClearPendingPreviewStart();
+            _currentPreviewVideoPath = _presentedPreviewVideoPath;
+        }
+        _pausedPreviewVideoPath = _presentedPreviewVideoPath;
         _pausedPreviewIndex = _activePreviewIndex;
 
         if (_pausedPreviewIndex is 0 or 1)
@@ -1260,6 +1317,7 @@ public partial class BigModeViewModel
         var targetVideoPath = ResolvePreviewVideoPath();
         if (string.IsNullOrEmpty(targetVideoPath) ||
             string.IsNullOrEmpty(_pausedPreviewVideoPath) ||
+            _pausedPreviewIndex is not (0 or 1) || GetMediaPlayer(_pausedPreviewIndex) == null ||
             !FileSystemPathIdentity.Equals(targetVideoPath, _pausedPreviewVideoPath))
         {
             ClearPausedPreviewState();

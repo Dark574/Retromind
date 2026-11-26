@@ -912,6 +912,32 @@ a release. Focus transitions, removal and stop clear those holds. Internal event
 `TimeProvider` allow deterministic tests without SDL hardware; a separate dispatcher test checks UI ordering.
 Actual physical-controller hotplugging and desktop focus behavior still need a manual Linux check.
 
+BigMode ends interrupted navigation through `EndNavigationScroll`: menu/Home/achievement transitions,
+launch/close and input loss clear the repeat owner, keyboard holds and preview suspension together.
+Direction callbacks carry a VM input generation so already queued presses cannot restart an interrupted
+hold. Normal repeat timing and the most-recent-direction policy are unchanged; releasing an older direction
+does not stop the newer one. Keyboard holds are tracked separately so one source cannot resume the preview
+while another is still scrolling. Window deactivation resets both sources through the main window model.
+Beginning a scroll cancels pending preview debounce work. A playing or pending preview with the same
+effective video path keeps running/starting across selection changes, including shared node fallbacks.
+This includes the interval after native `Play()` returns and clears the pending-start fields but before
+the first frame is presented; the expected surface, playing flags and matching generation identify it.
+Moving to a different effective video pauses the presented player and cancels obsolete render starts;
+only an actually presented player can be resumed. Achievement/Home/launch transitions retain their
+existing stop and restart boundaries.
+
+Preview resolution shares one result, including a missing video or node fallback, among consumers of the
+current selection. Selection/context changes, observed library edits and explicit cache invalidation drop
+that result; settled playback and scroll release recheck it. This is not a persistent negative cache.
+Existing positive path caches and their limits remain in place; edits to an unselected item/node invalidate
+its cached path as well. File probes still run synchronously on the UI thread once per unresolved selection.
+
+Circular-logo preloads have a cancelable lookahead lifetime. New consumers join overlapping shared image
+operations before the preceding batch is canceled, preserving visible consumers and overlapping lookahead.
+Leaving the presentation, changing theme, input/context interruption and disposal cancel obsolete batches.
+Cancellation can prevent queued decodes but cannot interrupt a native decode already in progress; shared
+image leases and the existing image cache count/byte budgets remain authoritative.
+
 ## Search architecture
 Global search uses a dedicated `SearchAreaViewModel`:
 - debounced, cancelable background evaluation

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Avalonia.Input;
 using Retromind.Helpers;
 using Retromind.Services;
@@ -6,6 +7,8 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
+    private readonly HashSet<Key> _keyboardScrollKeys = [];
+
     public bool HandleKeyboardKeyDown(Key key, KeyModifiers modifiers)
     {
         if (modifiers != KeyModifiers.None ||
@@ -13,6 +16,14 @@ public partial class BigModeViewModel
         {
             return false;
         }
+
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
+            return true;
+
+        if (action is (BigModeKeyboardAction.NavigateUp or BigModeKeyboardAction.NavigateDown or
+            BigModeKeyboardAction.NavigateLeft or BigModeKeyboardAction.NavigateRight) &&
+            !IsHomeActive && !IsAchievementsOverlayOpen && !IsSystemMenuOpen)
+            _keyboardScrollKeys.Add(key);
 
         switch (action)
         {
@@ -75,7 +86,8 @@ public partial class BigModeViewModel
             return false;
         }
 
-        if (!IsHomeActive && !IsAchievementsOverlayOpen)
+        _keyboardScrollKeys.Remove(key);
+        if (_keyboardScrollKeys.Count == 0)
             NotifyKeyboardScrollEnd();
 
         return true;

@@ -406,13 +406,18 @@ public partial class AsyncImageHelper : AvaloniaObject
     public static async Task PreloadLocalAsync(
         string? path,
         int? decodeWidth = null,
-        bool useSerialDecode = false)
+        bool useSerialDecode = false,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(path) || path.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return;
         try
         {
-            using var lease = await AcquireBitmapAsync(path, decodeWidth, useSerialDecode, CancellationToken.None)
+            using var lease = await AcquireBitmapAsync(path, decodeWidth, useSerialDecode, cancellationToken)
                 .ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // Release only this preload consumer. A visible request may still need the same bitmap.
         }
         catch (Exception ex)
         {

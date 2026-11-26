@@ -132,7 +132,7 @@ public partial class BigModeViewModel
             return;
 
         ResetAttractIdleTimer();
-        StopGamepadRepeatTimer();
+        EndNavigationScroll(resumePreview: false);
         CancelPreviewDebounce();
         StopVideo();
 
@@ -148,7 +148,7 @@ public partial class BigModeViewModel
 
         IsAchievementsOverlayOpen = false;
         SelectedAchievement = null;
-        StopGamepadRepeatTimer();
+        EndNavigationScroll(resumePreview: false);
         if (!IsInAttractMode)
             TriggerPreviewPlaybackWithDebounce();
         return true;

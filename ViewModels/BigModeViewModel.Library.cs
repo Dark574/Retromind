@@ -88,6 +88,11 @@ public partial class BigModeViewModel
     private void OnLibraryPresentationChanged(INotifyPropertyChanged model, string? property)
     {
         if (_refreshingPresentation || _synchronizingNavigation || _disposed != 0) return;
+        // Invalidate even an unselected edited entry: it may already have a
+        // positive path cached from an earlier visit.
+        if (model is MediaItem changedItem) _itemVideoPathCache.Remove(changedItem.Id);
+        if (model is MediaNode changedNode) _nodeVideoPathCache.Remove(changedNode.Id);
+        _selectionVideoResolved = false;
         if (model is MediaNode && property == nameof(MediaNode.Name) &&
             _navigation.EnteredNodes.Any(node => ReferenceEquals(node, model)))
             UpdateNavigationBreadcrumb();
@@ -142,6 +147,7 @@ public partial class BigModeViewModel
 
     private void SynchronizeNavigation()
     {
+        _selectionVideoResolved = false;
         var frame = _navigation.Current;
         var newLevel = !ReferenceEquals(_projectedEntries, frame.Entries);
         var ownerChanged = !ReferenceEquals(CurrentNode, frame.OpenedNode);

@@ -108,7 +108,7 @@ public partial class BigModeViewModel
 
     public void ToggleSystemMenu()
     {
-        if (_isLaunching)
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return;
 
         if (IsSystemMenuOpen)
@@ -119,7 +119,7 @@ public partial class BigModeViewModel
 
         ResetAttractIdleTimer();
         CloseAchievementsOverlay();
-        StopGamepadRepeatTimer();
+        EndNavigationScroll(resumePreview: true);
         RebuildControllerBindingOverview();
         SystemMenuPage = BigModeSystemMenuPage.Main;
         SelectedSystemMenuEntry = SystemMenuEntries.Count > 0 ? SystemMenuEntries[0] : null;

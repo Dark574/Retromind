@@ -564,8 +564,12 @@ public partial class MainWindowViewModel : ViewModelBase
         Debug.WriteLine("[DEBUG] Konstruktor finished. BigModeOnly = " + (App.Current?.IsBigModeOnly == true));
     }
 
-    public void SetGamepadUiInputEnabled(bool enabled) =>
+    public void SetGamepadUiInputEnabled(bool enabled)
+    {
         _gamepadService.SetUiInputEnabled(enabled);
+        if (!enabled)
+            _bigModeSession.ActiveViewModel?.NotifyNavigationInputLost();
+    }
 
     private async Task HandleSessionExitRequestAsync()
     {

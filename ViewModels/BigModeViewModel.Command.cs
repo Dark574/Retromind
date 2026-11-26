@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.Input;
@@ -21,10 +22,16 @@ public partial class BigModeViewModel
     private DispatcherTimer? _gamepadRepeatTimer;
     private GamepadService.GamepadDirection? _gamepadRepeatDirection;
     private bool _gamepadRepeatInitialPhase;
+    private long _navigationInputGeneration;
+    private bool _keyboardScrollActive;
 
     private void OnGamepadDirectionStateChanged(GamepadService.GamepadDirection direction, bool isPressed)
-        => DispatchGamepadAction(() =>
+    {
+        var generation = Volatile.Read(ref _navigationInputGeneration);
+        DispatchGamepadAction(() =>
         {
+            if (_disposed != 0 || _isCloseRequestInProgress || generation != _navigationInputGeneration)
+                return;
             if (_isLaunching)
             {
                 if (!isPressed)
@@ -55,11 +62,12 @@ public partial class BigModeViewModel
 
             StopGamepadRepeat(direction);
         });
+    }
 
     private void OnGamepadSelect()
         => DispatchGamepadAction(() =>
         {
-            if (_isLaunching)
+            if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
             ResetAttractIdleTimer();
@@ -80,7 +88,7 @@ public partial class BigModeViewModel
     private void OnGamepadBack()
         => DispatchGamepadAction(() =>
         {
-            if (_isLaunching)
+            if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
             ResetAttractIdleTimer();
@@ -101,7 +109,7 @@ public partial class BigModeViewModel
     private void OnGamepadDetails()
         => DispatchGamepadAction(() =>
         {
-            if (_isLaunching)
+            if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
             if (IsSystemMenuOpen)
@@ -114,7 +122,7 @@ public partial class BigModeViewModel
     private void OnGamepadHome()
         => DispatchGamepadAction(() =>
         {
-            if (_isLaunching)
+            if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
             if (IsSystemMenuOpen)
@@ -133,7 +141,7 @@ public partial class BigModeViewModel
 
     private async Task RequestBigModeCloseAsync()
     {
-        if (_isLaunching || _isCloseRequestInProgress)
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return;
 
         var requestClose = RequestClose;
@@ -141,7 +149,7 @@ public partial class BigModeViewModel
             return;
 
         _isCloseRequestInProgress = true;
-        StopGamepadRepeatTimer();
+        EndNavigationScroll(resumePreview: false);
 
         try
         {
@@ -152,6 +160,8 @@ public partial class BigModeViewModel
             // On successful teardown this instance is no longer reachable. If the
             // owner could not close it, allow a later attempt instead of stranding it.
             _isCloseRequestInProgress = false;
+            if (_disposed == 0)
+                TriggerPreviewPlaybackWithDebounce();
         }
     }
     
@@ -189,9 +199,9 @@ public partial class BigModeViewModel
 
     private void OnGamepadRepeatTimerTick(object? sender, EventArgs e)
     {
-        if (_isLaunching || _gamepadRepeatDirection == null)
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsSystemMenuOpen || _gamepadRepeatDirection == null)
         {
-            StopGamepadRepeatTimer();
+            EndNavigationScroll(resumePreview: false);
             return;
         }
 
@@ -255,15 +265,18 @@ public partial class BigModeViewModel
             return;
 
         _suspendPreviewDuringScroll = true;
+        CancelPreviewDebounce();
         PausePreviewForScroll();
     }
 
     private void ResumePreviewAfterScroll()
     {
-        if (!_suspendPreviewDuringScroll)
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsAchievementsOverlayOpen ||
+            !_suspendPreviewDuringScroll || _gamepadRepeatDirection != null || _keyboardScrollActive)
             return;
 
         _suspendPreviewDuringScroll = false;
+        _selectionVideoResolved = false;
 
         if (TryResumePausedPreviewForCurrentSelection())
             return;
@@ -273,13 +286,35 @@ public partial class BigModeViewModel
 
     public void NotifyKeyboardScrollStart()
     {
+        _keyboardScrollActive = true;
         SuspendPreviewForScroll();
     }
 
     public void NotifyKeyboardScrollEnd()
     {
+        _keyboardScrollActive = false;
         ResumePreviewAfterScroll();
     }
+
+    // Context changes consume the current hold. A queued old press/release must
+    // not restart it in Home, an overlay, a returned game or a closing instance.
+    private void EndNavigationScroll(bool resumePreview)
+    {
+        Interlocked.Increment(ref _navigationInputGeneration);
+        StopGamepadRepeatTimer();
+        CancelCircularLogoPreloads();
+        _keyboardScrollKeys?.Clear();
+        _keyboardScrollActive = false;
+        if (resumePreview && _disposed == 0 && !_isLaunching && !_isCloseRequestInProgress && !IsAchievementsOverlayOpen)
+            ResumePreviewAfterScroll();
+        else
+        {
+            _suspendPreviewDuringScroll = false;
+            ClearPausedPreviewState();
+        }
+    }
+
+    public void NotifyNavigationInputLost() => EndNavigationScroll(resumePreview: true);
 
     private void NavigateForDirection(GamepadService.GamepadDirection direction, bool playSound)
     {
@@ -330,7 +365,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void SelectPrevious()
     {
-        if (_isLaunching) return;
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
         
@@ -341,7 +376,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void SelectNext()
     {
-        if (_isLaunching) return;
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
         
@@ -352,7 +387,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task PlayCurrent()
     {
-        if (_isLaunching) return;
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
         var selectedKey = SelectedEntry?.Key;
@@ -405,7 +440,7 @@ public partial class BigModeViewModel
             itemToPlay = media.Entry.Item;
         }
 
-        StopGamepadRepeatTimer();
+        EndNavigationScroll(resumePreview: false);
         _isLaunching = true;
 
         try
@@ -430,7 +465,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task ExitBigMode()
     {
-        if (_isLaunching)
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return;
 
         ResetAttractIdleTimer();

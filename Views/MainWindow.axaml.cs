@@ -105,7 +105,6 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel vm)
         {
             vm.SetGamepadUiInputEnabled(false);
-            ResolveBigModeViewModel(vm)?.NotifyKeyboardScrollEnd();
         }
     }
 

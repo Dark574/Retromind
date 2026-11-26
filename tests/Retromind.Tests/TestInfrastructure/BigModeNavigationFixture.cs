@@ -68,7 +68,7 @@ internal sealed class BigModeNavigationFixture : IDisposable
     public void Dispose()
     {
         Set("_disposed", 1);
-        foreach (var method in new[] { "DisposeNavigation", "StopAttractModeTimer", "DisposePreviewDebounceTimer",
+        foreach (var method in new[] { "DisposeNavigation", "DisposeGamepadRepeatTimer", "CancelCircularLogoPreloads", "StopAttractModeTimer", "DisposePreviewDebounceTimer",
                      "DisposeActiveBezelDebounceTimer", "DisposeHome", "DisposeRetroAchievementsProgress" }) Call(method);
         Get<LibVlcVideoSurface>("_videoSurfaceA").Dispose();
         Get<LibVlcVideoSurface>("_videoSurfaceB").Dispose();

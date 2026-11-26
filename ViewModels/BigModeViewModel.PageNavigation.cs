@@ -13,7 +13,7 @@ public partial class BigModeViewModel
 
     public void NavigatePage(int direction)
     {
-        if (_isLaunching || IsSystemMenuOpen || direction == 0)
+        if (_disposed != 0 || _isCloseRequestInProgress || _isLaunching || IsSystemMenuOpen || direction == 0)
             return;
 
         ResetAttractIdleTimer();

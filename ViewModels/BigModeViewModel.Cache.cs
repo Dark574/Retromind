@@ -8,6 +8,7 @@ public partial class BigModeViewModel
     /// </summary>
     public void InvalidatePreviewCaches(bool stopCurrentPreview = false)
     {
+        _selectionVideoResolved = false;
         _itemVideoPathCache.Clear();
         _nodeVideoPathCache.Clear();
         _currentPreviewVideoPath = null;

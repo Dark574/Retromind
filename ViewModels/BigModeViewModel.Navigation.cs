@@ -17,6 +17,7 @@ public partial class BigModeViewModel
         if (Interlocked.Exchange(ref _disposed, 1) == 1)
             return;
 
+        EndNavigationScroll(resumePreview: false);
         DisposeNavigation();
         ExpectVideoStop(0);
         ExpectVideoStop(1);

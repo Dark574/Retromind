@@ -123,12 +123,12 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task ToggleHomeAsync()
     {
-        if (!SupportsHome || _isLaunching)
+        if (_disposed != 0 || _isCloseRequestInProgress || !SupportsHome || _isLaunching)
             return;
 
         ResetAttractIdleTimer();
         CloseAchievementsOverlay();
-        StopGamepadRepeatTimer();
+        EndNavigationScroll(resumePreview: false);
 
         var generation = Interlocked.Increment(ref _homeTransitionGeneration);
         await PrepareForHomeTransitionAsync();
@@ -209,6 +209,7 @@ public partial class BigModeViewModel
 
     private void ApplyHomeEntry(BigModeHomeEntryViewModel? entry)
     {
+        _selectionVideoResolved = false;
         SelectedHomeEntry = entry;
         SelectedCategory = entry?.Node;
         SelectedCategoryIndex = -1;

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Input;
 using Avalonia.Threading;
@@ -108,6 +109,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     private const int MinimumRepeatingWheelItemCount = 5;
     private int _circularWindowSize = DefaultCircularWindowSize;
     private int _circularLogoPreloadCount;
+    private CancellationTokenSource? _circularLogoPreloadCts;
     private readonly RangeObservableCollection<MediaItem> _circularItems = new();
     private readonly RangeObservableCollection<MediaItem> _wheelItems = new();
     private readonly RangeObservableCollection<MediaNode> _wheelCategories = new();
@@ -180,6 +182,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     internal void ResetThemeWindowUsage()
     {
+        CancelCircularLogoPreloads();
         _usesCircularItems = false;
         _usesWheelItems = false;
         _usesWheelCategories = false;
@@ -943,6 +946,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
         if (!IsGameListActive || Items.Count == 0)
         {
+            CancelCircularLogoPreloads();
             if (_circularItems.Count > 0)
                 _circularItems.ReplaceAll(Array.Empty<MediaItem>());
             return;
@@ -963,8 +967,11 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
 
     private void PreloadCircularLogos()
     {
-        if (!_usesCircularItems || _circularLogoPreloadCount <= 0 || !IsGameListActive || Items.Count == 0)
+        if (_disposed != 0 || IsHomeActive || !_usesCircularItems || _circularLogoPreloadCount <= 0 || !IsGameListActive || Items.Count == 0)
+        {
+            CancelCircularLogoPreloads();
             return;
+        }
 
         var lookaheadItems = new List<MediaItem>(_circularLogoPreloadCount * 2);
         CircularWindowHelper.BuildCircularLookahead(
@@ -975,11 +982,26 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             lookaheadItems,
             SelectedItemIndex);
 
+        var previous = _circularLogoPreloadCts;
+        var current = new CancellationTokenSource();
+        _circularLogoPreloadCts = current;
         foreach (var item in lookaheadItems)
             _ = AsyncImageHelper.PreloadLocalAsync(
                 item.PrimaryLogoPath,
                 decodeWidth: 256,
-                useSerialDecode: true);
+                useSerialDecode: true,
+                cancellationToken: current.Token);
+        // Join overlapping requests first, so cancellation never abandons a
+        // shared decode that the new lookahead (or a visible image) still needs.
+        previous?.Cancel();
+        previous?.Dispose();
+    }
+
+    private void CancelCircularLogoPreloads()
+    {
+        _circularLogoPreloadCts?.Cancel();
+        _circularLogoPreloadCts?.Dispose();
+        _circularLogoPreloadCts = null;
     }
 
     private void UpdateWheelItems()
