@@ -756,7 +756,8 @@ BigMode is an overlay workflow with clear host/VM split:
 - routes BigMode key events through semantic actions backed by `AppSettings.KeyboardBindings`; bindings are stored as
   readable Avalonia key names, use safe defaults for missing/invalid values, and intentionally exclude modifier chords
 - page-navigation actions jump bounded chunks in library lists and the achievement grid, while Home reuses its
-  native page model where available; reaching a list boundary precedes wrap-around so uneven final pages remain predictable
+  native page model where available; library controller holds progressively increase the jump size and stop at
+  list edges, while fresh page presses retain the established boundary-then-wrap behavior
 - owns system-menu state and selection; application shutdown is requested through an event so the main window retains
   its normal final-save and close-failure workflow
 - the virtual library root uses `AppSettings.RootBigModeThemePath`; its selected top-level node remains
@@ -896,7 +897,11 @@ focus or request a stop, including from another thread, without waiting on the s
 invalidate queued old-generation presses/actions. Releases are delivered only for directions whose press was
 published. An already executing callback finishes before its queued releases; input-state changes do not wait
 for that subscriber. Subscriber exceptions are contained at the event-output boundary so the queue can continue.
-No new event interface, bindings or configuration switches are introduced.
+Semantic page edges use the same queue and lifecycle rules as directions. Their sources retain the mapped
+action at press time, aggregate across controller instances and release on button/trigger release, device
+removal, focus reset or monitoring stop. BigMode subscribes only to `OnPageStateChanged`; the retained
+`OnPreviousPage`/`OnNextPage` one-shot events cannot cause a second BigMode action. The existing binding
+priority remains authoritative, including trigger assignments. No bindings or configuration switches change.
 
 The polling loop owns native handle cleanup and its token disposal in `finally`, including on unexpected loop
 exit. Ordinary stops await this cleanup when no callback is in flight; callback-overlapping stops cancel and
@@ -915,8 +920,10 @@ Actual physical-controller hotplugging and desktop focus behavior still need a m
 BigMode ends interrupted navigation through `EndNavigationScroll`: menu/Home/achievement transitions,
 launch/close and input loss clear the repeat owner, keyboard holds and preview suspension together.
 Direction callbacks carry a VM input generation so already queued presses cannot restart an interrupted
-hold. Normal repeat timing and the most-recent-direction policy are unchanged; releasing an older direction
-does not stop the newer one. Keyboard holds are tracked separately so one source cannot resume the preview
+hold. Repeat timing remains 350 ms initially and 80 ms thereafter. The most recent direction or page press
+owns this single timer; switching owners resets the monotonic hold timestamp and initial delay. Releasing
+an older input does not stop the newer one, and releasing the owner never reactivates a still-held older
+input. Keyboard holds are tracked separately so one source cannot resume the preview
 while another is still scrolling. Window deactivation resets both sources through the main window model.
 Beginning a scroll cancels pending preview debounce work. A playing or pending preview with the same
 effective video path keeps running/starting across selection changes, including shared node fallbacks.
@@ -940,6 +947,52 @@ operations before the preceding batch is canceled, preserving visible consumers 
 Leaving the presentation, changing theme, input/context interruption and disposal cancel obsolete batches.
 Cancellation can prevent queued decodes but cannot interrupt a native decode already in progress; shared
 image leases and the existing image cache count/byte budgets remain authoritative.
+
+### Library controller acceleration (Stage 2)
+
+`Helpers/BigModeScrollProfile` centralizes timing and the two step profiles. The VM uses
+`TimeProvider.GetTimestamp/GetElapsedTime` (injectable for tests); wall-clock changes and missed timer
+ticks neither accelerate the clock nor cause catch-up navigation. Durations start with the processed
+press, including the initial delay. Only the final target goes through `BigModeNavigationSession.TrySelect`,
+so skipped categories/media do not publish selections, resolve previews or start preloads. Repeat ticks
+do not play navigation sounds. The initial direction/page press retains its existing sound behavior.
+
+| Held since press | Direction step |
+| --- | --- |
+| < 1 second | 1 |
+| 1–< 2 seconds | 2 |
+| 2–< 3 seconds | 5 |
+| 3–< 5 seconds | 10 |
+| 5–< 8 seconds | 20 |
+| >= 8 seconds | 40 |
+
+| Held since press | Page step |
+| --- | --- |
+| < 2 seconds | 10 |
+| 2–< 3 seconds | 20 |
+| 3–< 5 seconds | 30 |
+| 5–< 7 seconds | 40 |
+| >= 7 seconds | 50 |
+
+Direction steps are additionally capped at `max(1, visibleCount / 10)` (integer division). Lists below
+20 entries therefore keep one-entry directional repeats. Repeated pages retain a ten-entry minimum
+profile, with acceleration capped at `max(10, visibleCount / 10)`. Both profiles clamp each repeated target
+to the current first/last visible entry and stay there until a new press or the list changes. Fresh
+direction presses still wrap by one; fresh pages still jump ten and reach the edge before wrapping on
+a subsequent press. Empty lists perform no selection; one-entry lists remain stable.
+
+Pending collection/protection edits are flushed before computing a repeated target. Refresh/filter changes
+reset acceleration against the current visible list, without increasing timer frequency. Changing the
+opened node consumes the hold through `EndNavigationScroll` after applying the final incoming selection
+and before building its preloads, so a paused preview is resumed or restarted against the correct target.
+Selecting a category within the same mixed frame does not consume the hold. Menu/Home/achievement
+transitions, focus/input loss, launch and close share that cleanup.
+Page holds suspend/resume previews exactly like direction holds, including shared fallback preservation
+and the failed-resume recovery path. A late tick without an owner leaves independent keyboard holds intact.
+
+Acceleration and page repeats apply only to the library. Home and achievements retain their existing
+directional repeat steps and one-shot page behavior; the system menu retains its one-shot navigation.
+No theme metadata, XAML, cache budgets, input assignments or visible settings are added.
 
 ## Search architecture
 Global search uses a dedicated `SearchAreaViewModel`:

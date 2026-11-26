@@ -35,6 +35,8 @@ public sealed class GamepadService : IDisposable
     public event Action? OnSessionExitRequested;
     public event Action<ControllerButton>? OnButtonPressed;
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
+    // Semantic previous (-1) / next (+1) page edges, aggregated across devices.
+    public event Action<int, bool>? OnPageStateChanged;
 
     private readonly AppSettings _settings;
     private readonly Sdl _sdl;
@@ -86,6 +88,10 @@ public sealed class GamepadService : IDisposable
     private readonly Dictionary<int, DirectionState> _directionStates = new();
     private int _pressedDirections;
     private int _publishedDirections;
+    // Remember the semantic action at press time, so release also works if bindings change.
+    private readonly Dictionary<(int Instance, ControllerButton Button), int> _pageSources = new();
+    private int _pressedPages;
+    private int _publishedPages;
     private readonly object _uiInputGate = new();
     private bool _uiInputEnabled = true;
     private bool _monitoringStopped;
@@ -97,7 +103,7 @@ public sealed class GamepadService : IDisposable
 
     private sealed record PendingInputEvent(
         Action? Callback, long Generation, bool UiOnly = false, bool BackgroundOnly = false,
-        GamepadDirection? Direction = null, bool IsPressed = false);
+        GamepadDirection? Direction = null, bool IsPressed = false, int PageDirection = 0);
 
     public GamepadService(AppSettings? settings = null, IErrorService? errorService = null)
         : this(settings, loadSdl: true, errorService: errorService)
@@ -342,6 +348,8 @@ public sealed class GamepadService : IDisposable
         _triggerStates.Clear();
         _directionStates.Clear();
         UpdateAggregatedDirections();
+        _pageSources.Clear();
+        UpdateAggregatedPages();
     }
 
     private bool EnsureInitialized() =>
@@ -505,6 +513,8 @@ public sealed class GamepadService : IDisposable
                 UpdateSessionExitHoldState(sdlEvent.Cbutton.Which, button, isPressed);
                 if (isPressed)
                     QueueInputEvent(() => OnButtonPressed?.Invoke(button));
+                else
+                    ReleasePageSource(sdlEvent.Cbutton.Which, button);
             }
             else if (eventType == EventType.Controlleraxismotion &&
                      TryUpdateTriggerState(sdlEvent.Caxis, out var trigger, out var isPressed))
@@ -514,8 +524,10 @@ public sealed class GamepadService : IDisposable
                 {
                     QueueInputEvent(() => OnButtonPressed?.Invoke(trigger));
                     if (_uiInputEnabled)
-                        RaiseMappedAction(trigger);
+                        RaiseMappedAction(trigger, sdlEvent.Caxis.Which);
                 }
+                else
+                    ReleasePageSource(sdlEvent.Caxis.Which, trigger);
             }
 
             if (_uiInputEnabled)
@@ -555,6 +567,9 @@ public sealed class GamepadService : IDisposable
             _triggerStates.Remove(instanceId);
             _directionStates.Remove(instanceId);
             UpdateAggregatedDirections();
+            foreach (var source in new List<(int Instance, ControllerButton Button)>(_pageSources.Keys))
+                if (source.Instance == instanceId) _pageSources.Remove(source);
+            UpdateAggregatedPages();
         }
         DrainInputEvents();
 
@@ -589,7 +604,7 @@ public sealed class GamepadService : IDisposable
         }
 
         if (TryMapButton(button, out var mappedButton))
-            RaiseMappedAction(mappedButton);
+            RaiseMappedAction(mappedButton, e.Which);
     }
 
     private void HandleButtonUp(ControllerButtonEvent e)
@@ -673,6 +688,38 @@ public sealed class GamepadService : IDisposable
     private void QueueInputEvent(Action callback, bool uiOnly = false, bool backgroundOnly = false) =>
         _pendingInputEvents.Enqueue(new(callback, _inputGeneration, uiOnly, backgroundOnly));
 
+    private void PressPageSource(int instanceId, ControllerButton button, int direction)
+    {
+        if (!_pageSources.TryAdd((instanceId, button), direction)) return;
+        UpdateAggregatedPages();
+        // Preserve the old one-shot event contract for other consumers. BigMode
+        // subscribes only to OnPageStateChanged, so its initial action fires once.
+        QueueInputEvent(() =>
+        {
+            if (direction < 0) OnPreviousPage?.Invoke();
+            else OnNextPage?.Invoke();
+        }, uiOnly: true);
+    }
+
+    private void ReleasePageSource(int instanceId, ControllerButton button)
+    {
+        if (_pageSources.Remove((instanceId, button))) UpdateAggregatedPages();
+    }
+
+    private void UpdateAggregatedPages()
+    {
+        var next = 0;
+        foreach (var direction in _pageSources.Values) next |= direction < 0 ? 1 : 2;
+        foreach (var direction in new[] { -1, 1 })
+        {
+            var bit = direction < 0 ? 1 : 2;
+            if ((_pressedPages & bit) != (next & bit))
+                _pendingInputEvents.Enqueue(new(null, _inputGeneration,
+                    IsPressed: (next & bit) != 0, PageDirection: direction));
+        }
+        _pressedPages = next;
+    }
+
     private void DrainInputEvents()
     {
         lock (_uiInputGate)
@@ -704,6 +751,16 @@ public sealed class GamepadService : IDisposable
                     _publishedDirections = pending.IsPressed ? _publishedDirections | bit : _publishedDirections & ~bit;
                     callback = () => OnDirectionStateChanged?.Invoke(direction, pending.IsPressed);
                 }
+                else if (pending.PageDirection != 0)
+                {
+                    if (pending.IsPressed &&
+                        (pending.Generation != _inputGeneration || !_uiInputEnabled || _monitoringStopped))
+                        continue;
+                    var bit = pending.PageDirection < 0 ? 1 : 2;
+                    if (((_publishedPages & bit) != 0) == pending.IsPressed) continue;
+                    _publishedPages = pending.IsPressed ? _publishedPages | bit : _publishedPages & ~bit;
+                    callback = () => OnPageStateChanged?.Invoke(pending.PageDirection, pending.IsPressed);
+                }
                 else
                 {
                     if (pending.Generation != _inputGeneration || _monitoringStopped ||
@@ -720,7 +777,7 @@ public sealed class GamepadService : IDisposable
         }
     }
 
-    private void RaiseMappedAction(ControllerButton button)
+    private void RaiseMappedAction(ControllerButton button, int instanceId)
     {
         var bindings = _settings.ControllerBindings;
         if (button == bindings.Select)
@@ -736,9 +793,9 @@ public sealed class GamepadService : IDisposable
         else if (button == bindings.SystemMenu)
             QueueInputEvent(() => OnSystemMenu?.Invoke(), uiOnly: true);
         else if (button == bindings.PreviousPage)
-            QueueInputEvent(() => OnPreviousPage?.Invoke(), uiOnly: true);
+            PressPageSource(instanceId, button, -1);
         else if (button == bindings.NextPage)
-            QueueInputEvent(() => OnNextPage?.Invoke(), uiOnly: true);
+            PressPageSource(instanceId, button, 1);
     }
 
     private void UpdateSessionExitHoldState(int instanceId, ControllerButton button, bool isPressed)

@@ -72,6 +72,7 @@ public partial class BigModeViewModel
         if (_disposed != 0 || active == _parentalFilterActive) return;
         _parentalFilterActive = active;
         ResetAttractIdleTimer();
+        ResetGamepadAcceleration();
         _navigation.Refresh(active);
         _libraryObserver?.Rebind();
         if (SupportsHome)
@@ -133,6 +134,7 @@ public partial class BigModeViewModel
     {
         if (_disposed != 0 || _libraryObserver?.IsDirty != true) return;
         ResetAttractIdleTimer();
+        ResetGamepadAcceleration();
         _itemVideoPathCache.Clear();
         _nodeVideoPathCache.Clear();
         _navigation.Refresh();
@@ -180,6 +182,9 @@ public partial class BigModeViewModel
                 IsGameListActive = SelectedItem != null;
             }
             if (newLevel || ownerChanged) ApplyNodeFallbackOverrides();
+            // Resolve a paused preview against the final incoming selection.
+            // Do this before creating its new carousel preload requests.
+            if (ownerChanged) EndNavigationScroll(resumePreview: true);
             if (newLevel) { OnPropertyChanged(nameof(NavigationEntries)); OnPropertyChanged(nameof(HasChildNodes)); }
             UpdateGameCounters();
             UpdateCircularItems();

@@ -1,15 +1,43 @@
+using System.Threading;
 using Retromind.Helpers;
 
 namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
-    private const int LibraryPageSize = 10;
+    private const int LibraryPageSize = BigModeScrollProfile.PageSize;
     private const int AchievementRowsPerPage = 3;
     private const int AchievementPageSize = AchievementColumnCount * AchievementRowsPerPage;
 
-    private void OnGamepadPreviousPage() => DispatchGamepadAction(() => NavigatePage(-1));
-    private void OnGamepadNextPage() => DispatchGamepadAction(() => NavigatePage(1));
+    private void OnGamepadPageStateChanged(int direction, bool pressed)
+    {
+        var generation = Volatile.Read(ref _navigationInputGeneration);
+        DispatchGamepadAction(() =>
+        {
+            if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsSystemMenuOpen ||
+                generation != _navigationInputGeneration) return;
+            if (!pressed)
+            {
+                if (_gamepadRepeatPageDirection != direction) return;
+                StopGamepadRepeatTimer();
+                ResumePreviewAfterScroll();
+                return;
+            }
+            if (_gamepadRepeatPageDirection == direction && _gamepadRepeatTimer?.IsEnabled == true) return;
+
+            if (IsHomeActive || IsAchievementsOverlayOpen)
+            {
+                StopGamepadRepeatTimer();
+                ResumePreviewAfterScroll();
+                NavigatePage(direction);
+                return;
+            }
+
+            SuspendPreviewForScroll();
+            StartGamepadRepeat(null, direction);
+            NavigatePage(direction);
+        });
+    }
 
     public void NavigatePage(int direction)
     {

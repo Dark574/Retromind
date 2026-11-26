@@ -208,17 +208,25 @@ public sealed class BigModeInputLifecycleTests
         });
 
     [Theory]
-    [InlineData("Focus")]
-    [InlineData("Remove")]
-    [InlineData("Stop")]
-    public async Task ServiceLifecycleRelease_EndsRepeatAndRestoresPreview(string interruption) =>
+    [InlineData("Focus", false)]
+    [InlineData("Remove", false)]
+    [InlineData("Stop", false)]
+    [InlineData("Focus", true)]
+    [InlineData("Remove", true)]
+    [InlineData("Stop", true)]
+    public async Task ServiceLifecycleRelease_EndsRepeatAndRestoresPreview(string interruption, bool page) =>
         await AvaloniaTestDispatcher.InvokeAsync(dispatcher =>
         {
             using var fixture = CreateFixture();
             using var service = new GamepadService(fixture.Settings, loadSdl: false);
             service.OnDirectionStateChanged += (direction, pressed) => fixture.Call("OnGamepadDirectionStateChanged", direction, pressed);
-            service.ProcessEvent(new Event { Caxis = new ControllerAxisEvent
-                { Type = (uint)EventType.Controlleraxismotion, Which = 1, Axis = (byte)GameControllerAxis.Lefty, Value = 20000 } });
+            service.OnPageStateChanged += (direction, pressed) => fixture.Call("OnGamepadPageStateChanged", direction, pressed);
+            if (page)
+                service.ProcessEvent(new Event { Cbutton = new ControllerButtonEvent
+                    { Type = (uint)EventType.Controllerbuttondown, Which = 1, Button = (byte)GameControllerButton.Rightshoulder } });
+            else
+                service.ProcessEvent(new Event { Caxis = new ControllerAxisEvent
+                    { Type = (uint)EventType.Controlleraxismotion, Which = 1, Axis = (byte)GameControllerAxis.Lefty, Value = 20000 } });
             dispatcher.RunJobs(DispatcherPriority.Input);
             Assert.True(fixture.Get<bool>("_suspendPreviewDuringScroll"));
             switch (interruption)
@@ -263,16 +271,19 @@ public sealed class BigModeInputLifecycleTests
             Assert.False(fixture.Get<bool>("_suspendPreviewDuringScroll"));
         });
 
-    [Fact]
-    public async Task KeyboardAndController_OnlyLastActiveSourceResumesPreview() =>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task KeyboardAndController_OnlyLastActiveSourceResumesPreview(bool page) =>
         await AvaloniaTestDispatcher.InvokeAsync(dispatcher =>
         {
             using var fixture = CreateFixture();
             fixture.Vm.HandleKeyboardKeyDown(Key.Down, KeyModifiers.None);
             fixture.Vm.HandleKeyboardKeyDown(Key.Right, KeyModifiers.None);
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, true);
+            NavigationInput(fixture, dispatcher, page, true);
             fixture.Vm.HandleKeyboardKeyUp(Key.Down);
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, false);
+            NavigationInput(fixture, dispatcher, page, false);
+            fixture.Call("OnGamepadRepeatTimerTick", null, EventArgs.Empty);
             Assert.True(fixture.Get<bool>("_suspendPreviewDuringScroll"));
             fixture.Vm.HandleKeyboardKeyUp(Key.Right);
             Assert.False(fixture.Get<bool>("_suspendPreviewDuringScroll"));
@@ -282,18 +293,20 @@ public sealed class BigModeInputLifecycleTests
             Assert.False(fixture.Get<bool>("_suspendPreviewDuringScroll"));
         });
 
-    [Fact]
-    public async Task HomeTransition_ConsumesHoldAndRestoresLibraryWithoutSuspension() =>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HomeTransition_ConsumesHoldAndRestoresLibraryWithoutSuspension(bool page) =>
         await AvaloniaTestDispatcher.InvokeAsync(dispatcher =>
         {
             using var fixture = new BigModeNavigationFixture([new MediaNode("Library")], home: true,
                 settings: new AppSettings { EnableBigModeHomeScreen = true });
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, true);
+            NavigationInput(fixture, dispatcher, page, true);
             var transition = fixture.CallAsync("ToggleHomeAsync");
             dispatcher.RunJobs();
             Assert.True(transition.IsCompletedSuccessfully);
             Assert.True(fixture.Vm.IsHomeActive);
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, false);
+            NavigationInput(fixture, dispatcher, page, false);
             transition = fixture.CallAsync("ToggleHomeAsync");
             dispatcher.RunJobs();
             Assert.True(transition.IsCompletedSuccessfully);
@@ -302,12 +315,14 @@ public sealed class BigModeInputLifecycleTests
             Assert.False(fixture.Get<bool>("_suspendPreviewDuringScroll"));
         });
 
-    [Fact]
-    public async Task AchievementOverlay_ConsumesHoldAndRestoresPreviewOnClose() =>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AchievementOverlay_ConsumesHoldAndRestoresPreviewOnClose(bool page) =>
         await AvaloniaTestDispatcher.InvokeAsync(dispatcher =>
         {
             using var fixture = CreateFixture();
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, true);
+            NavigationInput(fixture, dispatcher, page, true);
             var progress = fixture.Vm.RetroAchievementsProgress;
             var flags = BindingFlags.Instance | BindingFlags.NonPublic;
             typeof(Retromind.ViewModels.RetroAchievementsProgressViewModel).GetField("_isEligible", flags)!.SetValue(progress, true);
@@ -321,16 +336,18 @@ public sealed class BigModeInputLifecycleTests
             Assert.True(fixture.Vm.CanOpenAchievementsOverlay);
             fixture.Vm.OpenAchievementsOverlay();
             Assert.True(fixture.Vm.IsAchievementsOverlayOpen);
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, false);
+            NavigationInput(fixture, dispatcher, page, false);
             fixture.Vm.CloseAchievementsOverlay();
             AssertStopped(fixture);
             Assert.False(fixture.Get<bool>("_suspendPreviewDuringScroll"));
         });
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task MediaSession_ConsumesHoldAndRestoresPreviewAfterReturnOrFailure(bool fail)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task MediaSession_ConsumesHoldAndRestoresPreviewAfterReturnOrFailure(bool fail, bool page)
     {
         Task? play = null;
         BigModeNavigationFixture? fixture = null;
@@ -340,11 +357,11 @@ public sealed class BigModeInputLifecycleTests
             fixture = CreateFixture();
             fixture.Session.ActivateSelected();
             fixture.Vm.RequestPlay += _ => session.Task;
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, true);
+            NavigationInput(fixture, dispatcher, page, true);
             play = fixture.CallAsync("PlayCurrent");
             AssertStopped(fixture);
             Assert.False(fixture.Get<bool>("_suspendPreviewDuringScroll"));
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, false);
+            NavigationInput(fixture, dispatcher, page, false);
         });
         try
         {
@@ -362,14 +379,16 @@ public sealed class BigModeInputLifecycleTests
         finally { await AvaloniaTestDispatcher.InvokeAsync(_ => fixture!.Dispose()); }
     }
 
-    [Fact]
-    public async Task CloseInProgress_IgnoresQueuedDirectionsAndLeavesNoHold() =>
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CloseInProgress_IgnoresQueuedDirectionsAndLeavesNoHold(bool page) =>
         await AvaloniaTestDispatcher.InvokeAsync(dispatcher =>
         {
             using var fixture = CreateFixture();
             var close = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             fixture.Vm.RequestClose += () => close.Task;
-            Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, true);
+            NavigationInput(fixture, dispatcher, page, true);
             var closing = fixture.CallAsync("RequestBigModeCloseAsync");
             Direction(fixture, dispatcher, GamepadService.GamepadDirection.Up, true);
             AssertStopped(fixture);
@@ -409,6 +428,13 @@ public sealed class BigModeInputLifecycleTests
     internal static void AssertStopped(BigModeNavigationFixture fixture)
     {
         Assert.Null(fixture.Get<GamepadService.GamepadDirection?>("_gamepadRepeatDirection"));
+        Assert.Equal(0, fixture.Get<int>("_gamepadRepeatPageDirection"));
         Assert.False(fixture.Get<DispatcherTimer?>("_gamepadRepeatTimer")?.IsEnabled ?? false);
+    }
+
+    private static void NavigationInput(BigModeNavigationFixture fixture, Dispatcher dispatcher, bool page, bool pressed)
+    {
+        if (page) BigModeScrollAccelerationTests.Page(fixture, dispatcher, 1, pressed);
+        else Direction(fixture, dispatcher, GamepadService.GamepadDirection.Down, pressed);
     }
 }

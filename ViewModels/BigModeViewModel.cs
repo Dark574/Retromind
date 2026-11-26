@@ -667,8 +667,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _gamepadService.OnDetails += OnGamepadDetails;
         _gamepadService.OnHome += OnGamepadHome;
         _gamepadService.OnSystemMenu += OnGamepadSystemMenu;
-        _gamepadService.OnPreviousPage += OnGamepadPreviousPage;
-        _gamepadService.OnNextPage += OnGamepadNextPage;
+        _gamepadService.OnPageStateChanged += OnGamepadPageStateChanged;
 
         InitializeNavigation();
 

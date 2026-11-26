@@ -16,12 +16,12 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
-    private static readonly TimeSpan GamepadRepeatInitialDelay = TimeSpan.FromMilliseconds(350);
-    private static readonly TimeSpan GamepadRepeatInterval = TimeSpan.FromMilliseconds(80);
-
     private DispatcherTimer? _gamepadRepeatTimer;
     private GamepadService.GamepadDirection? _gamepadRepeatDirection;
+    private int _gamepadRepeatPageDirection;
     private bool _gamepadRepeatInitialPhase;
+    private long _gamepadRepeatStartedTimestamp;
+    internal TimeProvider NavigationTimeProvider { get; set; } = TimeProvider.System;
     private long _navigationInputGeneration;
     private bool _keyboardScrollActive;
 
@@ -55,8 +55,8 @@ public partial class BigModeViewModel
 
                 if (!IsAchievementsOverlayOpen)
                     SuspendPreviewForScroll();
-                NavigateForDirection(direction, playSound: true);
                 StartGamepadRepeat(direction);
+                NavigateForDirection(direction, playSound: true);
                 return;
             }
 
@@ -175,14 +175,25 @@ public partial class BigModeViewModel
     }
 
     private void StartGamepadRepeat(GamepadService.GamepadDirection direction)
+        => StartGamepadRepeat(direction, pageDirection: 0);
+
+    private void StartGamepadRepeat(GamepadService.GamepadDirection? direction, int pageDirection)
     {
         EnsureGamepadRepeatTimer();
+        // Restart even when the new owner arrives during the same 350 ms phase.
+        _gamepadRepeatTimer!.Stop();
 
         _gamepadRepeatDirection = direction;
+        _gamepadRepeatPageDirection = pageDirection;
+        ResetGamepadAcceleration();
         _gamepadRepeatInitialPhase = true;
-        _gamepadRepeatTimer!.Interval = GamepadRepeatInitialDelay;
+        _gamepadRepeatTimer.Interval = BigModeScrollProfile.InitialDelay;
         _gamepadRepeatTimer.IsEnabled = true;
     }
+
+    private void ResetGamepadAcceleration()
+        => _gamepadRepeatStartedTimestamp = _gamepadRepeatDirection != null || _gamepadRepeatPageDirection != 0
+            ? (NavigationTimeProvider ?? TimeProvider.System).GetTimestamp() : 0;
 
     private void EnsureGamepadRepeatTimer()
     {
@@ -199,7 +210,9 @@ public partial class BigModeViewModel
 
     private void OnGamepadRepeatTimerTick(object? sender, EventArgs e)
     {
-        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsSystemMenuOpen || _gamepadRepeatDirection == null)
+        // A queued tick after release must not consume an independent keyboard hold.
+        if (_gamepadRepeatDirection == null && _gamepadRepeatPageDirection == 0) return;
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsSystemMenuOpen)
         {
             EndNavigationScroll(resumePreview: false);
             return;
@@ -208,10 +221,36 @@ public partial class BigModeViewModel
         if (_gamepadRepeatInitialPhase)
         {
             _gamepadRepeatInitialPhase = false;
-            _gamepadRepeatTimer!.Interval = GamepadRepeatInterval;
+            _gamepadRepeatTimer!.Interval = BigModeScrollProfile.RepeatInterval;
         }
 
-        NavigateForDirection(_gamepadRepeatDirection.Value, playSound: false);
+        if (IsHomeActive || IsAchievementsOverlayOpen)
+        {
+            if (_gamepadRepeatPageDirection != 0)
+            {
+                EndNavigationScroll(resumePreview: true);
+                return;
+            }
+            if (_gamepadRepeatDirection is { } direction)
+                NavigateForDirection(direction, playSound: false);
+            return;
+        }
+
+        FlushNavigationChanges();
+        // Refresh can remove the opened node and end this hold at a context boundary.
+        if (_gamepadRepeatDirection == null && _gamepadRepeatPageDirection == 0) return;
+        ResetAttractIdleTimer();
+        var clock = NavigationTimeProvider ?? TimeProvider.System;
+        var step = BigModeScrollProfile.GetStep(clock.GetElapsedTime(_gamepadRepeatStartedTimestamp),
+            _navigation.Current.Entries.Count, page: _gamepadRepeatPageDirection != 0);
+        var sign = _gamepadRepeatPageDirection != 0 ? _gamepadRepeatPageDirection :
+            _gamepadRepeatDirection is GamepadService.GamepadDirection.Up or GamepadService.GamepadDirection.Left ? -1 : 1;
+        var count = _navigation.Current.Entries.Count;
+        if (count == 0) return;
+        var current = _navigation.Current.SelectedIndex;
+        // Repeats reach and remain at the edge. Only a fresh press may wrap.
+        var target = (int)Math.Clamp((long)current + sign * step, 0, count - 1);
+        if (target != current) _navigation.TrySelect(target);
     }
 
     private void StopGamepadRepeat(GamepadService.GamepadDirection direction)
@@ -233,7 +272,9 @@ public partial class BigModeViewModel
         }
 
         _gamepadRepeatDirection = null;
+        _gamepadRepeatPageDirection = 0;
         _gamepadRepeatInitialPhase = false;
+        _gamepadRepeatStartedTimestamp = 0;
 
         if (_gamepadRepeatTimer != null)
             _gamepadRepeatTimer.IsEnabled = false;
@@ -247,8 +288,7 @@ public partial class BigModeViewModel
             return;
         }
 
-        _gamepadRepeatDirection = null;
-        _gamepadRepeatInitialPhase = false;
+        StopGamepadRepeatTimer();
 
         if (_gamepadRepeatTimer != null)
         {
@@ -272,7 +312,7 @@ public partial class BigModeViewModel
     private void ResumePreviewAfterScroll()
     {
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsAchievementsOverlayOpen ||
-            !_suspendPreviewDuringScroll || _gamepadRepeatDirection != null || _keyboardScrollActive)
+            !_suspendPreviewDuringScroll || _gamepadRepeatDirection != null || _gamepadRepeatPageDirection != 0 || _keyboardScrollActive)
             return;
 
         _suspendPreviewDuringScroll = false;
