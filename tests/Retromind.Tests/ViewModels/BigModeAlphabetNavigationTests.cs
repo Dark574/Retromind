@@ -406,6 +406,8 @@ public sealed class BigModeAlphabetNavigationTests(ITestOutputHelper output)
             home.Vm.ToggleSystemMenu();
             Assert.False(home.Vm.SystemMenuEntries.Single(e => e.Kind == BigModeSystemMenuEntryKind.Alphabet).IsEnabled);
             home.Vm.NavigateSystemMenu(Direction.Down);
+            Assert.Equal(BigModeSystemMenuEntryKind.Search, home.Vm.SelectedSystemMenuEntry!.Kind);
+            home.Vm.NavigateSystemMenu(Direction.Down);
             Assert.Equal(BigModeSystemMenuEntryKind.ControllerBindings, home.Vm.SelectedSystemMenuEntry!.Kind);
         });
 

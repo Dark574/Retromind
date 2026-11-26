@@ -93,6 +93,10 @@ public partial class BigModeViewModel
             AlphabetTitle,
             T("BigMode_AlphabetMenuHint", "Jump to a letter in the current list")));
         SystemMenuEntries.Add(new BigModeSystemMenuEntryViewModel(
+            BigModeSystemMenuEntryKind.Search,
+            SearchMenuTitle,
+            T("BigModeSearch_MenuHint", "Find media in the library")));
+        SystemMenuEntries.Add(new BigModeSystemMenuEntryViewModel(
             BigModeSystemMenuEntryKind.ControllerBindings,
             T("BigMode_SystemMenuController", "Controller layout"),
             T("BigMode_SystemMenuControllerHint", "Show the current assignments")));
@@ -104,9 +108,6 @@ public partial class BigModeViewModel
             BigModeSystemMenuEntryKind.ExitApplication,
             T("BigMode_SystemMenuExitApplication", "Exit Retromind"),
             T("BigMode_SystemMenuExitApplicationHint", "Save and close the application")));
-
-        SystemMenuEntries.Add(new BigModeSystemMenuEntryViewModel(BigModeSystemMenuEntryKind.Search,
-            SearchMenuTitle, T("BigModeSearch_MenuHint", "Find media in the library")));
 
         ExitConfirmationOptions.Add(T("BigMode_ExitConfirmationCancel", "Cancel"));
         ExitConfirmationOptions.Add(T("BigMode_ExitConfirmationConfirm", "Exit Retromind"));
