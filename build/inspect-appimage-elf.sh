@@ -54,7 +54,7 @@ while IFS= read -r elf_file; do
       runtime_profile="vlc"
       library_path="$vlc_library_path"
       ;;
-    usr/bin/ffplay|usr/bin/sidplayfp|usr/bin/secret-tool|usr/bin/legendary|usr/bin/comet|usr/lib/*)
+    usr/bin/ffplay|usr/bin/sidplayfp|usr/bin/secret-tool|usr/bin/legendary|usr/bin/comet|usr/bin/innoextract|usr/bin/7zz|usr/lib/*)
       runtime_profile="helper"
       library_path="$helper_library_path"
       ;;

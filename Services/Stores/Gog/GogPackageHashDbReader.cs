@@ -12,12 +12,17 @@ using Retromind.Helpers;
 
 namespace Retromind.Services.Stores.Gog;
 
+internal sealed record GogPackageFileMetadata(GogPackageHashDb? HashDb = null, GogInnoFileList? InnoFiles = null);
+
 internal static class GogPackageHashDbReader
 {
     private const int MaxHashDbBytes = 16 * 1024 * 1024;
     private const int MaxListingBytes = 16 * 1024 * 1024;
+    private const int MaxCombinedInnoListingsBytes = 64 * 1024 * 1024;
+    private static readonly string[] InnoOptions =
+        ["--silent", "--no-extract-unknown", "--collisions=error", "--exclude-temp"];
 
-    internal static async Task<GogPackageHashDb?> TryReadAsync(
+    internal static async Task<GogPackageFileMetadata?> TryReadAsync(
         GogDownloadedInstallerPackage package, string installer, string gameId,
         Action<string> log, CancellationToken ct)
     {
@@ -35,9 +40,13 @@ internal static class GogPackageHashDbReader
         deadline.CancelAfter(TimeSpan.FromSeconds(30));
         try
         {
-            return parts.Any(IsRar)
-                ? await TryReadRarAsync(parts, name, deadline.Token).ConfigureAwait(false)
-                : await TryReadInnoAsync(installer, name, stem, parts, log, deadline.Token).ConfigureAwait(false);
+            if (parts.Any(IsRar))
+            {
+                var manifest = await TryReadRarAsync(parts, name, deadline.Token).ConfigureAwait(false);
+                return manifest == null ? null : new(HashDb: manifest);
+            }
+
+            return await TryReadInnoAsync(installer, name, stem, parts, log, deadline.Token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
@@ -54,7 +63,8 @@ internal static class GogPackageHashDbReader
 
     private static async Task<GogPackageHashDb?> TryReadRarAsync(string[] parts, string name, CancellationToken ct)
     {
-        var sevenZip = EnvironmentPathHelper.TryFindExecutableInCurrentPath("7zz") ??
+        var sevenZip = AppImageToolResolver.ResolveBundledExecutable("7zz") ??
+                       EnvironmentPathHelper.TryFindExecutableInCurrentPath("7zz") ??
                        EnvironmentPathHelper.TryFindExecutableInCurrentPath("7z");
         if (sevenZip == null)
             return null;
@@ -88,10 +98,11 @@ internal static class GogPackageHashDbReader
         return GogPackageHashDb.Read(hashDb, name, sizes, allowArchiveRootMarker: true);
     }
 
-    private static async Task<GogPackageHashDb?> TryReadInnoAsync(
+    private static async Task<GogPackageFileMetadata?> TryReadInnoAsync(
         string installer, string name, string stem, string[] parts, Action<string> log, CancellationToken ct)
     {
-        var innoextract = EnvironmentPathHelper.TryFindExecutableInCurrentPath("innoextract");
+        var innoextract = AppImageToolResolver.ResolveBundledExecutable("innoextract") ??
+                          EnvironmentPathHelper.TryFindExecutableInCurrentPath("innoextract");
         if (innoextract == null)
         {
             log("[Package files] innoextract is not available in PATH.");
@@ -106,7 +117,68 @@ internal static class GogPackageHashDbReader
             return null;
         }
 
-        string[] options = ["--silent", "--no-extract-unknown", "--collisions=error", "--exclude-temp"];
+        async Task<GogPackageHashDb?> ReadHashDbAsync(string[] options)
+        {
+            try
+            {
+                return await TryReadInnoHashDbAsync(innoextract, installer, name, options, ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or DecoderFallbackException)
+            {
+                log($"[Package files] Inno HashDB could not be read: {ex.Message}");
+                return null;
+            }
+        }
+
+        using var languageOutput = await ReadToolOutputAsync(innoextract,
+            [.. InnoOptions, "--list-languages", "--", installer], MaxListingBytes, ct).ConfigureAwait(false);
+        using var languageReader = new StreamReader(languageOutput, new UTF8Encoding(false, true));
+        var languages = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        while (languageReader.ReadLine() is { } line)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+            var language = line.Split(' ', 2)[0];
+            if (language.Length == 0 || !language.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'))
+                throw new InvalidDataException("Unexpected language in the Inno language list.");
+
+            languages.Add(language);
+            if (languages.Count > 64)
+            {
+                throw new InvalidDataException("The Inno language list exceeds the supported size.");
+            }
+        }
+
+        var variants = languages.Count == 0
+            ? [InnoOptions]
+            : languages.Select(language => (string[])[.. InnoOptions, "--language", language]).ToArray();
+        var common = await ReadHashDbAsync(variants[0]).ConfigureAwait(false);
+        for (var i = 1; common != null && i < variants.Length; i++)
+        {
+            var current = await ReadHashDbAsync(variants[i]).ConfigureAwait(false);
+            if (current == null || !common.HasSameEntries(current))
+                common = null;
+        }
+        if (common != null)
+            return new(HashDb: common);
+
+        var fileList = new GogInnoFileList();
+        var remainingBytes = MaxCombinedInnoListingsBytes;
+        foreach (var options in variants)
+        {
+            using var listing = await ReadToolOutputAsync(innoextract,
+                [.. options, "--dump", "--list-sizes", "--list-checksums", "--", installer],
+                Math.Min(MaxListingBytes, remainingBytes), ct).ConfigureAwait(false);
+            remainingBytes -= (int)listing.Length;
+            using var reader = new StreamReader(listing, new UTF8Encoding(false, true));
+            fileList.AddLanguage(reader, name);
+        }
+        return fileList.Count == 0 ? null : new(InnoFiles: fileList);
+    }
+
+    private static async Task<GogPackageHashDb?> TryReadInnoHashDbAsync(
+        string innoextract, string installer, string name, string[] options, CancellationToken ct)
+    {
         using var listing = await ReadToolOutputAsync(innoextract,
             [.. options, "--list-sizes", "--", installer], MaxListingBytes, ct).ConfigureAwait(false);
         using var reader = new StreamReader(listing, new UTF8Encoding(false, true));
@@ -254,6 +326,7 @@ internal static class GogPackageHashDbReader
             CreateNoWindow = true
         };
         HostProcessEnvironmentSanitizer.Sanitize(start);
+        AppImageToolResolver.ConfigureBundledToolEnvironment(start, executable);
         foreach (var argument in arguments)
             start.ArgumentList.Add(argument);
 

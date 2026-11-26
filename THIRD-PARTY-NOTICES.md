@@ -220,6 +220,18 @@ The exact Comet and protocol license files are exported during the AppImage buil
 
 ---
 
+## GOG archive tools
+
+The AppImage includes Debian Bookworm's [innoextract](https://constexpr.org/innoextract/) under the zlib license
+and the upstream [7-Zip](https://www.7-zip.org/) standalone RAR reader under its LGPL, unRAR, and BSD terms.
+Retromind invokes the separate executables to read package metadata for GOG installations.
+
+See [GOG-Archive-Tools.Notice.txt](Licenses/GOG-Archive-Tools.Notice.txt). The AppImage ships the exact license
+notices for both tools and their bundled libraries, along with the corresponding 7-Zip source archive, below
+`usr/share/doc/retromind/Licenses`.
+
+---
+
 ## Other NuGet Packages
 
 Retromind currently references additional NuGet packages such as:

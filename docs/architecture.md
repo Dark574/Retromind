@@ -1547,8 +1547,10 @@ reproducible Docker workflow, runtime integration, and achievement-presentation 
   resolved tree before execution. Clean game installation rejects a target that contains the compatibility root
   or Windows tree, so the selected prefix cannot be removed by game-directory cleanup.
   A Windows setup attempt must pass the process outcome checks before its payload is accepted. For base-game
-  installs and reinstalls with a usable HashDB from the selected package, missing or invalid required files
-  trigger the same interactive System-Wine fallback as a process failure. Package verification and the
+  installs and reinstalls, the selected package's GOG HashDB or the Inno file list supplies file checks.
+  The Inno file list requires confirmation from the current setup log before treating a file discrepancy
+  as an install failure. Missing or invalid required files trigger the same interactive System-Wine fallback
+  as a process failure. Package verification and the
   unverified outcome for unsupported packages are described in [the GOG provider notes](gog-provider.md).
   Process exit and redirected-output draining use cancellation-aware `WaitForExitAsync` rather than a synchronous
   final drain that can hang when a detached Wine child inherits the pipes. Cancel still kills the directly

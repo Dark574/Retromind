@@ -88,14 +88,18 @@ public sealed partial class GogInstallerExecutionService
             return Fail("Windows installer entry file was not found.");
 
         appendLog($"[Windows installer] Using: {installerPath}");
-        var manifest = request.ValidatePackageFiles
+        var metadata = request.ValidatePackageFiles
             ? await GogPackageHashDbReader.TryReadAsync(request.DownloadedPackage, installerPath,
                 request.StoreGameId, appendLog, cancellationToken).ConfigureAwait(false)
             : null;
+        var manifest = metadata?.HashDb;
+        var innoFiles = metadata?.InnoFiles;
         if (manifest != null)
-            appendLog($"[Package files] Loaded {manifest.Count} expected files from the selected installer package.");
+            appendLog($"[Package files] GOG-HashDB: Loaded {manifest.Count} expected files from the selected package.");
+        else if (innoFiles != null)
+            appendLog($"[Package files] Inno-Dateiliste: Loaded {innoFiles.Count} candidate game files.");
         else if (request.ValidatePackageFiles)
-            appendLog("[Package files] No usable package HashDB. File integrity cannot be verified.");
+            appendLog("[Package files] nicht verifiziert: No usable GOG-HashDB or Inno file list.");
 
         var verifyAllHashes = Environment.GetEnvironmentVariable("RETROMIND_GOG_VERIFY_MD5") == "1";
         var prefixPayloadBaseline = GogInstallPayloadTracker.Capture(prefixDrivePath);
@@ -188,12 +192,24 @@ public sealed partial class GogInstallerExecutionService
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
+                var packageVerified = false;
                 if (lastError == null && manifest != null)
                 {
                     lastError = await manifest.ValidateAsync(request.InstallPath, existingFiles!, verifyAllHashes,
                         cancellationToken).ConfigureAwait(false);
+                    packageVerified = lastError == null;
                 }
-                else if (lastError == null && !await GogInstallPayloadTracker.WaitForChangeAsync(
+                else if (lastError == null && innoFiles != null)
+                {
+                    var verification = await innoFiles.ValidateAsync(request.InstallPath, windowsInstallDestinationPath,
+                        innoLogHostPath, cancellationToken).ConfigureAwait(false);
+                    lastError = verification.Failure;
+                    packageVerified = verification.Complete;
+                    appendLog($"[Package files] Inno-Dateiliste: {verification.Verified}/{verification.Total} " +
+                              "candidate game files match their package size and checksum.");
+                }
+
+                if (lastError == null && !packageVerified && !await GogInstallPayloadTracker.WaitForChangeAsync(
                         request.InstallPath,
                         payloadBaseline,
                         TimeSpan.FromSeconds(25),
@@ -211,15 +227,16 @@ public sealed partial class GogInstallerExecutionService
                             ? "[Package files] Installation completed. All package file checksums match."
                             : "[Package files] Installation completed. Expected package files are present.");
                     }
-                    else if (request.ValidatePackageFiles)
+                    else if (!packageVerified && request.ValidatePackageFiles)
                     {
                         appendLog("[Package files] Installation completed. File integrity was not verified.");
+                        appendLog("[Package files] Result: nicht verifiziert.");
                     }
                     if (attemptIndex > 0)
                         appendLog("[Windows installer] Interactive fallback completed.");
 
                     return new GogInstallerExecutionResult(true,
-                        PackageFilesVerified: request.ValidatePackageFiles ? manifest != null : null);
+                        PackageFilesVerified: request.ValidatePackageFiles ? packageVerified : null);
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

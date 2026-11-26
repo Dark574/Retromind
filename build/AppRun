@@ -8,7 +8,7 @@ HERE="$(dirname "$(readlink -f "$0")")"
 # with host desktop libraries and cause early native crashes.
 export LD_LIBRARY_PATH="$HERE/usr/lib/vlc/lib:$HERE/usr/lib/vlc/vlc:${LD_LIBRARY_PATH:-}"
 export VLC_PLUGIN_PATH="$HERE/usr/lib/vlc/vlc/plugins"
-# Prefer bundled helper binaries (ffplay/sidplayfp) if present.
+# Prefer bundled helper binaries if present.
 export PATH="$HERE/usr/bin:${PATH:-}"
 
 # Force ALSA as audio backend inside the AppImage to avoid incomplete PulseAudio plugin dependencies.

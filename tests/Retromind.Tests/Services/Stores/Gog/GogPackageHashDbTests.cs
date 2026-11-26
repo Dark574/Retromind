@@ -10,6 +10,91 @@ public sealed class GogPackageHashDbTests
 {
     private const string HashDbName = "goggame-123.hashdb";
 
+    [Fact]
+    public async Task ReadPackage_PrefersBundledInnoextractAndItsLibraries()
+    {
+        using var temp = new TemporaryDirectory();
+        var appDir = temp.CreateDirectory("AppDir");
+        var libraries = temp.CreateDirectory("AppDir", "usr", "lib");
+        var hostPath = temp.CreateDirectory("host");
+        var setup = temp.CreateFile("package/setup.exe", "installer fixture");
+        var data = temp.GetPath(HashDbName);
+        File.WriteAllBytes(data, BuildHashDb(HashDbName, ("game.exe", "data")));
+        var hostReader = temp.CreateFile("host/innoextract", "#!/bin/sh\nexit 1\n");
+        var bundledReader = temp.CreateFile("AppDir/usr/bin/innoextract", $$"""
+            #!/bin/sh
+            [ "${LD_LIBRARY_PATH%%:*}" = '{{libraries}}' ] || exit 2
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    --list-languages) exit 0 ;;
+                    --list-sizes) printf '4 game.exe\n{{new FileInfo(data).Length}} {{HashDbName}}\n'; exit ;;
+                    --output-dir) /usr/bin/cp '{{data}}' "$2/{{HashDbName}}"; exit ;;
+                esac
+                shift
+            done
+            exit 3
+            """);
+        foreach (var script in new[] { hostReader, bundledReader })
+            File.SetUnixFileMode(script, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        using var environment = new EnvironmentVariableScope(("APPDIR", appDir), ("PATH", hostPath),
+            ("LD_LIBRARY_PATH", temp.GetPath("unrelated-libraries")));
+
+        var metadata = await GogPackageHashDbReader.TryReadAsync(
+            new(Path.GetDirectoryName(setup)!, setup, [setup]), setup, "123", _ => { }, default);
+
+        var manifest = metadata?.HashDb;
+        Assert.NotNull(manifest);
+        Assert.Equal(2, manifest.Count);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ReadPackage_RequiresHashDbAgreementAcrossPossibleLanguages(bool shared)
+    {
+        using var temp = new TemporaryDirectory();
+        var bin = temp.CreateDirectory("bin");
+        var setup = temp.CreateFile("package/setup.exe", "installer fixture");
+        var data = temp.GetPath(HashDbName);
+        File.WriteAllBytes(data, BuildHashDb(HashDbName, ("game.exe", "game")));
+        var tool = temp.CreateFile("bin/innoextract", $$"""
+            #!/bin/sh
+            language=
+            hashes=no
+            action=
+            while [ "$#" -gt 0 ]; do
+                case "$1" in
+                    --list-languages) printf 'en-US English\nde-DE German\n'; exit ;;
+                    --language) language="$2"; shift ;;
+                    --list-checksums) hashes=yes ;;
+                    --list-sizes) action=list ;;
+                    --output-dir) /usr/bin/cp '{{data}}' "$2/{{HashDbName}}"; exit ;;
+                esac
+                shift
+            done
+            [ "$action" = list ] || exit 1
+            if [ "$hashes" = yes ]; then
+                printf '4 MD5 c8d46d341bea4fd5bff866a65ff8aea9 game.exe\n'
+            else
+                printf '4 game.exe\n'
+                if [ "$language" != de-DE ] || [ '{{shared}}' = True ]; then
+                    printf '{{new FileInfo(data).Length}} {{HashDbName}}\n'
+                fi
+            fi
+            """);
+        File.SetUnixFileMode(tool, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        using var environment = new EnvironmentVariableScope(("APPDIR", null), ("PATH", bin));
+
+        var metadata = await GogPackageHashDbReader.TryReadAsync(
+            new(Path.GetDirectoryName(setup)!, setup, [setup]), setup, "123", _ => { }, default);
+
+        Assert.NotNull(metadata);
+        if (shared)
+            Assert.Equal(2, metadata.HashDb?.Count);
+        else
+            Assert.Equal(1, metadata.InnoFiles?.Count);
+    }
+
     [Theory]
     [InlineData("/etc/passwd")]
     [InlineData("C:\\Windows\\file")]
@@ -36,6 +121,7 @@ public sealed class GogPackageHashDbTests
         using var matched = new MemoryStream(bytes);
         var manifest = GogPackageHashDb.Read(matched, HashDbName,
             new Dictionary<string, long> { ["win32/game.exe"] = 4 }, allowArchiveRootMarker: true);
+        Assert.NotNull(manifest);
         Assert.Equal(1, manifest.Count);
     }
 
@@ -59,6 +145,7 @@ public sealed class GogPackageHashDbTests
 
         using var data = new MemoryStream(BuildHashDb(HashDbName, ("sub/file", "data")));
         var manifest = GogPackageHashDb.Read(data, HashDbName);
+        Assert.NotNull(manifest);
 
         var error = await manifest.ValidateAsync(destination, manifest.CaptureExistingFiles(destination, default),
             verifyAllHashes: true, default);
@@ -75,6 +162,7 @@ public sealed class GogPackageHashDbTests
         using var data = new MemoryStream(BuildHashDb(HashDbName, ("game.exe", "good")));
         var manifest = GogPackageHashDb.Read(data, HashDbName,
             new Dictionary<string, long> { ["game.exe"] = 4 });
+        Assert.NotNull(manifest);
         var before = new Dictionary<string, GogPackageHashDb.FileStamp>();
 
         Assert.Null(await manifest.ValidateAsync(temp.RootPath, before, verifyAllHashes: false, default));

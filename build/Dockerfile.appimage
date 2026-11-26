@@ -435,6 +435,13 @@ COPY --from=legendary-builder /out/licenses /out/legendary-licenses
 COPY --from=comet-builder /out/comet /out/tools/bin/comet
 COPY --from=comet-builder /out/licenses /out/comet-licenses
 
+# Keep archive readers in a separate layer so package changes can reuse the application build.
+COPY build/bundle-gog-archive-tools.sh /usr/local/bin/bundle-gog-archive-tools
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends innoextract \
+    && sh /usr/local/bin/bundle-gog-archive-tools \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY build/inspect-appimage-elf.sh /usr/local/bin/inspect-appimage-elf
 RUN set -eu; \
     mkdir -p /out/build-environment; \

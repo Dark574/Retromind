@@ -26,7 +26,7 @@ internal sealed class GogPackageHashDb
 
     // RAR-backed installers can spell package-relative paths with a single leading slash.
     // Accept that spelling only when the same path exists in the archive's game/ inventory.
-    internal static GogPackageHashDb Read(
+    internal static GogPackageHashDb? Read(
         Stream data, string name, IReadOnlyDictionary<string, long>? archiveSizes = null,
         bool allowArchiveRootMarker = false)
     {
@@ -44,7 +44,7 @@ internal sealed class GogPackageHashDb
         var count = BinaryPrimitives.ReadInt32LittleEndian(header[8..]);
         if (BinaryPrimitives.ReadInt32LittleEndian(header) != HeaderSize ||
             BinaryPrimitives.ReadInt32LittleEndian(header[4..]) != 1 ||
-            count is <= 0 or > MaxRecords || member.Length != HeaderSize + (long)count * RecordSize)
+            count is < 0 or > MaxRecords || member.Length != HeaderSize + (long)count * RecordSize)
         {
             throw new InvalidDataException("Unsupported GOG HashDB header or record count.");
         }
@@ -77,6 +77,9 @@ internal sealed class GogPackageHashDb
         if (stream.ReadByte() != -1)
             throw new InvalidDataException("Unexpected data after GOG HashDB records.");
 
+        if (count == 0)
+            return null;
+
         if (archiveSizes != null && archiveSizes.TryGetValue(name, out var hashDbSize))
         {
             if (!paths.Add(name))
@@ -87,6 +90,11 @@ internal sealed class GogPackageHashDb
 
         return new GogPackageHashDb(entries);
     }
+
+    internal bool HasSameEntries(GogPackageHashDb other) =>
+        _entries.Count == other._entries.Count && _entries.Zip(other._entries).All(pair =>
+            pair.First.Path == pair.Second.Path && pair.First.Size == pair.Second.Size &&
+            pair.First.Md5.AsSpan().SequenceEqual(pair.Second.Md5));
 
     internal static string? NormalizeRelativePath(string path)
     {
@@ -166,7 +174,7 @@ internal sealed class GogPackageHashDb
         return null;
     }
 
-    private static FileInfo? GetRegularFile(string root, string relativePath, Dictionary<string, bool> directories)
+    internal static FileInfo? GetRegularFile(string root, string relativePath, Dictionary<string, bool> directories)
     {
         try
         {
@@ -186,7 +194,7 @@ internal sealed class GogPackageHashDb
         }
     }
 
-    private static bool IsRealDirectory(string path, Dictionary<string, bool> directories)
+    internal static bool IsRealDirectory(string path, Dictionary<string, bool> directories)
     {
         if (directories.TryGetValue(path, out var cached))
             return cached;

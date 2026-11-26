@@ -1,0 +1,23 @@
+GOG Archive Tools Notice
+========================
+
+The Retromind AppImage ships innoextract and the upstream 7-Zip 7zzs binary
+as separate command-line tools. Retromind uses them to read file lists and
+HashDB metadata from GOG offline installers.
+
+innoextract
+  License: zlib
+  Upstream: https://constexpr.org/innoextract/
+  Debian Bookworm package: https://packages.debian.org/bookworm/innoextract
+  The builder exports the Debian copyright files for innoextract and its
+  bundled shared libraries to usr/share/doc/retromind/Licenses/Innoextract.
+
+7-Zip
+  Upstream: https://www.7-zip.org/
+  License: GNU LGPL with the unRAR restriction for applicable code and
+  BSD notices for other parts, as specified in the upstream License.txt.
+  The AppImage includes the unmodified x86-64 7zzs executable as 7zz.
+  The builder includes the upstream license notice, the LGPL 2.1 text,
+  and the matching upstream 7-Zip source archive under
+  usr/share/doc/retromind/Licenses/7-Zip. The Source.txt file gives the
+  exact URLs and SHA-256 checksums for the binary and source archives.

@@ -262,6 +262,7 @@ docker cp "$CID:/out/tools" "$WORK_DIR/tools"
 docker cp "$CID:/out/runtime-libs" "$WORK_DIR/runtime-libs"
 docker cp "$CID:/out/legendary-licenses" "$WORK_DIR/legendary-licenses"
 docker cp "$CID:/out/comet-licenses" "$WORK_DIR/comet-licenses"
+docker cp "$CID:/out/gog-archive-licenses" "$WORK_DIR/gog-archive-licenses"
 docker cp "$CID:/out/build-environment" "$WORK_DIR/build-environment"
 cleanup_container
 
@@ -286,13 +287,20 @@ chmod +x "$APPDIR/AppRun"
 cp -a "$WORK_DIR/publish/." "$APPDIR/usr/bin/"
 chmod +x "$APPDIR/usr/bin/Retromind"
 
-for helper in sidplayfp ffplay secret-tool legendary comet; do
+for helper in sidplayfp ffplay secret-tool legendary comet innoextract 7zz; do
   if [ -f "$WORK_DIR/tools/bin/$helper" ]; then
     echo "Bundling $helper from Debian bookworm builder image."
     cp "$WORK_DIR/tools/bin/$helper" "$APPDIR/usr/bin/$helper"
     chmod +x "$APPDIR/usr/bin/$helper"
   else
     echo "Notice: $helper not found in builder output (feature may be unavailable in AppImage)."
+  fi
+done
+
+for helper in innoextract 7zz; do
+  if [ ! -x "$APPDIR/usr/bin/$helper" ]; then
+    echo "ERROR: GOG archive reader '$helper' was not exported by the builder image."
+    exit 1
   fi
 done
 
@@ -414,6 +422,7 @@ else
 fi
 
 echo "Validate final AppDir ELF dependencies and ABI compatibility..."
+cp -a "$WORK_DIR/gog-archive-licenses/." "$DOC_DIR/Licenses/"
 docker run --rm --platform linux/amd64 \
   --user "$(id -u):$(id -g)" \
   -v "$APPDIR:/appdir:ro" \
@@ -462,6 +471,8 @@ while IFS="$(printf '\t')" read -r package_name package_version package_architec
 done < "$WORK_DIR/build-environment/debian-packages.tsv"
 
 manifest_record component legendary "$LEGENDARY_VERSION" "commit $LEGENDARY_SOURCE_COMMIT"
+manifest_record component innoextract "$(awk -F '\t' '$1 == "innoextract" {print $2; exit}' "$WORK_DIR/build-environment/debian-packages.tsv")" "Debian Bookworm archive reader"
+manifest_record component 7zz "$(sed -n '1s/^7-Zip \([^,]*\),.*/\1/p' "$WORK_DIR/gog-archive-licenses/7-Zip/Source.txt")" "pinned upstream RAR reader"
 manifest_record component uv "$UV_VERSION" "Legendary build tool"
 manifest_record component comet "$COMET_VERSION" "commit $COMET_SOURCE_COMMIT; release $COMET_FORK_RELEASE"
 manifest_record component gog-protocols "$COMET_PROTOCOLS_COMMIT" "Comet protocol source"

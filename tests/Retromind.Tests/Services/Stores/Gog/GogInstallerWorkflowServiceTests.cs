@@ -24,6 +24,10 @@ public sealed class GogInstallerWorkflowServiceTests
     [InlineData("invalid-manifest", true, false, 1)]
     [InlineData("validation-disabled", true, null, 1)]
     [InlineData("native-inno", true, true, 1)]
+    [InlineData("inno-multilingual", true, true, 1)]
+    [InlineData("inno-missing-recovered", true, true, 2)]
+    [InlineData("inno-damaged-recovered", true, true, 2)]
+    [InlineData("inno-unconfirmed-missing", true, false, 1)]
     public async Task WindowsInstall_ValidatesFilesFromTheSelectedPackage(
         string scenario, bool success, bool? verified, int attempts)
     {
@@ -40,9 +44,11 @@ public sealed class GogInstallerWorkflowServiceTests
         var game = Path.Combine(install, "game.exe");
         var air = Path.Combine(install, "Adobe AIR.dll");
         File.WriteAllText(setup, "fixture");
-        if (scenario != "native-inno")
+        var innoFallback = scenario.StartsWith("inno-", StringComparison.Ordinal);
+        if (scenario != "native-inno" && !innoFallback)
             File.WriteAllBytes(part, "Rar!\x1a\x07\0"u8.ToArray());
         File.WriteAllBytes(hashDb, scenario == "invalid-manifest" ? [0] :
+            innoFallback ? GogPackageHashDbTests.BuildHashDb(manifestName) :
             scenario == "native-inno"
                 ? GogPackageHashDbTests.BuildHashDb(manifestName, ("game.exe", "game"), ("Adobe AIR.dll", "air"))
                 : GogPackageHashDbTests.BuildHashDb(manifestName, ("/game.exe", "game"), ("/Adobe AIR.dll", "air")));
@@ -79,6 +85,7 @@ public sealed class GogInstallerWorkflowServiceTests
             for arg do
                 case "$arg" in
                     /LOG=Z:*) log=$(printf '%s' "${arg#/LOG=Z:}" | /usr/bin/tr '\\' '/') ;;
+                    /DIR=*) destination=${arg#/DIR=} ;;
                     /SILENT) silent=yes ;;
                 esac
             done
@@ -93,7 +100,28 @@ public sealed class GogInstallerWorkflowServiceTests
                     fi
                     ;;
             esac
-            printf '2026-11-25 09:29:12.732   Installation process succeeded.\n' > "$log"
+            : > "$log"
+            case '{{scenario}}' in
+                inno-*)
+                    printf '2026-11-25 09:28:12.732   -- File entry --\n' >> "$log"
+                    printf '2026-11-25 09:28:12.732   Dest filename: %s\\game.exe\n' "$destination" >> "$log"
+                    printf '2026-11-25 09:28:12.732   Successfully installed the file.\n' >> "$log"
+                    ;;
+            esac
+            case '{{scenario}}' in
+                inno-multilingual) printf air > '{{air}}' ;;
+                inno-missing-recovered|inno-damaged-recovered)
+                    printf '2026-11-25 09:28:12.732   -- File entry --\n' >> "$log"
+                    printf '2026-11-25 09:28:12.732   Dest filename: %s\\Adobe AIR.dll\n' "$destination" >> "$log"
+                    printf '2026-11-25 09:28:12.732   Successfully installed the file.\n' >> "$log"
+                    if [ "$silent" = no ]; then
+                        printf air > '{{air}}'
+                    elif [ '{{scenario}}' = inno-damaged-recovered ]; then
+                        printf bad > '{{air}}'
+                    fi
+                    ;;
+            esac
+            printf '2026-11-25 09:29:12.732   Installation process succeeded.\n' >> "$log"
             printf '2026-11-25 09:29:12.758   Log closed.\n' >> "$log"
             """);
         foreach (var script in new[] { wine, archiveReader })
@@ -104,12 +132,48 @@ public sealed class GogInstallerWorkflowServiceTests
                 #!/bin/sh
                 while [ "$#" -gt 0 ]; do
                     case "$1" in
+                        --list-languages) exit 0 ;;
                         --list-sizes) printf 'app/content with spaces/en/\n4 game.exe\n3 Adobe AIR.dll\n{{size}} {{manifestName}}\n'; exit ;;
                         --output-dir) /usr/bin/cp '{{hashDb}}' "$2/{{manifestName}}"; exit ;;
                     esac
                     shift
                 done
                 exit 6
+                """);
+            File.SetUnixFileMode(innoextract, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+        }
+        if (innoFallback)
+        {
+            var innoextract = temp.CreateFile("bin/innoextract", $$"""
+                #!/bin/sh
+                language=
+                dump=no
+                checksums=no
+                omit_temp=no
+                action=
+                while [ "$#" -gt 0 ]; do
+                    case "$1" in
+                        --list-languages) printf 'de-DE German\nen-US English\nes-ES Spanish\nfr-FR French\npl-PL Polish\nru-RU Russian\n'; exit ;;
+                        --language) language="$2"; shift ;;
+                        --dump) dump=yes ;;
+                        --list-checksums) checksums=yes ;;
+                        --exclude-temp) omit_temp=yes ;;
+                        --list-sizes) action=list ;;
+                        --output-dir) /usr/bin/cp '{{hashDb}}' "$2/{{manifestName}}"; exit ;;
+                    esac
+                    shift
+                done
+                [ -n "$language" ] && [ "$action" = list ] && [ "$omit_temp" = yes ] || exit 2
+                if [ "$checksums" = yes ] && [ "$dump" = yes ]; then
+                    /usr/bin/cat <<'LIST'
+                4 MD5 c8d46d341bea4fd5bff866a65ff8aea9 {app}\game.exe
+                3 MD5 3c4588116394d2164657875b7430907e {app}\Adobe AIR.dll
+                4 MD5 c8d46d341bea4fd5bff866a65ff8aea9 {tmp}\helper.exe
+                4 MD5 c8d46d341bea4fd5bff866a65ff8aea9 {commonappdata}\GOG.com\uninstall.dll
+                LIST
+                else
+                    printf '4 game.exe\n3 Adobe AIR.dll\n{{size}} {{manifestName}}\n'
+                fi
                 """);
             File.SetUnixFileMode(innoextract, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         }
@@ -127,7 +191,7 @@ public sealed class GogInstallerWorkflowServiceTests
         item.CustomFields[CustomFieldKeyHelper.StoreGameId] = "123";
         item.CustomFields[CustomFieldKeyHelper.StoreInstallPath] = install;
         GogInstallDirectorySafety.WriteMarker(install, item);
-        var packagePaths = scenario is "no-manifest" or "native-inno" ? new[] { setup } : [setup, part];
+        var packagePaths = scenario is "no-manifest" or "native-inno" || innoFallback ? new[] { setup } : [setup, part];
         var package = new GogInstallerPackage("123", GogInstallPlatform.Windows, "Game", "1",
             packagePaths.Select(path => new GogInstallerDownloadFile(
                 $"https://invalid.example/{Path.GetFileName(path)}", Path.GetFileName(path), new FileInfo(path).Length))
@@ -151,6 +215,12 @@ public sealed class GogInstallerWorkflowServiceTests
                 line.Contains("Adobe AIR.dll", StringComparison.Ordinal));
         if (scenario == "stale-reinstall")
             Assert.Contains("wrong MD5", result.ErrorMessage);
+        if (scenario == "inno-missing-recovered")
+            Assert.Contains(output, line => line.Contains("Required package file is missing: 'Adobe AIR.dll'."));
+        if (scenario == "inno-damaged-recovered")
+            Assert.Contains(output, line => line.Contains("Required package file has the wrong size or checksum: 'Adobe AIR.dll'."));
+        if (innoFallback && verified == true)
+            Assert.Contains(output, line => line.Contains("Inno-Dateiliste: 2/2"));
         if (verified == false)
             Assert.Contains("[Package files] Installation completed. File integrity was not verified.", output);
         if (scenario == "no-manifest")
