@@ -23,5 +23,18 @@ public sealed class KeyboardBindingSettingsTests
         Assert.Equal("F10", settings.KeyboardBindings.SystemMenu);
         Assert.Equal("PageUp", settings.KeyboardBindings.PreviousPage);
         Assert.Equal("PageDown", settings.KeyboardBindings.NextPage);
+        Assert.Equal("Unassigned", settings.KeyboardBindings.Alphabet);
+    }
+
+    [Theory]
+    [InlineData("Unassigned")]
+    [InlineData("F8")]
+    public void AlphabetBinding_RoundTripsWithExistingSettings(string key)
+    {
+        var settings = new AppSettings();
+        settings.KeyboardBindings.Alphabet = key;
+        var restored = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
+        Assert.Equal(key, restored.KeyboardBindings.Alphabet);
+        Assert.Equal("Enter", restored.KeyboardBindings.Select);
     }
 }

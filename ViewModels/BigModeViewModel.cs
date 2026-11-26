@@ -658,7 +658,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
                 OnVideoEncounteredError(2, player);
         };
 
-        ForceExitCommand = new AsyncRelayCommand(RequestBigModeCloseAsync);
+        ForceExitCommand = new AsyncRelayCommand(HardExitBigMode);
 
         // Subscribe to gamepad events (raised on SDL thread; handler methods must marshal if they touch UI state)
         _gamepadService.OnDirectionStateChanged += OnGamepadDirectionStateChanged;
@@ -668,6 +668,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         _gamepadService.OnHome += OnGamepadHome;
         _gamepadService.OnSystemMenu += OnGamepadSystemMenu;
         _gamepadService.OnPageStateChanged += OnGamepadPageStateChanged;
+        _gamepadService.OnAlphabet += OnGamepadAlphabet;
 
         InitializeNavigation();
 

@@ -537,12 +537,9 @@ public partial class MainWindowViewModel : ViewModelBase
         // Route the configured exit action globally: only act if BigMode is actually active.
         _onControllerExitRequested = () =>
         {
-            // SDL callback thread -> always marshal to UI thread
-            UiThreadHelper.Post(() =>
-            {
-                _lastControllerExitHandledUtc = DateTime.UtcNow;
-                _bigModeSession.ActiveViewModel?.ForceExitCommand.Execute(null);
-            });
+            // Capture this session and its input generation before entering the UI queue.
+            _bigModeSession.ActiveViewModel?.DispatchControllerExit(
+                () => _lastControllerExitHandledUtc = DateTime.UtcNow);
         };
         _gamepadService.OnExitBigMode += _onControllerExitRequested;
 

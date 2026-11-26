@@ -8,17 +8,38 @@ namespace Retromind.ViewModels;
 public partial class BigModeViewModel
 {
     private readonly HashSet<Key> _keyboardScrollKeys = [];
+    private readonly HashSet<Key> _pressedKeyboardKeys = [];
+    private readonly HashSet<Key> _blockedKeyboardKeys = [];
 
     public bool HandleKeyboardKeyDown(Key key, KeyModifiers modifiers)
     {
+        _pressedKeyboardKeys.Add(key);
+        if (_blockedKeyboardKeys.Contains(key)) return true;
         if (modifiers != KeyModifiers.None ||
             !KeyboardBindingHelper.TryResolveAction(_settings.KeyboardBindings, key, out var action))
         {
-            return false;
+            return InputContext == BigModeInputContext.Alphabet;
         }
 
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return true;
+
+        if (InputContext == BigModeInputContext.Alphabet)
+        {
+            switch (action)
+            {
+                case BigModeKeyboardAction.NavigateUp: NavigateAlphabet(GamepadService.GamepadDirection.Up); break;
+                case BigModeKeyboardAction.NavigateDown: NavigateAlphabet(GamepadService.GamepadDirection.Down); break;
+                case BigModeKeyboardAction.NavigateLeft: NavigateAlphabet(GamepadService.GamepadDirection.Left); break;
+                case BigModeKeyboardAction.NavigateRight: NavigateAlphabet(GamepadService.GamepadDirection.Right); break;
+                case BigModeKeyboardAction.Select: ConfirmAlphabetNavigation(); break;
+                case BigModeKeyboardAction.Back:
+                case BigModeKeyboardAction.ExitBigMode:
+                case BigModeKeyboardAction.Alphabet: CloseAlphabetNavigation(); break;
+                case BigModeKeyboardAction.SystemMenu: ToggleSystemMenu(); break;
+            }
+            return true;
+        }
 
         if (action is (BigModeKeyboardAction.NavigateUp or BigModeKeyboardAction.NavigateDown or
             BigModeKeyboardAction.NavigateLeft or BigModeKeyboardAction.NavigateRight) &&
@@ -70,6 +91,9 @@ public partial class BigModeViewModel
             case BigModeKeyboardAction.NextPage:
                 NavigatePage(1);
                 break;
+            case BigModeKeyboardAction.Alphabet:
+                OpenAlphabetNavigation();
+                break;
         }
 
         return true;
@@ -77,13 +101,15 @@ public partial class BigModeViewModel
 
     public bool HandleKeyboardKeyUp(Key key)
     {
+        _pressedKeyboardKeys.Remove(key);
+        var wasBlocked = _blockedKeyboardKeys.Remove(key);
         if (!KeyboardBindingHelper.TryResolveAction(_settings.KeyboardBindings, key, out var action) ||
             action is not (BigModeKeyboardAction.NavigateUp or
                 BigModeKeyboardAction.NavigateDown or
                 BigModeKeyboardAction.NavigateLeft or
                 BigModeKeyboardAction.NavigateRight))
         {
-            return false;
+            return wasBlocked || InputContext == BigModeInputContext.Alphabet;
         }
 
         _keyboardScrollKeys.Remove(key);

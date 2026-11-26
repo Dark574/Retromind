@@ -10,6 +10,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 ## [0.2.5-alpha] - unreleased
 
 ### Added
+- jump to a letter or international title group in BigMode through a shared alphabet grid, available from the system menu or a custom controller or keyboard assignment
 - browse large BigMode libraries faster by holding a direction or page button, with progressive steps and predictable stops at list edges
 - keep Windows user folders and game saves inside newly managed Wine and Proton prefixes, with the same profile for GOG setup, Winetricks and game launches
 - show the planned Wine or Proton prefix, detected layout and external Windows profile folders in the launch log

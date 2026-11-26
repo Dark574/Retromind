@@ -19,4 +19,5 @@ public sealed class KeyboardBindingSettings
     public string SystemMenu { get; set; } = "F10";
     public string PreviousPage { get; set; } = "PageUp";
     public string NextPage { get; set; } = "PageDown";
+    public string Alphabet { get; set; } = "Unassigned";
 }

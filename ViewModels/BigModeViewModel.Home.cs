@@ -127,6 +127,7 @@ public partial class BigModeViewModel
             return;
 
         ResetAttractIdleTimer();
+        CloseAlphabetNavigation(resumePreview: false);
         CloseAchievementsOverlay();
         EndNavigationScroll(resumePreview: false);
 
@@ -255,6 +256,8 @@ public partial class BigModeViewModel
     {
         if (_isLaunching)
             return;
+
+        if (IsAlphabetNavigationOpen) { NavigateAlphabet(direction); return; }
 
         if (IsSystemMenuOpen)
         {

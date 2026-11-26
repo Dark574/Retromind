@@ -23,7 +23,8 @@ internal enum KeyboardBindingTarget
     Home,
     SystemMenu,
     PreviousPage,
-    NextPage
+    NextPage,
+    Alphabet
 }
 
 public sealed partial class KeyboardBindingRowViewModel : ObservableObject
@@ -105,6 +106,7 @@ public partial class SettingsViewModel
         Add(KeyboardBindingTarget.SystemMenu, T("Settings_ControllerSystemMenu", "System menu"), bindings.SystemMenu, Key.F10);
         Add(KeyboardBindingTarget.PreviousPage, T("Settings_ControllerPreviousPage", "Previous page"), bindings.PreviousPage, Key.PageUp);
         Add(KeyboardBindingTarget.NextPage, T("Settings_ControllerNextPage", "Next page"), bindings.NextPage, Key.PageDown);
+        Add(KeyboardBindingTarget.Alphabet, T("BigMode_AlphabetTitle", "Alphabet selection"), bindings.Alphabet, Key.None);
 
         void Add(
             KeyboardBindingTarget target,
@@ -238,6 +240,9 @@ public partial class SettingsViewModel
                     break;
                 case KeyboardBindingTarget.NextPage:
                     bindings.NextPage = storedKey;
+                    break;
+                case KeyboardBindingTarget.Alphabet:
+                    bindings.Alphabet = storedKey;
                     break;
             }
         }

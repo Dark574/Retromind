@@ -9,6 +9,8 @@ namespace Retromind.Helpers;
 public static class MediaSortHelper
 {
     private static bool _ignoreLeadingArticlesInTitleSort;
+    internal static bool IgnoreLeadingArticlesInTitleSort => _ignoreLeadingArticlesInTitleSort;
+    internal static event Action? TitleSortRuleChanged;
 
     private static readonly Dictionary<string, string[]> LeadingArticlesByLanguage = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -30,7 +32,9 @@ public static class MediaSortHelper
 
     public static void SetIgnoreLeadingArticlesInTitleSort(bool enabled)
     {
+        if (_ignoreLeadingArticlesInTitleSort == enabled) return;
         _ignoreLeadingArticlesInTitleSort = enabled;
+        TitleSortRuleChanged?.Invoke();
     }
 
     public static int CompareForDisplayOrder(MediaItem? left, MediaItem? right)
@@ -58,7 +62,7 @@ public static class MediaSortHelper
         return string.Compare(left.Id, right.Id, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static string GetPrimarySortKey(MediaItem item)
+    internal static string GetPrimarySortKey(MediaItem item)
     {
         if (item == null)
             return string.Empty;

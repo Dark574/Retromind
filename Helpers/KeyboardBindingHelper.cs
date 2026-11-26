@@ -18,7 +18,8 @@ internal enum BigModeKeyboardAction
     Home,
     SystemMenu,
     PreviousPage,
-    NextPage
+    NextPage,
+    Alphabet
 }
 
 internal static class KeyboardBindingHelper
@@ -30,6 +31,7 @@ internal static class KeyboardBindingHelper
     {
         bindings ??= new KeyboardBindingSettings();
 
+        if (key == Key.None) { action = default; return false; }
         if (Matches(bindings.NavigateUp, Key.Up, key))
             action = BigModeKeyboardAction.NavigateUp;
         else if (Matches(bindings.NavigateDown, Key.Down, key))
@@ -55,6 +57,8 @@ internal static class KeyboardBindingHelper
             action = BigModeKeyboardAction.PreviousPage;
         else if (Matches(bindings.NextPage, Key.PageDown, key))
             action = BigModeKeyboardAction.NextPage;
+        else if (Matches(bindings.Alphabet, Key.None, key))
+            action = BigModeKeyboardAction.Alphabet;
         else
         {
             action = default;
@@ -65,17 +69,19 @@ internal static class KeyboardBindingHelper
     }
 
     public static Key Resolve(string? storedKey, Key fallback) =>
-        Enum.TryParse<Key>(storedKey, ignoreCase: true, out var key) && key != Key.None
+        string.Equals(storedKey, "Unassigned", StringComparison.OrdinalIgnoreCase) ? Key.None :
+        Enum.TryParse<Key>(storedKey, ignoreCase: true, out var key) && key != Key.None && Enum.IsDefined(key)
             ? key
             : fallback;
 
-    public static string ToStorage(Key key) => key.ToString();
+    public static string ToStorage(Key key) => key == Key.None ? "Unassigned" : key.ToString();
 
     public static string Format(string? storedKey, Key fallback) =>
         Format(Resolve(storedKey, fallback));
 
     public static string Format(Key key) => key switch
     {
+        Key.None => T("Input_Unassigned", "Unassigned"),
         Key.Up => "↑",
         Key.Down => "↓",
         Key.Left => "←",

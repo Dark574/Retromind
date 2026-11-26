@@ -32,6 +32,7 @@ public sealed class GamepadService : IDisposable
     public event Action? OnSystemMenu;
     public event Action? OnPreviousPage;
     public event Action? OnNextPage;
+    public event Action? OnAlphabet;
     public event Action? OnSessionExitRequested;
     public event Action<ControllerButton>? OnButtonPressed;
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
@@ -90,6 +91,7 @@ public sealed class GamepadService : IDisposable
     private int _publishedDirections;
     // Remember the semantic action at press time, so release also works if bindings change.
     private readonly Dictionary<(int Instance, ControllerButton Button), int> _pageSources = new();
+    private readonly HashSet<(int Instance, ControllerButton Button)> _heldActionButtons = new();
     private int _pressedPages;
     private int _publishedPages;
     private readonly object _uiInputGate = new();
@@ -345,6 +347,7 @@ public sealed class GamepadService : IDisposable
     {
         _inputGeneration++;
         _sessionExitHoldStates.Clear();
+        _heldActionButtons.Clear();
         _triggerStates.Clear();
         _directionStates.Clear();
         UpdateAggregatedDirections();
@@ -514,7 +517,10 @@ public sealed class GamepadService : IDisposable
                 if (isPressed)
                     QueueInputEvent(() => OnButtonPressed?.Invoke(button));
                 else
+                {
+                    _heldActionButtons.Remove((sdlEvent.Cbutton.Which, button));
                     ReleasePageSource(sdlEvent.Cbutton.Which, button);
+                }
             }
             else if (eventType == EventType.Controlleraxismotion &&
                      TryUpdateTriggerState(sdlEvent.Caxis, out var trigger, out var isPressed))
@@ -527,7 +533,10 @@ public sealed class GamepadService : IDisposable
                         RaiseMappedAction(trigger, sdlEvent.Caxis.Which);
                 }
                 else
+                {
+                    _heldActionButtons.Remove((sdlEvent.Caxis.Which, trigger));
                     ReleasePageSource(sdlEvent.Caxis.Which, trigger);
+                }
             }
 
             if (_uiInputEnabled)
@@ -566,6 +575,7 @@ public sealed class GamepadService : IDisposable
             _sessionExitHoldStates.Remove(instanceId);
             _triggerStates.Remove(instanceId);
             _directionStates.Remove(instanceId);
+            _heldActionButtons.RemoveWhere(source => source.Instance == instanceId);
             UpdateAggregatedDirections();
             foreach (var source in new List<(int Instance, ControllerButton Button)>(_pageSources.Keys))
                 if (source.Instance == instanceId) _pageSources.Remove(source);
@@ -779,6 +789,7 @@ public sealed class GamepadService : IDisposable
 
     private void RaiseMappedAction(ControllerButton button, int instanceId)
     {
+        if (!_heldActionButtons.Add((instanceId, button))) return;
         var bindings = _settings.ControllerBindings;
         if (button == bindings.Select)
             QueueInputEvent(() => OnSelect?.Invoke(), uiOnly: true);
@@ -796,6 +807,15 @@ public sealed class GamepadService : IDisposable
             PressPageSource(instanceId, button, -1);
         else if (button == bindings.NextPage)
             PressPageSource(instanceId, button, 1);
+        else if (button == bindings.Alphabet)
+            QueueInputEvent(() => OnAlphabet?.Invoke(), uiOnly: true);
+    }
+
+    // Consume queued presses at a UI context boundary, retaining held source
+    // states so they cannot become fresh presses in the incoming context.
+    internal void DiscardPendingUiInput()
+    {
+        lock (_uiInputGate) _inputGeneration++;
     }
 
     private void UpdateSessionExitHoldState(int instanceId, ControllerButton button, bool isPressed)

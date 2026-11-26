@@ -1953,4 +1953,8 @@ Imported: {3} · No safe match: {4} · Skipped: {5} · Failed: {6}</value></data
 
 Use it for this GOG installation?</value>
   </data>
+  <data name="BigMode_AlphabetTitle" xml:space="preserve"><value>Alphabet selection</value></data>
+  <data name="BigMode_AlphabetMenuHint" xml:space="preserve"><value>Jump to a letter in the current list</value></data>
+  <data name="BigMode_AlphabetControls" xml:space="preserve"><value>D-pad / arrows · Navigate    {0} / {1} · Jump    {2} / {3} · Back</value></data>
+  <data name="Input_Unassigned" xml:space="preserve"><value>Unassigned</value></data>
 </root>

@@ -994,6 +994,62 @@ Acceleration and page repeats apply only to the library. Home and achievements r
 directional repeat steps and one-shot page behavior; the system menu retains its one-shot navigation.
 No theme metadata, XAML, cache budgets, input assignments or visible settings are added.
 
+### Alphabet navigation and modal input (Stage 4)
+
+The shared `BigModeHostView` owns a compact seven-column alphabet grid above every library theme. Its
+896-unit panel scales down with a `Viewbox` on smaller screens; it uses the system menu's opaque dark
+surface, blue selection and dimmed disabled cells, with no animation, title preview or counts. Themes
+need no new metadata, bindings or controller logic. Alphabet navigation is library-only; the system menu
+disables its entry on Home. It is also available through the configurable `Alphabet` action in the
+existing Controls settings and layout overview. Both controller and keyboard defaults are unassigned.
+
+`BigModeAlphabetIndex` builds 37 cells in one pass over the current frame's **visible** entries, retaining
+only the first target index/key per group. It never sorts the frame, visits descendants or reads assets.
+Media keys reuse `MediaSortHelper.GetPrimarySortKey` (SortTitle before Title, the same locale-aware
+leading-article rule); category keys use their names, matching their existing name/manual ordering.
+Repeated and non-contiguous groups always jump to the first occurrence in the actual visible order,
+including in mixed and non-alphabetical lists. Accents and umlauts fold into A–Z, with ß→S, Æ→A,
+Œ/Ø→O, Ł→L, Ð/Đ→D and Þ→T. Unicode numbers share `0–9`; empty, punctuation and symbol prefixes share
+`#`. Greek, Cyrillic, Han, kana, Hangul, Arabic, Hebrew and Devanagari each have one compact group;
+other Unicode letters remain reachable through `…`. This is grouping, not transliteration or searching.
+
+Horizontal movement wraps through available cells in display order. Vertical movement skips empty
+rows and chooses the closest available column in the next row (leftmost on ties), wrapping at grid
+edges. The current entry's effective group is preselected. Empty lists show a disabled grid and can be
+canceled. Grid input only changes the overlay's selection. Confirm flushes pending edits, rebuilds if
+needed and validates the target via the existing key/index selection API; only that target is selected.
+A removed group cannot silently turn a confirm into a jump to another group.
+
+One index is cached for the current frame. Entry-list replacement, observed Name/Title/SortTitle changes
+and article-rule changes invalidate it; open, navigation and confirm also check the current culture/rule.
+Updates are coalesced on the UI dispatcher. Topology/protection edits retain the existing explicit
+snapshot refresh boundary, so parental filtering is authoritative. Ordinary grid movement neither
+rescans the frame nor traverses the library. Input cleanup precedes target publication, preserving
+the target's new preload batch. Cancel changes no library selection; preview debounce resumes normally,
+retaining the same fallback path/player and the Stage 1 failed-resume recovery behavior.
+
+`BigModeInputContext` names Library, Home, Achievements, Alphabet and SystemMenu without introducing
+an overlay framework. SystemMenu has priority and dismisses Alphabet; Alphabet is opened only in the
+library (including from SystemMenu), and existing achievements must be closed first. Direction, page,
+select, back and exit routing share this ownership and the existing navigation input generation.
+Opening/closing contexts consume the current holds through `EndNavigationScroll`: repeat owners stop,
+pending SDL UI actions are invalidated while their held sources remain consumed until release, and
+held keyboard keys are blocked until key-up. SDL action buttons now publish once per physical hold;
+direction/page aggregation, source thresholds and stop-session behavior remain unchanged. All queued
+controller actions, including the main window's global exit route, capture the VM generation/session.
+Alphabet consumes unmapped keyboard input too, preventing underlying list type-ahead or shortcuts.
+
+New controller `Unassigned = -1` preserves every previous numeric button value. Keyboard storage uses
+an explicit `Unassigned` marker, keeping legacy missing/invalid/`None` fallback behavior intact. The
+existing capture/conflict-swap/save/reset workflow handles the optional action; swapping an occupied
+binding into an unassigned row explicitly unassigns the displaced action instead of restoring its default.
+
+Alphabet direction holds use the existing 350/80 ms repeat timer with one cell per tick. Library
+acceleration profiles remain unchanged. Page, launch, Home and achievement actions cannot leak into
+the library from the grid. Focus/input loss and controller removal end holds without choosing a target;
+BigMode teardown closes the overlay. Attract Mode and its delayed work are suppressed while Alphabet
+is open, and closing starts a fresh idle interval. Search and the on-screen keyboard remain unimplemented.
+
 ## Search architecture
 Global search uses a dedicated `SearchAreaViewModel`:
 - debounced, cancelable background evaluation

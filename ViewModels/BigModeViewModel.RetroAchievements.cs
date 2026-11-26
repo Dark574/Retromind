@@ -131,6 +131,7 @@ public partial class BigModeViewModel
         if (!CanOpenAchievementsOverlay)
             return;
 
+        CloseAlphabetNavigation(resumePreview: false);
         ResetAttractIdleTimer();
         EndNavigationScroll(resumePreview: false);
         CancelPreviewDebounce();

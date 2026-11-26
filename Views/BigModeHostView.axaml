@@ -10,6 +10,32 @@
              helpers:AsyncImageHelper.UseSerialDecode="True">
 
     <UserControl.Styles>
+        <Style Selector="ListBox.alphabet-grid">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.alphabet-grid ListBoxItem">
+            <Setter Property="IsEnabled" Value="{ReflectionBinding IsAvailable}" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="Height" Value="72" />
+            <Setter Property="Margin" Value="4" />
+            <Setter Property="Padding" Value="4" />
+            <Setter Property="Background" Value="#50161C28" />
+            <Setter Property="BorderBrush" Value="#35FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="ListBox.alphabet-grid ListBoxItem:disabled">
+            <Setter Property="Opacity" Value="0.25" />
+        </Style>
+        <Style Selector="ListBox.alphabet-grid ListBoxItem:selected">
+            <Setter Property="Background" Value="#70305E91" />
+            <Setter Property="BorderBrush" Value="#9CB9FF" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
         <Style Selector="ListBox.ra-achievement-grid">
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderThickness" Value="0" />
@@ -50,6 +76,12 @@
             <Setter Property="Background" Value="#70305E91" />
             <Setter Property="BorderBrush" Value="#7BA3FF" />
             <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="ListBox.system-menu-main ListBoxItem">
+            <Setter Property="IsEnabled" Value="{ReflectionBinding IsEnabled}" />
+        </Style>
+        <Style Selector="ListBox.system-menu-main ListBoxItem:disabled">
+            <Setter Property="Opacity" Value="0.35" />
         </Style>
     </UserControl.Styles>
 
@@ -139,6 +171,34 @@
                        FontSize="12"
                        FontWeight="SemiBold" />
         </Border>
+
+        <!-- Host-owned alphabet navigation. The fixed stage scales down on smaller displays. -->
+        <Grid x:Name="AlphabetOverlay" Background="#B0070910" IsVisible="{Binding IsAlphabetNavigationOpen}">
+            <Viewbox Margin="32" Stretch="Uniform" StretchDirection="DownOnly"
+                     HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Border Width="896" Padding="32" Background="#FA0F141E"
+                        BorderBrush="#607BA3FF" BorderThickness="1" CornerRadius="14">
+                    <StackPanel Spacing="20">
+                        <TextBlock Text="{Binding AlphabetTitle}" FontSize="30" FontWeight="SemiBold" Foreground="White" />
+                        <ListBox x:Name="AlphabetGrid" Classes="alphabet-grid" Focusable="False"
+                                 ItemsSource="{Binding AlphabetGroups}"
+                                 SelectedIndex="{Binding SelectedAlphabetGroupIndex, Mode=TwoWay}"
+                                 AutoScrollToSelectedItem="False"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate><UniformGrid Columns="{Binding AlphabetColumns}" /></ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="nav:BigModeAlphabetGroup">
+                                    <TextBlock Text="{Binding Label}" Foreground="#EDF2FF" FontSize="30" FontWeight="SemiBold" />
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{Binding AlphabetControlsText}" Foreground="#BFCBE0" FontSize="17" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+            </Viewbox>
+        </Grid>
 
         <!-- Theme-independent achievement detail overlay. -->
         <Grid Background="#E6070910"
@@ -324,7 +384,7 @@
                                FontWeight="Bold" />
 
                     <ListBox Grid.Row="1"
-                             Classes="system-menu"
+                             Classes="system-menu system-menu-main"
                              ItemsSource="{Binding SystemMenuEntries}"
                              SelectedItem="{Binding SelectedSystemMenuEntry, Mode=TwoWay}"
                              IsVisible="{Binding IsSystemMenuMainPage}">

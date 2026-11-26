@@ -16,6 +16,7 @@ public static class ControllerButtonDisplayHelper
 
     public static string Format(ControllerButton button) => button switch
     {
+        ControllerButton.Unassigned => T("Input_Unassigned", "Unassigned"),
         ControllerButton.South => T("ControllerButton_South", "A / Cross (bottom)"),
         ControllerButton.East => T("ControllerButton_East", "B / Circle (right)"),
         ControllerButton.West => T("ControllerButton_West", "X / Square (left)"),

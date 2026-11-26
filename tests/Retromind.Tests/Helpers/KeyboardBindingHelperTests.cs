@@ -42,4 +42,19 @@ public sealed class KeyboardBindingHelperTests
         Assert.Equal(Key.PageUp, KeyboardBindingHelper.Resolve("not-a-key", Key.PageUp));
         Assert.Equal(Key.PageDown, KeyboardBindingHelper.Resolve(null, Key.PageDown));
     }
+
+    [Fact]
+    public void OptionalAlphabetBinding_ResolvesOnlyWhenConfigured()
+    {
+        var bindings = new KeyboardBindingSettings();
+        Assert.False(KeyboardBindingHelper.TryResolveAction(bindings, Key.None, out _));
+        Assert.False(KeyboardBindingHelper.TryResolveAction(bindings, Key.F8, out _));
+        bindings.Alphabet = "F8";
+        Assert.True(KeyboardBindingHelper.TryResolveAction(bindings, Key.F8, out var action));
+        Assert.Equal(BigModeKeyboardAction.Alphabet, action);
+        bindings.Select = KeyboardBindingHelper.ToStorage(Key.None);
+        Assert.Equal(Key.None, KeyboardBindingHelper.Resolve(bindings.Select, Key.Enter));
+        Assert.Equal(Key.Enter, KeyboardBindingHelper.Resolve("None", Key.Enter)); // Legacy invalid key fallback remains intact.
+        Assert.Equal(Key.None, KeyboardBindingHelper.Resolve("invalid", Key.None));
+    }
 }

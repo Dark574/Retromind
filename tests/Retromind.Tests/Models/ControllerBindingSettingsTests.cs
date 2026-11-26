@@ -18,5 +18,20 @@ public sealed class ControllerBindingSettingsTests
         Assert.Equal(ControllerButton.RightShoulder, settings.ControllerBindings.NextPage);
         Assert.Equal(ControllerButton.LeftShoulder, settings.ControllerBindings.SessionStopFirst);
         Assert.Equal(ControllerButton.RightShoulder, settings.ControllerBindings.SessionStopSecond);
+        Assert.Equal(ControllerButton.Unassigned, settings.ControllerBindings.Alphabet);
+    }
+
+    [Theory]
+    [InlineData(ControllerButton.Unassigned)]
+    [InlineData(ControllerButton.RightStick)]
+    [InlineData(ControllerButton.LeftTrigger)]
+    public void AlphabetBinding_RoundTripsWithoutChangingOldAssignments(ControllerButton button)
+    {
+        var settings = new AppSettings();
+        settings.ControllerBindings.Alphabet = button;
+        var restored = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
+        Assert.Equal(button, restored.ControllerBindings.Alphabet);
+        Assert.Equal(ControllerButton.South, restored.ControllerBindings.Select);
+        Assert.Equal(ControllerButton.LeftShoulder, restored.ControllerBindings.PreviousPage);
     }
 }

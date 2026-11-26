@@ -62,6 +62,7 @@ public partial class BigModeViewModel
         _navigation = new BigModeNavigationSession(_rootNodes, _parentalFilterActive);
         BigModeNavigationPersistence.Restore(_navigation, _settings);
         _navigation.Changed += OnNavigationChanged;
+        MediaSortHelper.TitleSortRuleChanged += OnAlphabetSortRuleChanged;
         SynchronizeNavigation();
         _libraryObserver = new BigModeLibraryObserver(_rootNodes, () =>
             Dispatcher.UIThread.Post(FlushNavigationChanges, DispatcherPriority.Background), OnLibraryPresentationChanged);
@@ -88,6 +89,7 @@ public partial class BigModeViewModel
 
     private void OnLibraryPresentationChanged(INotifyPropertyChanged model, string? property)
     {
+        if (property is null or "Name" or "Title" or "SortTitle") InvalidateAlphabetIndex();
         if (_refreshingPresentation || _synchronizingNavigation || _disposed != 0) return;
         // Invalidate even an unselected edited entry: it may already have a
         // positive path cached from an earlier visit.
@@ -163,6 +165,8 @@ public partial class BigModeViewModel
             if (newLevel || ownerChanged) UpdateNavigationBreadcrumb();
             if (newLevel)
             {
+                _alphabetIndex = null;
+                _alphabetEntries = null;
                 ClearNodeFallbackOverrides(Items);
                 _projectedEntries = frame.Entries;
                 CurrentCategories = new(frame.Entries.OfType<BigModeNodeNavigationEntry>().Select(entry => entry.Node));
@@ -184,7 +188,11 @@ public partial class BigModeViewModel
             if (newLevel || ownerChanged) ApplyNodeFallbackOverrides();
             // Resolve a paused preview against the final incoming selection.
             // Do this before creating its new carousel preload requests.
-            if (ownerChanged) EndNavigationScroll(resumePreview: true);
+            if (ownerChanged)
+            {
+                CloseAlphabetNavigation(resumePreview: false);
+                EndNavigationScroll(resumePreview: true);
+            }
             if (newLevel) { OnPropertyChanged(nameof(NavigationEntries)); OnPropertyChanged(nameof(HasChildNodes)); }
             UpdateGameCounters();
             UpdateCircularItems();
@@ -193,8 +201,12 @@ public partial class BigModeViewModel
             UpdateNavigationWheel();
             if (!IsHomeActive)
             {
-                StopVideoIfPreviewPathChanged(ResolvePreviewVideoPath());
-                ScheduleRetroAchievementsProgress(SelectedItem);
+                if (IsAlphabetNavigationOpen) _alphabetSelectionChanged = true;
+                else
+                {
+                    StopVideoIfPreviewPathChanged(ResolvePreviewVideoPath());
+                    ScheduleRetroAchievementsProgress(SelectedItem);
+                }
                 NotifyHomeSelectionPropertiesChanged();
             }
             OnPropertyChanged(nameof(SelectedEntryIndex));
@@ -203,6 +215,7 @@ public partial class BigModeViewModel
             OnPropertyChanged(nameof(IsNavigationEmpty));
         }
         finally { _synchronizingNavigation = false; }
+        if (IsAlphabetNavigationOpen) RefreshAlphabetGroups();
     }
 
     private void UpdateNavigationBreadcrumb()
@@ -241,6 +254,7 @@ public partial class BigModeViewModel
 
     private void DisposeNavigation()
     {
+        MediaSortHelper.TitleSortRuleChanged -= OnAlphabetSortRuleChanged;
         _libraryObserver?.Dispose();
         if (_navigation != null) _navigation.Changed -= OnNavigationChanged;
     }

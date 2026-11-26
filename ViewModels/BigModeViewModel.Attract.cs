@@ -89,11 +89,11 @@ public partial class BigModeViewModel
         if (!_theme.AttractModeEnabled || _theme.AttractModeIdleInterval is null)
             return;
 
-        if (_isLaunching || IsSystemMenuOpen || IsAchievementsOverlayOpen)
+        if (_isLaunching || IsSystemMenuOpen || IsAchievementsOverlayOpen || IsAlphabetNavigationOpen)
             return;
 
         // Mixed frames can begin on a node; attract only visits their direct visible media.
-        if (IsHomeActive || _mediaEntryPositions.Count == 0)
+        if (IsHomeActive || IsAlphabetNavigationOpen || _mediaEntryPositions.Count == 0)
         {
             _attractStepsExecuted = 0;
             return;
@@ -134,7 +134,7 @@ public partial class BigModeViewModel
         if (Volatile.Read(ref _disposed) == 1)
             return;
 
-        if (IsHomeActive || _mediaEntryPositions.Count == 0)
+        if (IsHomeActive || IsAlphabetNavigationOpen || _mediaEntryPositions.Count == 0)
             return;
 
         var count = _mediaEntryPositions.Count;
@@ -150,7 +150,7 @@ public partial class BigModeViewModel
         var generation = Interlocked.Increment(ref _attractAnimationGeneration);
 
         bool IsCurrent() => generation == Volatile.Read(ref _attractAnimationGeneration) &&
-            Volatile.Read(ref _disposed) == 0 && !IsHomeActive && !_isLaunching &&
+            Volatile.Read(ref _disposed) == 0 && !IsHomeActive && !_isLaunching && !IsAlphabetNavigationOpen &&
             ReferenceEquals(entries, _navigation.Current.Entries) && libraryVersion == _navigation.LibraryVersion;
         try
         {

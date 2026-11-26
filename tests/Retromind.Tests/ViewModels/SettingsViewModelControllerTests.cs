@@ -152,6 +152,43 @@ public sealed class SettingsViewModelControllerTests
         Assert.Equal(Key.K, details.Key);
     }
 
+    [Fact]
+    public async Task AlphabetAssignments_ReuseConflictSwapsAndPersistExplicitUnassignedValues()
+    {
+        var settings = new AppSettings();
+        using var vm = CreateViewModel(settings);
+        var controller = Assert.Single(vm.ControllerActionBindings, row => row.Target == ControllerBindingTarget.Alphabet);
+        var keyboard = Assert.Single(vm.KeyboardBindings, row => row.Target == KeyboardBindingTarget.Alphabet);
+        Assert.Equal(ControllerButton.Unassigned, controller.Button);
+        Assert.Equal(Key.None, keyboard.Key);
+        vm.CompleteControllerCapture(controller, ControllerButton.South);
+        vm.CompleteKeyboardCapture(keyboard, Key.Enter);
+        Assert.Equal(ControllerButton.Unassigned, vm.ControllerActionBindings[0].Button);
+        Assert.Equal(Key.None, Assert.Single(vm.KeyboardBindings, row => row.Target == KeyboardBindingTarget.Select).Key);
+        Assert.Equal(ControllerButton.Unassigned, settings.ControllerBindings.Alphabet); // Detached working copy.
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal(ControllerButton.South, settings.ControllerBindings.Alphabet);
+        Assert.Equal(ControllerButton.Unassigned, settings.ControllerBindings.Select);
+        Assert.Equal(Key.Enter, KeyboardBindingHelper.Resolve(settings.KeyboardBindings.Alphabet, Key.None));
+        Assert.Equal(Key.None, KeyboardBindingHelper.Resolve(settings.KeyboardBindings.Select, Key.Enter));
+        Assert.True(KeyboardBindingHelper.TryResolveAction(settings.KeyboardBindings, Key.Enter, out var action));
+        Assert.Equal(BigModeKeyboardAction.Alphabet, action);
+    }
+
+    [Fact]
+    public async Task ResetBindings_LeavesAlphabetUnassigned()
+    {
+        var settings = new AppSettings();
+        settings.ControllerBindings.Alphabet = ControllerButton.RightStick;
+        settings.KeyboardBindings.Alphabet = "F8";
+        using var vm = CreateViewModel(settings);
+        vm.ResetControllerBindingsCommand.Execute(null);
+        vm.ResetKeyboardBindingsCommand.Execute(null);
+        await vm.SaveCommand.ExecuteAsync(null);
+        Assert.Equal(ControllerButton.Unassigned, settings.ControllerBindings.Alphabet);
+        Assert.Equal("Unassigned", settings.KeyboardBindings.Alphabet);
+    }
+
     private static SettingsViewModel CreateViewModel(AppSettings targetSettings)
     {
         var httpClient = new HttpClient(new StubHandler());

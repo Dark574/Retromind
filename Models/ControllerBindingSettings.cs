@@ -6,6 +6,7 @@ namespace Retromind.Models;
 /// </summary>
 public enum ControllerButton
 {
+    Unassigned = -1,
     South = 0,
     East = 1,
     West = 2,
@@ -41,6 +42,7 @@ public sealed class ControllerBindingSettings
     public ControllerButton SystemMenu { get; set; } = ControllerButton.Start;
     public ControllerButton PreviousPage { get; set; } = ControllerButton.LeftShoulder;
     public ControllerButton NextPage { get; set; } = ControllerButton.RightShoulder;
+    public ControllerButton Alphabet { get; set; } = ControllerButton.Unassigned;
     public ControllerButton SessionStopFirst { get; set; } = ControllerButton.LeftShoulder;
     public ControllerButton SessionStopSecond { get; set; } = ControllerButton.RightShoulder;
 }

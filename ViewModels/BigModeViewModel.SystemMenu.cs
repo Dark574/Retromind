@@ -15,7 +15,8 @@ public enum BigModeSystemMenuEntryKind
     Resume,
     ControllerBindings,
     ExitBigMode,
-    ExitApplication
+    ExitApplication,
+    Alphabet
 }
 
 public enum BigModeSystemMenuPage
@@ -28,7 +29,8 @@ public enum BigModeSystemMenuPage
 public sealed record BigModeSystemMenuEntryViewModel(
     BigModeSystemMenuEntryKind Kind,
     string Title,
-    string Description);
+    string Description,
+    bool IsEnabled = true);
 
 public sealed record BigModeControllerBindingInfoViewModel(string Action, string Input);
 
@@ -86,6 +88,10 @@ public partial class BigModeViewModel
             T("BigMode_SystemMenuResume", "Resume"),
             T("BigMode_SystemMenuResumeHint", "Return to BigMode")));
         SystemMenuEntries.Add(new BigModeSystemMenuEntryViewModel(
+            BigModeSystemMenuEntryKind.Alphabet,
+            AlphabetTitle,
+            T("BigMode_AlphabetMenuHint", "Jump to a letter in the current list")));
+        SystemMenuEntries.Add(new BigModeSystemMenuEntryViewModel(
             BigModeSystemMenuEntryKind.ControllerBindings,
             T("BigMode_SystemMenuController", "Controller layout"),
             T("BigMode_SystemMenuControllerHint", "Show the current assignments")));
@@ -104,7 +110,7 @@ public partial class BigModeViewModel
         RebuildControllerBindingOverview();
     }
 
-    private void OnGamepadSystemMenu() => DispatchGamepadAction(ToggleSystemMenu);
+    private void OnGamepadSystemMenu() => DispatchGamepadInput(ToggleSystemMenu);
 
     public void ToggleSystemMenu()
     {
@@ -118,9 +124,13 @@ public partial class BigModeViewModel
         }
 
         ResetAttractIdleTimer();
+        CloseAlphabetNavigation(resumePreview: false);
         CloseAchievementsOverlay();
         EndNavigationScroll(resumePreview: true);
         RebuildControllerBindingOverview();
+        for (var i = 0; i < SystemMenuEntries.Count; i++)
+            if (SystemMenuEntries[i].Kind == BigModeSystemMenuEntryKind.Alphabet)
+                SystemMenuEntries[i] = SystemMenuEntries[i] with { IsEnabled = !IsHomeActive };
         SystemMenuPage = BigModeSystemMenuPage.Main;
         SelectedSystemMenuEntry = SystemMenuEntries.Count > 0 ? SystemMenuEntries[0] : null;
         SelectedExitConfirmationIndex = 0;
@@ -133,6 +143,7 @@ public partial class BigModeViewModel
             return false;
 
         IsSystemMenuOpen = false;
+        EndNavigationScroll(resumePreview: true);
         SystemMenuPage = BigModeSystemMenuPage.Main;
         SelectedExitConfirmationIndex = 0;
         ResetAttractIdleTimer();
@@ -167,7 +178,13 @@ public partial class BigModeViewModel
         var delta = direction is GamepadService.GamepadDirection.Up or GamepadService.GamepadDirection.Left
             ? -1
             : 1;
-        index = (index + delta + SystemMenuEntries.Count) % SystemMenuEntries.Count;
+        for (var step = 1; step <= SystemMenuEntries.Count; step++)
+        {
+            var next = (index + delta * step + SystemMenuEntries.Count) % SystemMenuEntries.Count;
+            if (!SystemMenuEntries[next].IsEnabled) continue;
+            index = next;
+            break;
+        }
         SelectedSystemMenuEntry = SystemMenuEntries[index];
     }
 
@@ -175,6 +192,8 @@ public partial class BigModeViewModel
     {
         if (!IsSystemMenuOpen)
             return;
+
+        if (SystemMenuPage == BigModeSystemMenuPage.Main && SelectedSystemMenuEntry?.IsEnabled == false) return;
 
         PlaySound(_theme.Sounds.Confirm);
 
@@ -200,6 +219,9 @@ public partial class BigModeViewModel
         {
             case BigModeSystemMenuEntryKind.Resume:
                 CloseSystemMenu();
+                break;
+            case BigModeSystemMenuEntryKind.Alphabet:
+                OpenAlphabetNavigation();
                 break;
             case BigModeSystemMenuEntryKind.ControllerBindings:
                 SystemMenuPage = BigModeSystemMenuPage.ControllerBindings;
@@ -272,6 +294,7 @@ public partial class BigModeViewModel
             T("BigMode_ControllerNavigateInput", "D-pad / left stick")));
         Add(T("Settings_ControllerPreviousPage", "Previous page"), bindings.PreviousPage);
         Add(T("Settings_ControllerNextPage", "Next page"), bindings.NextPage);
+        Add(AlphabetTitle, bindings.Alphabet);
         Add(T("Settings_ControllerSelect", "Select / start"), bindings.Select);
         Add(T("Settings_ControllerBack", "Back"), bindings.Back);
         Add(T("Settings_ControllerDetails", "Details / achievements"), bindings.Details);

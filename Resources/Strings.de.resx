@@ -1955,4 +1955,8 @@ Importiert: {3} · Ohne sicheren Treffer: {4} · Übersprungen: {5} · Fehlgesch
 
 Für diese GOG-Installation verwenden?</value>
   </data>
+  <data name="BigMode_AlphabetTitle" xml:space="preserve"><value>Alphabet-Auswahl</value></data>
+  <data name="BigMode_AlphabetMenuHint" xml:space="preserve"><value>Zu einem Buchstaben in der aktuellen Liste springen</value></data>
+  <data name="BigMode_AlphabetControls" xml:space="preserve"><value>Steuerkreuz / Pfeiltasten · Navigieren    {0} / {1} · Springen    {2} / {3} · Zurück</value></data>
+  <data name="Input_Unassigned" xml:space="preserve"><value>Unbelegt</value></data>
 </root>

@@ -39,6 +39,12 @@ public partial class BigModeViewModel
                 return;
             }
 
+            if (InputContext == BigModeInputContext.Alphabet)
+            {
+                if (isPressed) { NavigateAlphabet(direction); StartGamepadRepeat(direction); }
+                else StopGamepadRepeat(direction);
+                return;
+            }
             if (IsSystemMenuOpen)
             {
                 if (isPressed)
@@ -65,7 +71,7 @@ public partial class BigModeViewModel
     }
 
     private void OnGamepadSelect()
-        => DispatchGamepadAction(() =>
+        => DispatchGamepadInput(() =>
         {
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
@@ -77,6 +83,7 @@ public partial class BigModeViewModel
                 ActivateSystemMenuSelection();
                 return;
             }
+            if (IsAlphabetNavigationOpen) { ConfirmAlphabetNavigation(); return; }
 
             if (IsAchievementsOverlayOpen)
                 return;
@@ -86,7 +93,7 @@ public partial class BigModeViewModel
         });
 
     private void OnGamepadBack()
-        => DispatchGamepadAction(() =>
+        => DispatchGamepadInput(() =>
         {
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
@@ -95,6 +102,7 @@ public partial class BigModeViewModel
 
             if (HandleSystemMenuBack())
                 return;
+            if (CloseAlphabetNavigation()) return;
 
             if (CloseAchievementsOverlay())
             {
@@ -107,12 +115,12 @@ public partial class BigModeViewModel
         });
 
     private void OnGamepadDetails()
-        => DispatchGamepadAction(() =>
+        => DispatchGamepadInput(() =>
         {
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
-            if (IsSystemMenuOpen)
+            if (IsSystemMenuOpen || IsAlphabetNavigationOpen)
                 return;
 
             ResetAttractIdleTimer();
@@ -120,12 +128,12 @@ public partial class BigModeViewModel
         });
 
     private void OnGamepadHome()
-        => DispatchGamepadAction(() =>
+        => DispatchGamepadInput(() =>
         {
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
-            if (IsSystemMenuOpen)
+            if (IsSystemMenuOpen || IsAlphabetNavigationOpen)
                 return;
 
             _ = ToggleHomeAsync();
@@ -137,7 +145,7 @@ public partial class BigModeViewModel
     /// while gamepad back keeps its step-by-step behavior.
     /// </summary>
     [RelayCommand]
-    private Task HardExitBigMode() => RequestBigModeCloseAsync();
+    private Task HardExitBigMode() => CloseAlphabetNavigation() ? Task.CompletedTask : RequestBigModeCloseAsync();
 
     private async Task RequestBigModeCloseAsync()
     {
@@ -149,6 +157,7 @@ public partial class BigModeViewModel
             return;
 
         _isCloseRequestInProgress = true;
+        CloseAlphabetNavigation(resumePreview: false);
         EndNavigationScroll(resumePreview: false);
 
         try
@@ -173,6 +182,21 @@ public partial class BigModeViewModel
         // Never run a UI-thread lifecycle release inline ahead of a previously queued SDL press.
         (dispatcher ?? Dispatcher.UIThread).Post(action, DispatcherPriority.Input);
     }
+
+    private void DispatchGamepadInput(Action action)
+    {
+        var generation = Volatile.Read(ref _navigationInputGeneration);
+        DispatchGamepadAction(() =>
+        {
+            if (_disposed == 0 && !_isLaunching && !_isCloseRequestInProgress && generation == _navigationInputGeneration) action();
+        });
+    }
+
+    internal void DispatchControllerExit(Action onHandled) => DispatchGamepadInput(() =>
+    {
+        onHandled();
+        _ = HardExitBigMode();
+    });
 
     private void StartGamepadRepeat(GamepadService.GamepadDirection direction)
         => StartGamepadRepeat(direction, pageDirection: 0);
@@ -224,6 +248,11 @@ public partial class BigModeViewModel
             _gamepadRepeatTimer!.Interval = BigModeScrollProfile.RepeatInterval;
         }
 
+        if (IsAlphabetNavigationOpen)
+        {
+            if (_gamepadRepeatDirection is { } alphabetDirection) NavigateAlphabet(alphabetDirection, playSound: false);
+            return;
+        }
         if (IsHomeActive || IsAchievementsOverlayOpen)
         {
             if (_gamepadRepeatPageDirection != 0)
@@ -341,6 +370,8 @@ public partial class BigModeViewModel
     private void EndNavigationScroll(bool resumePreview)
     {
         Interlocked.Increment(ref _navigationInputGeneration);
+        _gamepadService?.DiscardPendingUiInput();
+        _blockedKeyboardKeys.UnionWith(_pressedKeyboardKeys);
         StopGamepadRepeatTimer();
         CancelCircularLogoPreloads();
         _keyboardScrollKeys?.Clear();
@@ -405,6 +436,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void SelectPrevious()
     {
+        if (InputContext != BigModeInputContext.Library) return;
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
@@ -416,6 +448,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private void SelectNext()
     {
+        if (InputContext != BigModeInputContext.Library) return;
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
@@ -427,6 +460,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task PlayCurrent()
     {
+        if (InputContext is BigModeInputContext.Alphabet or BigModeInputContext.SystemMenu or BigModeInputContext.Achievements) return;
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
