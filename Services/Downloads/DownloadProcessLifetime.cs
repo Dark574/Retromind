@@ -29,7 +29,11 @@ internal static partial class DownloadProcessLifetime
         startInfo.FileName = host;
         startInfo.ArgumentList.Clear();
         if (Path.GetFileNameWithoutExtension(host) == "dotnet")
-            startInfo.ArgumentList.Add(typeof(Program).Assembly.Location);
+        {
+            // The managed entry path is argv[0] when hosted by dotnet. Resolve it before
+            // the child changes working directory; Assembly.Location is unavailable in single-file builds.
+            startInfo.ArgumentList.Add(Path.GetFullPath(Environment.GetCommandLineArgs()[0]));
+        }
         startInfo.ArgumentList.Add(WorkerArgument);
         startInfo.ArgumentList.Add(target);
         foreach (var argument in arguments)

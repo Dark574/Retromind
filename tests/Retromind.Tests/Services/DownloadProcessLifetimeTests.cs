@@ -5,10 +5,12 @@ namespace Retromind.Tests.Services;
 
 public sealed class DownloadProcessLifetimeTests
 {
-    [Fact]
-    public async Task Worker_ExitsAfterSuccessfulCommandWithParentPipeStillOpen()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Worker_ExitsAfterSuccessfulCommandWithParentPipeStillOpen(bool managedDll)
     {
-        using var worker = StartWorker("printf 'completed\\n'");
+        using var worker = StartWorker("printf 'completed\\n'", managedDll);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
 
         Assert.Equal("completed", await worker.StandardOutput.ReadLineAsync(timeout.Token));
@@ -16,10 +18,12 @@ public sealed class DownloadProcessLifetimeTests
         Assert.Equal(0, worker.ExitCode);
     }
 
-    [Fact]
-    public async Task Worker_StopsTheProcessGroupWhenTheParentPipeCloses()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Worker_StopsTheProcessGroupWhenTheParentPipeCloses(bool managedDll)
     {
-        using var worker = StartWorker("sleep 30 & printf '%s\\n' \"$!\"; wait");
+        using var worker = StartWorker("sleep 30 & printf '%s\\n' \"$!\"; wait", managedDll);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         var output = await worker.StandardOutput.ReadLineAsync(timeout.Token);
         Assert.True(int.TryParse(output, out var childPid));
@@ -46,16 +50,18 @@ public sealed class DownloadProcessLifetimeTests
         }
     }
 
-    private static Process StartWorker(string command)
+    private static Process StartWorker(string command, bool managedDll)
     {
         var info = new ProcessStartInfo
         {
-            FileName = Path.Combine(AppContext.BaseDirectory, "Retromind"),
+            FileName = managedDll ? "dotnet" : Path.Combine(AppContext.BaseDirectory, "Retromind"),
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
             UseShellExecute = false,
-            ArgumentList = { DownloadProcessLifetime.WorkerArgument, "/bin/sh", "-c", command }
         };
+        if (managedDll) info.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "Retromind.dll"));
+        foreach (var argument in new[] { DownloadProcessLifetime.WorkerArgument, "/bin/sh", "-c", command })
+            info.ArgumentList.Add(argument);
         return Process.Start(info)!;
     }
 }
