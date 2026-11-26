@@ -761,6 +761,11 @@ public partial class MainWindow : Window
         var bigVm = ResolveBigModeViewModel(vm);
 
         // If we found the view model, forward the key to its commands.
+        if (bigVm?.IsSearchOpen == true && IsTextInputFocused())
+        {
+            e.Handled = bigVm.HandleSearchTextKeyDown(e.Key, e.KeyModifiers);
+            return;
+        }
         if (bigVm != null)
             e.Handled = bigVm.HandleKeyboardKeyDown(e.Key, e.KeyModifiers);
 

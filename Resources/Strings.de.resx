@@ -1959,4 +1959,29 @@ Für diese GOG-Installation verwenden?</value>
   <data name="BigMode_AlphabetMenuHint" xml:space="preserve"><value>Zu einem Buchstaben in der aktuellen Liste springen</value></data>
   <data name="BigMode_AlphabetControls" xml:space="preserve"><value>Steuerkreuz / Pfeiltasten · Navigieren    {0} / {1} · Springen    {2} / {3} · Zurück</value></data>
   <data name="Input_Unassigned" xml:space="preserve"><value>Unbelegt</value></data>
+  <data name="BigModeSearch_Open" xml:space="preserve"><value>Suche öffnen</value></data>
+  <data name="BigModeSearch_MenuHint" xml:space="preserve"><value>Medien in der Bibliothek finden</value></data>
+  <data name="BigModeSearch_Title" xml:space="preserve"><value>Bibliothek durchsuchen</value></data>
+  <data name="BigModeSearch_Watermark" xml:space="preserve"><value>Titel oder Suchausdruck …</value></data>
+  <data name="BigModeSearch_Results" xml:space="preserve"><value>Suchergebnisse · {0}</value></data>
+  <data name="BigModeSearch_All" xml:space="preserve"><value>Gesamte Bibliothek</value></data>
+  <data name="BigModeSearch_Category" xml:space="preserve"><value>Kategorie: {0}</value></data>
+  <data name="BigModeSearch_NoCategory" xml:space="preserve"><value>Keine aktuelle Kategorie</value></data>
+  <data name="BigModeSearch_ToResults" xml:space="preserve"><value>Zu den Ergebnissen</value></data>
+  <data name="BigModeSearch_Busy" xml:space="preserve"><value>Suche läuft …</value></data>
+  <data name="BigModeSearch_Empty" xml:space="preserve"><value>Titel oder Suchausdruck eingeben.</value></data>
+  <data name="BigModeSearch_NoResults" xml:space="preserve"><value>Keine passenden Medien.</value></data>
+  <data name="BigModeSearch_Zero" xml:space="preserve"><value>0 Treffer</value></data>
+  <data name="BigModeSearch_Position" xml:space="preserve"><value>{0}–{1} von {2}</value></data>
+  <data name="BigModeSearch_Space" xml:space="preserve"><value>Leer</value></data>
+  <data name="BigModeSearch_Clear" xml:space="preserve"><value>Leeren</value></data>
+  <data name="BigModeSearch_Show" xml:space="preserve"><value>Medium anzeigen</value></data>
+  <data name="BigModeSearch_Launch" xml:space="preserve"><value>Medium starten</value></data>
+  <data name="BigModeSearch_EnterKey" xml:space="preserve"><value>Eingeben / Auswählen</value></data>
+  <data name="BigModeSearch_Layer" xml:space="preserve"><value>Buchstaben / Zeichen</value></data>
+  <data name="BigModeSearch_PhysicalHint" xml:space="preserve"><value>Physische Tastatur: direkt tippen · Enter / Tab: Ergebnisse</value></data>
+  <data name="BigModeSearch_Failed" xml:space="preserve"><value>Die Suche konnte nicht abgeschlossen werden.</value></data>
+  <data name="BigModeSearch_Controls" xml:space="preserve"><value>Steuerkreuz / {14} · Navigieren    {0} / {1} · {2}    {3} / {4} · {5}    {6} / {7} · Zurück
+{8} / {9} · Tastatur / Ergebnisse    {10} / {11} · Zeichen löschen (halten)    {12} / {13} · Suchbereich</value></data>
+  <data name="BigModeSearch_MenuTitle" xml:space="preserve"><value>Suche</value></data>
 </root>

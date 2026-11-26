@@ -91,6 +91,7 @@ Default controller layout:
 | L1 / LB | Previous page |
 | R1 / RB | Next page |
 | Unassigned | Open alphabet selection (optional) |
+| Unassigned | Open search (optional) |
 | Hold L1 + R1 | Request stopping the tracked game session; release and hold again to confirm a forced stop |
 
 Open **Settings → Controls** to reassign the action buttons or either button of the game-stop combination by
@@ -100,7 +101,7 @@ or holding an assigned page button, repeats navigation with progressively larger
 edge; release and press again to wrap. Small lists limit the jump size for more precise navigation.
 This acceleration applies to library navigation. Home uses its existing pages, and the achievement browser moves
 three rows per page action. Page Up and Page Down provide keyboard equivalents for page navigation.
-The theme-independent system menu can resume BigMode, open alphabet selection, show the active controller layout,
+The theme-independent system menu can resume BigMode, open alphabet selection or search, show the active controller layout,
 return to the desktop library, or save and exit Retromind after confirmation.
 
 Default keyboard layout:
@@ -116,9 +117,34 @@ Default keyboard layout:
 | F10 | Open the system menu |
 | Page Up / Page Down | Previous / next page |
 | Unassigned | Open alphabet selection (optional) |
+| Unassigned | Open search (optional) |
 
 Every keyboard action can also be reassigned under **Settings → Controls**. Assignments use individual keys;
 modifier combinations such as Ctrl+Key are not supported.
+
+#### BigMode search
+
+Open **System menu → Search**, or assign **Open search** in **Settings → Controls**. It is unassigned by
+default. Search covers the entire library, or the current category and its descendants. It uses the same
+query syntax as desktop search and updates automatically after a 250-ms typing pause.
+
+The shared overlay works with every theme. Its German QWERTZ / English QWERTY keyboard includes case,
+numbers, punctuation, accented characters, space, backspace and clear. A physical keyboard can type directly;
+Enter or Tab moves to results. Printable action bindings belong to text editing while the search field has focus.
+
+| Existing action | In search (default controller assignment) |
+| --- | --- |
+| Directions | Move across keys or results; left/right in results moves five entries |
+| Select (A / Cross) | Type the selected key, select a region, or **show** the selected result in its actual category |
+| Details (X / Square) | Switch letters/symbols; in results, **start** the selected medium through the regular launcher |
+| Home (Y / Triangle) | Switch keyboard/results |
+| Previous page (LB / L1) | Delete a character; hold to repeat |
+| Next page (RB / R1) | Switch entire-library/current-category scope |
+| Back (B / Circle) | Results → keyboard; from keyboard, close search |
+
+Custom action assignments apply here too and appear in the contextual hints. Five result rows are visible;
+all matches remain scrollable with category breadcrumbs and a range indicator. Browsing results leaves the
+library selection and its playing preview untouched. Closing cancels pending work and removes search observation.
 
 #### Alphabet selection
 

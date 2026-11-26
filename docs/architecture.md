@@ -1108,19 +1108,53 @@ The model-owning thread must serialize edits and capture. Ordinary observable me
 editor `RefreshResults` calls invalidate requests. In-place mutations of non-observable dictionaries/file
 lists or asset types must use the existing explicit editor refresh; observing these silent writes would
 require changing model contracts. Result rows, bulk selection, selected item, counters and scroll requests
-remain in `SearchAreaViewModel`. There is no BigMode search overlay, keyboard or new binding in Stage 5.
+remain in `SearchAreaViewModel`; BigMode owns an independent temporary context.
 
-For Stage 6, prefer attaching search observation for an active search context, before its first capture,
-and canceling requests, releasing derived results/snapshots and disposing observation when that context
-closes. Retained query/filter/selection IDs can be restored with a fresh capture when reopened. BigMode's
-existing navigation observation remains independent and necessary outside search. A single complete
-revision source could eventually feed independent consumers without sharing their cancellation sources,
-queries, results, selection or desktop counters. Neither `LibraryChangeTracker.DirtyVersion` nor
-`BigModeNavigationSession.LibraryVersion` is such a source: saving and navigation do not cover every search
-metadata/tag/asset change, and navigation refresh is coalesced. Sharing observation would require a defined
-owner, subscription lifetime and immediate invalidation contract. Do not introduce that restructuring
-in advance; revisit only if concurrent active searches justify it. Stage 5 adds no BigMode search instance
-or shared revision service and leaves observer rebuilding unchanged.
+### BigMode search and on-screen keyboard
+
+`BigModeSearchViewModel` owns query, captured category scope, results, stable selected item ID, debounce,
+cancellation and revision for one open overlay. It attaches `LibrarySearchChangeObserver` lazily before the
+first nonempty capture and fully detaches it on close. Library/protection changes immediately clear unsafe
+rows and invalidate in-flight publications before the next debounced capture. Node-name changes also refresh
+category breadcrumbs. Completed request tasks are released so their async frames cannot retain snapshots.
+Closing releases results and keyboard keys; normal BigMode retains no additional search observer.
+
+`BigModeViewModel.Search` coordinates this context with the existing navigation session and regular
+`PlayCurrent` path. Confirm shows a result using `TryReveal`; Details starts it. Both revalidate current
+object identity, actual owner, visibility and protection, including after leaving Home asynchronously.
+Search rows contain frozen display text, type geometry and an opaque item identity; they never trigger
+artwork or video requests and changing the search selection never moves the library cursor. Scope defaults
+to the entire library; optional category scope includes descendants of the category captured at opening.
+
+`BigModeSearchView` lives in `BigModeHostView`, independent of theme contracts. Two columns show a localized
+10×5 keyboard and a virtualized result list with a five-row viewport, scrollbar and range label. View code
+only manages native focus, pointer gestures and scroll offsets. Query editing remains in the view model;
+physical keyboard text/caret/selection use the native TextBox. Printable bindings and editing keys belong
+to that TextBox while focused, preventing global actions while typing. Enter/Tab moves to results.
+
+The existing shared input priority is System menu > Search > Alphabet > Achievements > Home > Library.
+Opening/closing or changing search focus consumes held inputs and discards queued SDL actions through the
+existing navigation generation. One existing repeat timer handles directions or repeated PreviousPage
+(backspace); NextPage switches scope once, Home switches keyboard/results and Details switches keyboard
+layers outside results. The Search binding is optional and defaults to explicitly unassigned in both
+existing binding settings. Native typing, default library bindings and acceleration profiles are unchanged.
+Attract navigation and pending preview transitions pause during search; an already playing preview continues.
+Actual library/protection edits stop obsolete preview video/audio while search defers new playback; an
+identical shared fallback continues across those edits.
+Cancel resumes the normal preview path; confirming a result changes only the final library target.
+
+Observation remains per active consumer. Neither `LibraryChangeTracker.DirtyVersion` nor the coalesced
+`BigModeNavigationSession.LibraryVersion` covers all searchable metadata. No shared observer service, index
+or persistent search cache is introduced. Silent in-place non-observable model mutations still require the
+existing explicit editor refresh, as on desktop; UI model edits and snapshot capture must remain serialized.
+
+Reproduce BigMode synthetic phase measurements with
+`DOTNET_TieredCompilation=0 RETROMIND_SEARCH_BENCHMARK=1 dotnet test tests/Retromind.Tests/Retromind.Tests.csproj -c Release --filter FullyQualifiedName~BigModeSearchPerformanceTests --logger "console;verbosity=detailed"`.
+The 5,000/10,000/50,000-item fixtures measure UI snapshot capture, worker evaluation, production result
+publication, allocations and observer attach/dispose separately. They also verify burst debounce and
+collectibility of closed contexts, rows and snapshots while the source library stays alive. They exclude
+native SDL/VLC and rendered controls; cold observer attachment and broad-result publication remain relevant
+UI-thread costs for practical acceptance on large libraries.
 
 Search parity, scope/owner, protection, concurrent-worker and stale-publication regressions live in the search
 service and search-view-model tests. Reproduce the synthetic 10,000/50,000-item Release measurements with

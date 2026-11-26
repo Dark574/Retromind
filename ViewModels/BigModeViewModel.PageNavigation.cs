@@ -14,6 +14,15 @@ public partial class BigModeViewModel
         var generation = Volatile.Read(ref _navigationInputGeneration);
         DispatchGamepadAction(() =>
         {
+            if (IsSearchOpen)
+            {
+                if (generation != _navigationInputGeneration || _disposed != 0 || _isLaunching) return;
+                if (!pressed) { if (_gamepadRepeatPageDirection == direction) StopGamepadRepeatTimer(); return; }
+                StopGamepadRepeatTimer();
+                if (direction < 0) { Search!.Backspace(); StartGamepadRepeat(null, direction); }
+                else Search!.ToggleScope();
+                return;
+            }
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsSystemMenuOpen || IsAlphabetNavigationOpen ||
                 generation != _navigationInputGeneration) return;
             if (!pressed)
@@ -41,6 +50,7 @@ public partial class BigModeViewModel
 
     public void NavigatePage(int direction)
     {
+        if (IsSearchOpen) { if (direction < 0) Search!.Backspace(); else if (direction > 0) Search!.ToggleScope(); return; }
         if (_disposed != 0 || _isCloseRequestInProgress || _isLaunching || IsSystemMenuOpen || IsAlphabetNavigationOpen || direction == 0)
             return;
 

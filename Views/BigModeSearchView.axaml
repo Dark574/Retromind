@@ -1,0 +1,97 @@
+<UserControl xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Retromind.ViewModels" x:Class="Retromind.Views.BigModeSearchView"
+             x:DataType="vm:BigModeSearchViewModel" Focusable="True">
+    <UserControl.Styles>
+        <Style Selector="ListBox.search-keys, ListBox.search-results">
+            <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /><Setter Property="Padding" Value="0" />
+        </Style>
+        <Style Selector="ListBox.search-keys ListBoxItem">
+            <Setter Property="Margin" Value="3" /><Setter Property="Padding" Value="0" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Background" Value="#50161C28" /><Setter Property="BorderBrush" Value="#35FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="8" /><Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ListBox.search-keys ListBoxItem:selected">
+            <Setter Property="Background" Value="#70305E91" /><Setter Property="BorderBrush" Value="#9CB9FF" /><Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="ListBox.search-results ListBoxItem">
+            <Setter Property="Height" Value="112" /><Setter Property="Margin" Value="0" /><Setter Property="Padding" Value="16,12" />
+            <Setter Property="Background" Value="#40161C28" /><Setter Property="BorderBrush" Value="#28FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" /><Setter Property="CornerRadius" Value="8" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" /><Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Focusable" Value="False" />
+        </Style>
+        <Style Selector="ListBox.search-results ListBoxItem:selected">
+            <Setter Property="Background" Value="#70305E91" /><Setter Property="BorderBrush" Value="#9CB9FF" />
+        </Style>
+        <Style Selector="Border.search-region"><Setter Property="BorderBrush" Value="Transparent" /><Setter Property="BorderThickness" Value="2" /><Setter Property="CornerRadius" Value="8" /></Style>
+        <Style Selector="Border.search-region.active"><Setter Property="BorderBrush" Value="#9CB9FF" /></Style>
+        <Style Selector="Button.search-key">
+            <Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" />
+            <Setter Property="HorizontalAlignment" Value="Stretch" /><Setter Property="VerticalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" /><Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Foreground" Value="White" /><Setter Property="FontSize" Value="24" /><Setter Property="Focusable" Value="False" /><Setter Property="Padding" Value="2" />
+        </Style>
+    </UserControl.Styles>
+    <Grid Background="#B0070910">
+        <Viewbox Margin="40" Stretch="Uniform" StretchDirection="DownOnly" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Width="1800" Height="840" Padding="28" Background="#FA0F141E" BorderBrush="#607BA3FF" BorderThickness="1" CornerRadius="14">
+                <Grid RowDefinitions="*,Auto" RowSpacing="18">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="24">
+                        <Grid RowDefinitions="40,56,44,*,48" RowSpacing="12">
+                            <TextBlock Text="{Binding Title}" Foreground="White" FontSize="30" FontWeight="SemiBold" />
+                            <TextBox x:Name="SearchTextBox" Grid.Row="1" Text="{Binding SearchText, Mode=TwoWay}"
+                                     CaretIndex="{Binding CaretIndex, Mode=TwoWay}"
+                                     SelectionStart="{Binding SelectionStart, Mode=TwoWay}" SelectionEnd="{Binding SelectionEnd, Mode=TwoWay}"
+                                     GotFocus="OnTextFocus" PlaceholderText="{Binding SearchWatermark}" FontSize="26" VerticalContentAlignment="Center" />
+                            <Border x:Name="SearchScopeRegion" Grid.Row="2" Classes="search-region" Classes.active="{Binding IsScopeFocused}">
+                                <Button Command="{Binding ToggleScopeCommand}" IsEnabled="{Binding CanUseCategory}" HorizontalAlignment="Stretch"
+                                        HorizontalContentAlignment="Stretch" FontSize="22" Foreground="#DDE7F8" Background="#30161C28" Focusable="False"><TextBlock Text="{Binding ScopeText}" TextTrimming="CharacterEllipsis" MaxLines="1" /></Button>
+                            </Border>
+                            <Border Grid.Row="3" Classes="search-region" Classes.active="{Binding IsKeyboardFocused}">
+                                <ListBox x:Name="SearchKeyboard" Classes="search-keys" ItemsSource="{Binding Keys}"
+                                         SelectedIndex="{Binding SelectedKeyIndex, Mode=TwoWay}" AutoScrollToSelectedItem="False"
+                                         ScrollViewer.VerticalScrollBarVisibility="Disabled" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                    <ListBox.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="10" Rows="5" /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                                    <ListBox.ItemTemplate><DataTemplate x:DataType="vm:BigModeSearchKey">
+                                        <Button Classes="search-key" Click="OnKeyClick"><Viewbox Stretch="Uniform" StretchDirection="DownOnly" Margin="3"><TextBlock Text="{Binding Label}" FontSize="24" /></Viewbox></Button>
+                                    </DataTemplate></ListBox.ItemTemplate>
+                                </ListBox>
+                            </Border>
+                            <Border Grid.Row="4" Classes="search-region" Classes.active="{Binding IsResultsButtonFocused}">
+                                <Button Content="{Binding ToResultsText}" Command="{Binding FocusResultsCommand}" FontSize="22"
+                                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="#40305E91" Foreground="White" Focusable="False" />
+                            </Border>
+                        </Grid>
+                        <Grid Grid.Column="1" RowDefinitions="40,564,*" RowSpacing="12">
+                            <TextBlock Text="{Binding ResultsTitle}" Foreground="White" FontSize="30" FontWeight="SemiBold" />
+                            <Border Grid.Row="1" Classes="search-region" Classes.active="{Binding IsResultsFocused}">
+                                <Grid>
+                                    <ListBox x:Name="SearchResultsList" Classes="search-results" Height="560" VerticalAlignment="Top" UseLayoutRounding="False" ItemsSource="{Binding Results}"
+                                             SelectedIndex="{Binding SelectedResultIndex, Mode=TwoWay}" AutoScrollToSelectedItem="False"
+                                             ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                                             DoubleTapped="OnResultDoubleTapped">
+                                        <ListBox.ItemsPanel><ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate></ListBox.ItemsPanel>
+                                        <ListBox.ItemTemplate><DataTemplate x:DataType="vm:BigModeSearchResult">
+                                            <Grid ColumnDefinitions="40,*" ColumnSpacing="18">
+                                                <Viewbox Width="32" Height="32" VerticalAlignment="Center"><Path Data="{Binding TypeIcon}" Stroke="#9CB9FF" StrokeThickness="2" /></Viewbox>
+                                                <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding Title}" Foreground="White" FontSize="25" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                                    <TextBlock Text="{Binding Category}" Foreground="#BFCBE0" FontSize="19" TextTrimming="CharacterEllipsis" MaxLines="1" />
+                                                </StackPanel>
+                                            </Grid>
+                                        </DataTemplate></ListBox.ItemTemplate>
+                                    </ListBox>
+                                    <TextBlock IsVisible="{Binding HasNoResults}" Text="{Binding EmptyText}" Foreground="#BFCBE0" FontSize="23"
+                                               HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" Margin="24" />
+                                </Grid>
+                            </Border>
+                            <TextBlock Grid.Row="2" Text="{Binding PositionText}" Foreground="#BFCBE0" FontSize="20" VerticalAlignment="Bottom" />
+                        </Grid>
+                    </Grid>
+                    <TextBlock Grid.Row="1" Text="{Binding ControlsText}" Foreground="#BFCBE0" FontSize="17" TextWrapping="Wrap" />
+                </Grid>
+            </Border>
+        </Viewbox>
+    </Grid>
+</UserControl>

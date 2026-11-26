@@ -123,6 +123,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task ToggleHomeAsync()
     {
+        if (IsSearchOpen) return;
         if (_disposed != 0 || _isCloseRequestInProgress || !SupportsHome || _isLaunching)
             return;
 
@@ -257,6 +258,7 @@ public partial class BigModeViewModel
         if (_isLaunching)
             return;
 
+        if (IsSearchOpen) { Search!.Navigate(direction); return; }
         if (IsAlphabetNavigationOpen) { NavigateAlphabet(direction); return; }
 
         if (IsSystemMenuOpen)

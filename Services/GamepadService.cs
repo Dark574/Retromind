@@ -33,6 +33,7 @@ public sealed class GamepadService : IDisposable
     public event Action? OnPreviousPage;
     public event Action? OnNextPage;
     public event Action? OnAlphabet;
+    public event Action? OnSearch;
     public event Action? OnSessionExitRequested;
     public event Action<ControllerButton>? OnButtonPressed;
     public event Action<GamepadDirection, bool>? OnDirectionStateChanged;
@@ -809,6 +810,8 @@ public sealed class GamepadService : IDisposable
             PressPageSource(instanceId, button, 1);
         else if (button == bindings.Alphabet)
             QueueInputEvent(() => OnAlphabet?.Invoke(), uiOnly: true);
+        else if (button == bindings.Search)
+            QueueInputEvent(() => OnSearch?.Invoke(), uiOnly: true);
     }
 
     // Consume queued presses at a UI context boundary, retaining held source

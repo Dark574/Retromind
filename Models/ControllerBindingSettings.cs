@@ -43,6 +43,7 @@ public sealed class ControllerBindingSettings
     public ControllerButton PreviousPage { get; set; } = ControllerButton.LeftShoulder;
     public ControllerButton NextPage { get; set; } = ControllerButton.RightShoulder;
     public ControllerButton Alphabet { get; set; } = ControllerButton.Unassigned;
+    public ControllerButton Search { get; set; } = ControllerButton.Unassigned;
     public ControllerButton SessionStopFirst { get; set; } = ControllerButton.LeftShoulder;
     public ControllerButton SessionStopSecond { get; set; } = ControllerButton.RightShoulder;
 }

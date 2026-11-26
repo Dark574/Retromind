@@ -441,7 +441,7 @@ public partial class BigModeViewModel
     /// </summary>
     private void TriggerPreviewPlaybackWithDebounce()
     {
-        if (_disposed != 0 || IsAlphabetNavigationOpen)
+        if (_disposed != 0 || IsAlphabetNavigationOpen || IsSearchOpen)
             return;
         if (!UiThreadHelper.CheckAccess())
         {
@@ -499,7 +499,7 @@ public partial class BigModeViewModel
         // Recheck missing/sibling files at the settled playback boundary. Negative
         // results are shared only within a selection, never across navigation.
         _selectionVideoResolved = false;
-        if (_disposed == 0 && !_suspendPreviewDuringScroll && !_isLaunching && !IsAchievementsOverlayOpen && !IsAlphabetNavigationOpen)
+        if (_disposed == 0 && !_suspendPreviewDuringScroll && !_isLaunching && !IsAchievementsOverlayOpen && !IsAlphabetNavigationOpen && !IsSearchOpen)
             TriggerPreviewPlayback();
     }
 

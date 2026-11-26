@@ -24,6 +24,7 @@ public sealed class KeyboardBindingSettingsTests
         Assert.Equal("PageUp", settings.KeyboardBindings.PreviousPage);
         Assert.Equal("PageDown", settings.KeyboardBindings.NextPage);
         Assert.Equal("Unassigned", settings.KeyboardBindings.Alphabet);
+        Assert.Equal("Unassigned", settings.KeyboardBindings.Search);
     }
 
     [Theory]
@@ -33,8 +34,10 @@ public sealed class KeyboardBindingSettingsTests
     {
         var settings = new AppSettings();
         settings.KeyboardBindings.Alphabet = key;
+        settings.KeyboardBindings.Search = key;
         var restored = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
         Assert.Equal(key, restored.KeyboardBindings.Alphabet);
+        Assert.Equal(key, restored.KeyboardBindings.Search);
         Assert.Equal("Enter", restored.KeyboardBindings.Select);
     }
 }

@@ -319,7 +319,8 @@ public partial class BigModeHostView : UserControl
         var vm = DataContext as Retromind.ViewModels.BigModeViewModel;
 
         if (e.PropertyName is nameof(Retromind.ViewModels.BigModeViewModel.IsHomeActive)
-            or nameof(Retromind.ViewModels.BigModeViewModel.IsSystemMenuOpen))
+            or nameof(Retromind.ViewModels.BigModeViewModel.IsSystemMenuOpen)
+            or nameof(Retromind.ViewModels.BigModeViewModel.IsSearchOpen))
         {
             UpdateSystemMenuHintVisibility();
         }
@@ -692,7 +693,7 @@ public partial class BigModeHostView : UserControl
             return;
 
         _systemMenuHint.IsVisible = DataContext is Retromind.ViewModels.BigModeViewModel vm &&
-                                    !vm.IsSystemMenuOpen &&
+                                    !vm.IsSystemMenuOpen && !vm.IsSearchOpen &&
                                     (vm.IsHomeActive || !_themeProvidesSystemMenuHint);
     }
 

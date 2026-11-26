@@ -18,6 +18,7 @@ public partial class BigModeViewModel
             return;
 
         EndNavigationScroll(resumePreview: false);
+        CloseSearch(resumePreview: false);
         CloseAlphabetNavigation(resumePreview: false);
         DisposeNavigation();
         ExpectVideoStop(0);
@@ -34,6 +35,7 @@ public partial class BigModeViewModel
         _gamepadService.OnSystemMenu -= OnGamepadSystemMenu;
         _gamepadService.OnPageStateChanged -= OnGamepadPageStateChanged;
         _gamepadService.OnAlphabet -= OnGamepadAlphabet;
+        _gamepadService.OnSearch -= OnGamepadSearch;
         DisposeHome();
         DisposeRetroAchievementsProgress();
 

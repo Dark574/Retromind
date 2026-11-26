@@ -128,6 +128,7 @@ public partial class BigModeViewModel
 
     public void OpenAchievementsOverlay()
     {
+        if (IsSearchOpen) return;
         if (!CanOpenAchievementsOverlay)
             return;
 

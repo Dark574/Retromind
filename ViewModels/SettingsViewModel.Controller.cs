@@ -21,7 +21,8 @@ internal enum ControllerBindingTarget
     NextPage,
     SessionStopFirst,
     SessionStopSecond,
-    Alphabet
+    Alphabet,
+    Search
 }
 
 public sealed partial class ControllerBindingRowViewModel : ObservableObject
@@ -118,6 +119,7 @@ public partial class SettingsViewModel
         AddActionRow(ControllerBindingTarget.PreviousPage, T("Settings_ControllerPreviousPage", "Previous page"), bindings.PreviousPage);
         AddActionRow(ControllerBindingTarget.NextPage, T("Settings_ControllerNextPage", "Next page"), bindings.NextPage);
         AddActionRow(ControllerBindingTarget.Alphabet, T("BigMode_AlphabetTitle", "Alphabet selection"), bindings.Alphabet);
+        AddActionRow(ControllerBindingTarget.Search, T("BigModeSearch_Open", "Open search"), bindings.Search);
 
         ControllerSessionStopBindings.Add(CreateRow(
             ControllerBindingTarget.SessionStopFirst,
@@ -252,6 +254,9 @@ public partial class SettingsViewModel
                     break;
                 case ControllerBindingTarget.Alphabet:
                     bindings.Alphabet = row.Button;
+                    break;
+                case ControllerBindingTarget.Search:
+                    bindings.Search = row.Button;
                     break;
                 case ControllerBindingTarget.SessionStopFirst:
                     bindings.SessionStopFirst = row.Button;

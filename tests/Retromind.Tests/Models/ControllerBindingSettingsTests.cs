@@ -19,6 +19,7 @@ public sealed class ControllerBindingSettingsTests
         Assert.Equal(ControllerButton.LeftShoulder, settings.ControllerBindings.SessionStopFirst);
         Assert.Equal(ControllerButton.RightShoulder, settings.ControllerBindings.SessionStopSecond);
         Assert.Equal(ControllerButton.Unassigned, settings.ControllerBindings.Alphabet);
+        Assert.Equal(ControllerButton.Unassigned, settings.ControllerBindings.Search);
     }
 
     [Theory]
@@ -29,8 +30,10 @@ public sealed class ControllerBindingSettingsTests
     {
         var settings = new AppSettings();
         settings.ControllerBindings.Alphabet = button;
+        settings.ControllerBindings.Search = button;
         var restored = JsonSerializer.Deserialize<AppSettings>(JsonSerializer.Serialize(settings))!;
         Assert.Equal(button, restored.ControllerBindings.Alphabet);
+        Assert.Equal(button, restored.ControllerBindings.Search);
         Assert.Equal(ControllerButton.South, restored.ControllerBindings.Select);
         Assert.Equal(ControllerButton.LeftShoulder, restored.ControllerBindings.PreviousPage);
     }

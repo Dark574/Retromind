@@ -39,6 +39,12 @@ public partial class BigModeViewModel
                 return;
             }
 
+            if (InputContext == BigModeInputContext.Search)
+            {
+                if (isPressed) { var before = _navigationInputGeneration; Search!.Navigate(direction); if (IsSearchOpen && before == _navigationInputGeneration) StartGamepadRepeat(direction); }
+                else StopGamepadRepeat(direction);
+                return;
+            }
             if (InputContext == BigModeInputContext.Alphabet)
             {
                 if (isPressed) { NavigateAlphabet(direction); StartGamepadRepeat(direction); }
@@ -83,6 +89,7 @@ public partial class BigModeViewModel
                 ActivateSystemMenuSelection();
                 return;
             }
+            if (IsSearchOpen) { Search!.Confirm(); return; }
             if (IsAlphabetNavigationOpen) { ConfirmAlphabetNavigation(); return; }
 
             if (IsAchievementsOverlayOpen)
@@ -102,6 +109,7 @@ public partial class BigModeViewModel
 
             if (HandleSystemMenuBack())
                 return;
+            if (IsSearchOpen) { Search!.Back(); return; }
             if (CloseAlphabetNavigation()) return;
 
             if (CloseAchievementsOverlay())
@@ -120,6 +128,7 @@ public partial class BigModeViewModel
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
+            if (IsSearchOpen) { Search!.Details(); return; }
             if (IsSystemMenuOpen || IsAlphabetNavigationOpen)
                 return;
 
@@ -133,6 +142,7 @@ public partial class BigModeViewModel
             if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
                 return;
 
+            if (IsSearchOpen) { HandleSearchAction(BigModeKeyboardAction.Home); return; }
             if (IsSystemMenuOpen || IsAlphabetNavigationOpen)
                 return;
 
@@ -145,7 +155,7 @@ public partial class BigModeViewModel
     /// while gamepad back keeps its step-by-step behavior.
     /// </summary>
     [RelayCommand]
-    private Task HardExitBigMode() => CloseAlphabetNavigation() ? Task.CompletedTask : RequestBigModeCloseAsync();
+    private Task HardExitBigMode() => CloseSearch() || CloseAlphabetNavigation() ? Task.CompletedTask : RequestBigModeCloseAsync();
 
     private async Task RequestBigModeCloseAsync()
     {
@@ -157,6 +167,7 @@ public partial class BigModeViewModel
             return;
 
         _isCloseRequestInProgress = true;
+        CloseSearch(resumePreview: false);
         CloseAlphabetNavigation(resumePreview: false);
         EndNavigationScroll(resumePreview: false);
 
@@ -248,6 +259,12 @@ public partial class BigModeViewModel
             _gamepadRepeatTimer!.Interval = BigModeScrollProfile.RepeatInterval;
         }
 
+        if (IsSearchOpen)
+        {
+            if (_gamepadRepeatPageDirection < 0) Search!.Backspace();
+            else if (_gamepadRepeatDirection is { } searchDirection) Search!.Navigate(searchDirection);
+            return;
+        }
         if (IsAlphabetNavigationOpen)
         {
             if (_gamepadRepeatDirection is { } alphabetDirection) NavigateAlphabet(alphabetDirection, playSound: false);
@@ -340,7 +357,7 @@ public partial class BigModeViewModel
 
     private void ResumePreviewAfterScroll()
     {
-        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsAchievementsOverlayOpen ||
+        if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsAchievementsOverlayOpen || IsSearchOpen ||
             !_suspendPreviewDuringScroll || _gamepadRepeatDirection != null || _gamepadRepeatPageDirection != 0 || _keyboardScrollActive)
             return;
 
@@ -460,7 +477,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task PlayCurrent()
     {
-        if (InputContext is BigModeInputContext.Alphabet or BigModeInputContext.SystemMenu or BigModeInputContext.Achievements) return;
+        if (InputContext is BigModeInputContext.Search or BigModeInputContext.Alphabet or BigModeInputContext.SystemMenu or BigModeInputContext.Achievements) return;
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
         ResetAttractIdleTimer();
@@ -539,6 +556,7 @@ public partial class BigModeViewModel
     [RelayCommand]
     private async Task ExitBigMode()
     {
+        if (IsSearchOpen) { Search!.Back(); return; }
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return;
 

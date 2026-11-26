@@ -507,6 +507,15 @@ public sealed class BigModeAlphabetNavigationTests(ITestOutputHelper output)
                 Assert.True(fixture.Vm.ConfirmAlphabetNavigation());
                 Assert.False(host.FindControl<Grid>("AlphabetOverlay")!.IsVisible);
                 Assert.Equal(1, fixture.Vm.SelectedEntryIndex);
+                Assert.True(fixture.Vm.OpenSearch());
+                dispatcher.RunJobs();
+                var searchView = host.FindControl<Retromind.Views.BigModeSearchView>("SearchView")!;
+                Assert.Same(fixture.Vm.Search, searchView.DataContext);
+                Assert.Equal(50, searchView.FindControl<ListBox>("SearchKeyboard")!.ItemCount);
+                fixture.Vm.Search!.Navigate(Direction.Right);
+                Assert.Equal(1, fixture.Vm.Search.SelectedKeyIndex);
+                Assert.Equal(1, fixture.Vm.SelectedEntryIndex);
+                fixture.Vm.CloseSearch();
             }
             finally { host.DataContext = null; }
         });

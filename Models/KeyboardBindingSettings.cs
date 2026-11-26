@@ -20,4 +20,5 @@ public sealed class KeyboardBindingSettings
     public string PreviousPage { get; set; } = "PageUp";
     public string NextPage { get; set; } = "PageDown";
     public string Alphabet { get; set; } = "Unassigned";
+    public string Search { get; set; } = "Unassigned";
 }

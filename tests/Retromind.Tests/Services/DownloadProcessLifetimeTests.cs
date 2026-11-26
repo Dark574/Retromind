@@ -41,7 +41,8 @@ public sealed class DownloadProcessLifetimeTests
                 if (status[status.LastIndexOf(')') + 2] == 'Z')
                     break;
             }
-            catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException)
+            // Linux can return ESRCH when the process vanishes after /proc/stat was opened.
+            catch (IOException ex) when (ex is FileNotFoundException or DirectoryNotFoundException || (ex.HResult & 0xFFFF) == 3)
             {
                 break;
             }

@@ -10,11 +10,12 @@ using Retromind.Services.BigMode;
 
 namespace Retromind.ViewModels;
 
-internal enum BigModeInputContext { Library, Home, Achievements, Alphabet, SystemMenu }
+internal enum BigModeInputContext { Library, Home, Achievements, Alphabet, Search, SystemMenu }
 
 public partial class BigModeViewModel
 {
     internal BigModeInputContext InputContext => IsSystemMenuOpen ? BigModeInputContext.SystemMenu :
+        IsSearchOpen ? BigModeInputContext.Search :
         IsAlphabetNavigationOpen ? BigModeInputContext.Alphabet :
         IsAchievementsOverlayOpen ? BigModeInputContext.Achievements :
         IsHomeActive ? BigModeInputContext.Home : BigModeInputContext.Library;
@@ -57,6 +58,7 @@ public partial class BigModeViewModel
     public bool OpenAlphabetNavigation()
     {
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || IsHomeActive || IsAchievementsOverlayOpen) return false;
+        if (IsSearchOpen) return false;
         if (IsAlphabetNavigationOpen) return true;
         FlushNavigationChanges();
         CloseSystemMenu();

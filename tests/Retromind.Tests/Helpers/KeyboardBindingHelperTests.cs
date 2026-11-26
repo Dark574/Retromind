@@ -57,4 +57,18 @@ public sealed class KeyboardBindingHelperTests
         Assert.Equal(Key.Enter, KeyboardBindingHelper.Resolve("None", Key.Enter)); // Legacy invalid key fallback remains intact.
         Assert.Equal(Key.None, KeyboardBindingHelper.Resolve("invalid", Key.None));
     }
+    [Fact]
+    public void OptionalSearchBinding_ResolvesOnlyWhenConfigured()
+    {
+        var bindings = new KeyboardBindingSettings();
+        Assert.False(KeyboardBindingHelper.TryResolveAction(bindings, Key.None, out _));
+        Assert.False(KeyboardBindingHelper.TryResolveAction(bindings, Key.F8, out _));
+        bindings.Search = "F8";
+        Assert.True(KeyboardBindingHelper.TryResolveAction(bindings, Key.F8, out var action));
+        Assert.Equal(BigModeKeyboardAction.Search, action);
+        bindings.Select = KeyboardBindingHelper.ToStorage(Key.None);
+        Assert.Equal(Key.None, KeyboardBindingHelper.Resolve(bindings.Select, Key.Enter));
+        Assert.Equal(Key.Enter, KeyboardBindingHelper.Resolve("None", Key.Enter)); // Legacy invalid key fallback remains intact.
+        Assert.Equal(Key.None, KeyboardBindingHelper.Resolve("invalid", Key.None));
+    }
 }

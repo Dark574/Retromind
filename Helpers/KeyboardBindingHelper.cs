@@ -19,7 +19,8 @@ internal enum BigModeKeyboardAction
     SystemMenu,
     PreviousPage,
     NextPage,
-    Alphabet
+    Alphabet,
+    Search
 }
 
 internal static class KeyboardBindingHelper
@@ -59,6 +60,8 @@ internal static class KeyboardBindingHelper
             action = BigModeKeyboardAction.NextPage;
         else if (Matches(bindings.Alphabet, Key.None, key))
             action = BigModeKeyboardAction.Alphabet;
+        else if (Matches(bindings.Search, Key.None, key))
+            action = BigModeKeyboardAction.Search;
         else
         {
             action = default;

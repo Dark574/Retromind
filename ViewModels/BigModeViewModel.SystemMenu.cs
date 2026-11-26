@@ -16,7 +16,8 @@ public enum BigModeSystemMenuEntryKind
     ControllerBindings,
     ExitBigMode,
     ExitApplication,
-    Alphabet
+    Alphabet,
+    Search
 }
 
 public enum BigModeSystemMenuPage
@@ -104,6 +105,9 @@ public partial class BigModeViewModel
             T("BigMode_SystemMenuExitApplication", "Exit Retromind"),
             T("BigMode_SystemMenuExitApplicationHint", "Save and close the application")));
 
+        SystemMenuEntries.Add(new BigModeSystemMenuEntryViewModel(BigModeSystemMenuEntryKind.Search,
+            SearchMenuTitle, T("BigModeSearch_MenuHint", "Find media in the library")));
+
         ExitConfirmationOptions.Add(T("BigMode_ExitConfirmationCancel", "Cancel"));
         ExitConfirmationOptions.Add(T("BigMode_ExitConfirmationConfirm", "Exit Retromind"));
         SelectedSystemMenuEntry = SystemMenuEntries[0];
@@ -124,6 +128,7 @@ public partial class BigModeViewModel
         }
 
         ResetAttractIdleTimer();
+        CloseSearch(resumePreview: false);
         CloseAlphabetNavigation(resumePreview: false);
         CloseAchievementsOverlay();
         EndNavigationScroll(resumePreview: true);
@@ -220,6 +225,9 @@ public partial class BigModeViewModel
             case BigModeSystemMenuEntryKind.Resume:
                 CloseSystemMenu();
                 break;
+            case BigModeSystemMenuEntryKind.Search:
+                OpenSearch();
+                break;
             case BigModeSystemMenuEntryKind.Alphabet:
                 OpenAlphabetNavigation();
                 break;
@@ -295,6 +303,7 @@ public partial class BigModeViewModel
         Add(T("Settings_ControllerPreviousPage", "Previous page"), bindings.PreviousPage);
         Add(T("Settings_ControllerNextPage", "Next page"), bindings.NextPage);
         Add(AlphabetTitle, bindings.Alphabet);
+        Add(SearchMenuTitle, bindings.Search);
         Add(T("Settings_ControllerSelect", "Select / start"), bindings.Select);
         Add(T("Settings_ControllerBack", "Back"), bindings.Back);
         Add(T("Settings_ControllerDetails", "Details / achievements"), bindings.Details);

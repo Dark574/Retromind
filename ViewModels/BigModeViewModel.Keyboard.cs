@@ -18,11 +18,13 @@ public partial class BigModeViewModel
         if (modifiers != KeyModifiers.None ||
             !KeyboardBindingHelper.TryResolveAction(_settings.KeyboardBindings, key, out var action))
         {
-            return InputContext == BigModeInputContext.Alphabet;
+            return InputContext is BigModeInputContext.Alphabet or BigModeInputContext.Search;
         }
 
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return true;
+
+        if (InputContext == BigModeInputContext.Search) return HandleSearchAction(action);
 
         if (InputContext == BigModeInputContext.Alphabet)
         {
@@ -91,6 +93,9 @@ public partial class BigModeViewModel
             case BigModeKeyboardAction.NextPage:
                 NavigatePage(1);
                 break;
+            case BigModeKeyboardAction.Search:
+                OpenSearch();
+                break;
             case BigModeKeyboardAction.Alphabet:
                 OpenAlphabetNavigation();
                 break;
@@ -109,7 +114,7 @@ public partial class BigModeViewModel
                 BigModeKeyboardAction.NavigateLeft or
                 BigModeKeyboardAction.NavigateRight))
         {
-            return wasBlocked || InputContext == BigModeInputContext.Alphabet;
+            return wasBlocked || InputContext is BigModeInputContext.Alphabet or BigModeInputContext.Search;
         }
 
         _keyboardScrollKeys.Remove(key);

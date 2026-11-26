@@ -200,6 +200,10 @@
             </Viewbox>
         </Grid>
 
+        <Grid IsVisible="{Binding IsSearchOpen}">
+            <views:BigModeSearchView x:Name="SearchView" DataContext="{Binding Search}" />
+        </Grid>
+
         <!-- Theme-independent achievement detail overlay. -->
         <Grid Background="#E6070910"
               IsVisible="{Binding IsAchievementsOverlayOpen}">

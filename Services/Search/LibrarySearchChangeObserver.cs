@@ -94,6 +94,7 @@ internal sealed class LibrarySearchChangeObserver : IDisposable
     }
     private void OnNodeChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName == nameof(MediaNode.Name)) { Invalidate(false); return; }
         if (string.IsNullOrEmpty(e.PropertyName) || e.PropertyName is nameof(MediaNode.Id) or nameof(MediaNode.Children) or nameof(MediaNode.Items))
             Invalidate(true);
     }

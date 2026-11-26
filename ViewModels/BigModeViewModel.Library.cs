@@ -72,6 +72,7 @@ public partial class BigModeViewModel
     {
         if (_disposed != 0 || active == _parentalFilterActive) return;
         _parentalFilterActive = active;
+        Search?.SetProtection(active);
         ResetAttractIdleTimer();
         ResetGamepadAcceleration();
         _navigation.Refresh(active);
@@ -204,7 +205,14 @@ public partial class BigModeViewModel
                 if (IsAlphabetNavigationOpen) _alphabetSelectionChanged = true;
                 else
                 {
-                    StopVideoIfPreviewPathChanged(ResolvePreviewVideoPath());
+                    var targetVideoPath = ResolvePreviewVideoPath();
+                    // Actual library edits/protection changes can replace the underlying selection.
+                    // Search defers new playback, so stop obsolete video/audio immediately; retain
+                    // an identical shared fallback. Browsing search rows never reaches this path.
+                    if (IsSearchOpen && !FileSystemPathIdentity.Equals(_currentPreviewVideoPath, targetVideoPath))
+                        StopVideo();
+                    else
+                        StopVideoIfPreviewPathChanged(targetVideoPath);
                     ScheduleRetroAchievementsProgress(SelectedItem);
                 }
                 NotifyHomeSelectionPropertiesChanged();
