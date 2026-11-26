@@ -20,7 +20,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
-- restore BigMode video previews reliably after interrupted navigation, including opening menus, switching Home or achievements, losing focus and returning from a game
+- restore BigMode video previews reliably after interrupted navigation or a failed playback resume, including opening menus, switching Home or achievements, losing focus and returning from a game
 - keep a shared BigMode fallback video running when navigating between media without their own video, including while its first preview is still starting
 - reduce repeated video-file checks and stop obsolete logo preloads while browsing BigMode libraries
 - check Windows GOG game files with the AppImage's built-in archive tools, use Inno checksums when the GOG file manifest is unavailable, and retry confirmed incomplete installs interactively

@@ -925,6 +925,9 @@ the first frame is presented; the expected surface, playing flags and matching g
 Moving to a different effective video pauses the presented player and cancels obsolete render starts;
 only an actually presented player can be resumed. Achievement/Home/launch transitions retain their
 existing stop and restart boundaries.
+Resuming a paused player reports success and restores visibility only after `Play()` succeeds. A failed
+or throwing resume, or a missing paused player, stops and clears the main preview state before returning
+to the regular debounced start path; stale playing flags cannot suppress a restart of the same video.
 
 Preview resolution shares one result, including a missing video or node fallback, among consumers of the
 current selection. Selection/context changes, observed library edits and explicit cache invalidation drop

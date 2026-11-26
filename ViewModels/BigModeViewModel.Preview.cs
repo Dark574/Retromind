@@ -1317,34 +1317,50 @@ public partial class BigModeViewModel
         var targetVideoPath = ResolvePreviewVideoPath();
         if (string.IsNullOrEmpty(targetVideoPath) ||
             string.IsNullOrEmpty(_pausedPreviewVideoPath) ||
-            _pausedPreviewIndex is not (0 or 1) || GetMediaPlayer(_pausedPreviewIndex) == null ||
             !FileSystemPathIdentity.Equals(targetVideoPath, _pausedPreviewVideoPath))
         {
             ClearPausedPreviewState();
             return false;
         }
 
-        // Ensure the overlay is visible again for the paused preview.
-        IsVideoOverlayVisible = true;
-        IsVideoVisible = true;
-
-        if (_pausedPreviewIndex is 0 or 1)
+        var player = _pausedPreviewIndex is 0 or 1 ? GetMediaPlayer(_pausedPreviewIndex) : null;
+        if (player == null)
         {
-            var player = GetMediaPlayer(_pausedPreviewIndex);
-            if (player != null)
-            {
-                try
-                {
-                    if (!player.Play())
-                        _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "ResumePreview");
-                }
-                catch (Exception ex)
-                {
-                    _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "ResumePreview", ex);
-                }
-            }
+            StopVideo();
+            return false;
         }
 
+        return TryResumePausedPreview(() => player.Play());
+    }
+
+    // Keep native playback injectable at this narrow boundary so failure and
+    // restart state can be verified without constructing a VLC player.
+    private bool TryResumePausedPreview(Func<bool> play)
+    {
+        var resumed = false;
+        try
+        {
+            resumed = play();
+            if (!resumed)
+                _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "ResumePreview");
+        }
+        catch (Exception ex)
+        {
+            _ = ReportVideoPlaybackFailureAsync(_pausedPreviewIndex, "ResumePreview", ex);
+        }
+
+        if (!resumed)
+        {
+            // Clear playing flags and the current/pending paths together. Merely
+            // returning false would let PlayPreviewForPath mistake the failed
+            // player for an already running preview of the same path.
+            StopVideo();
+            return false;
+        }
+
+        ClearPausedPreviewState();
+        IsVideoOverlayVisible = true;
+        IsVideoVisible = true;
         return true;
     }
 
