@@ -50,6 +50,7 @@ especially before installing a new release.
 ### Made for the couch
 
 - **A controller-friendly BigMode.** Jump between recently played titles, favorites and the library from the Home screen, then return to the same selection after a game exits.
+- **Fast navigation through large libraries.** Hold the D-pad, left stick or page buttons for progressively larger jumps, or choose a letter from the shared alphabet grid.
 - **Media-rich, customizable themes.** Combine artwork, logos, music and video previews with runtime themes, system themes and optional artwork-derived accent colors.
 
 ### Portable and maintainable
@@ -89,14 +90,18 @@ Default controller layout:
 | Start / Menu / Options | Open the system menu |
 | L1 / LB | Previous page |
 | R1 / RB | Next page |
+| Unassigned | Open alphabet selection (optional) |
 | Hold L1 + R1 | Request stopping the tracked game session; release and hold again to confirm a forced stop |
 
 Open **Settings → Controls** to reassign the action buttons or either button of the game-stop combination by
 pressing the desired button on the connected controller. Directional navigation remains fixed.
-Page navigation jumps through library and category lists in groups of ten, uses the existing Home pages, and moves
-three rows at a time in the achievement browser. Page Up and Page Down provide keyboard equivalents.
-The theme-independent system menu can resume BigMode, show the active controller layout, return to the desktop
-library, or save and exit Retromind after confirmation.
+Short page presses jump ten entries in library and category lists. Holding a direction on the D-pad or left stick,
+or holding an assigned page button, repeats navigation with progressively larger jumps. Repeats stop at the list
+edge; release and press again to wrap. Small lists limit the jump size for more precise navigation.
+This acceleration applies to library navigation. Home uses its existing pages, and the achievement browser moves
+three rows per page action. Page Up and Page Down provide keyboard equivalents for page navigation.
+The theme-independent system menu can resume BigMode, open alphabet selection, show the active controller layout,
+return to the desktop library, or save and exit Retromind after confirmation.
 
 Default keyboard layout:
 
@@ -110,9 +115,27 @@ Default keyboard layout:
 | Home | BigMode Home screen |
 | F10 | Open the system menu |
 | Page Up / Page Down | Previous / next page |
+| Unassigned | Open alphabet selection (optional) |
 
 Every keyboard action can also be reassigned under **Settings → Controls**. Assignments use individual keys;
 modifier combinations such as Ctrl+Key are not supported.
+
+#### Alphabet selection
+
+While browsing the library, open **System menu → Alphabet selection**, or assign the optional alphabet action
+to a controller button or keyboard key under **Settings → Controls**. It is unassigned by default on both devices.
+The alphabet entry is disabled on Home; enter the library first.
+
+Use the D-pad, left stick or configured keyboard navigation keys to move through the compact grid. The current entry's group
+is preselected. Confirm with your usual Select action to jump and close the grid, or use Back to cancel without
+changing the library selection. Moving through the grid does not move the underlying library cursor.
+
+Only groups present in the current visible list are selectable; missing groups are dimmed and skipped.
+Accents and umlauts are grouped with their base letters (for example, Ä → A, Ö → O and É → E; ß → S).
+Numbers, special characters and international writing systems have additional groups.
+The jump selects the first matching entry in the existing visible order, including mixed category/media and
+unsorted lists. Media grouping respects Sort Title and the leading-article sorting option. The list order stays
+unchanged, and the grid works with shipped and external themes.
 
 #### HorizontalRow theme with C64 media
 
