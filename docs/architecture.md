@@ -1080,6 +1080,13 @@ Search evaluation is shared through `Services/Search` (Stage 5):
   references use flat values and per-row offsets to avoid per-item collection allocations. Query-specific
   snapshots reject evaluation with another query object. A full snapshot can explicitly be requested by
   omitting the query. Neither form is a persistent index or a cache retained between requests.
+- Store search captures the raw provider field, launcher arguments and flat immutable file references
+  (kind, path, index), plus the portable root context. Primary-file selection, ordinary relative-path
+  resolution and fallback recognition run in the worker through `StoreProviderBadgeHelper`. Its live and
+  frozen overloads share provider normalization and Steam/Heroic matching. Lexical root containment and
+  host path casing match the existing portable path contract; no media files are probed. The frozen
+  resolver never reads the current environment, working directory or live `MediaItem`. Windows paths
+  that are rooted but not fully qualified freeze their process-dependent resolution during capture.
 - `LibrarySearchEvaluator` provides synchronous and cancelable asynchronous evaluation with the existing
   ID deduplication and natural display ordering. It owns no query, results, cancellation source, selection,
   UI counters or subscriptions. Independent consumers may evaluate concurrently without canceling each other.
@@ -1102,6 +1109,18 @@ editor `RefreshResults` calls invalidate requests. In-place mutations of non-obs
 lists or asset types must use the existing explicit editor refresh; observing these silent writes would
 require changing model contracts. Result rows, bulk selection, selected item, counters and scroll requests
 remain in `SearchAreaViewModel`. There is no BigMode search overlay, keyboard or new binding in Stage 5.
+
+For Stage 6, prefer attaching search observation for an active search context, before its first capture,
+and canceling requests, releasing derived results/snapshots and disposing observation when that context
+closes. Retained query/filter/selection IDs can be restored with a fresh capture when reopened. BigMode's
+existing navigation observation remains independent and necessary outside search. A single complete
+revision source could eventually feed independent consumers without sharing their cancellation sources,
+queries, results, selection or desktop counters. Neither `LibraryChangeTracker.DirtyVersion` nor
+`BigModeNavigationSession.LibraryVersion` is such a source: saving and navigation do not cover every search
+metadata/tag/asset change, and navigation refresh is coalesced. Sharing observation would require a defined
+owner, subscription lifetime and immediate invalidation contract. Do not introduce that restructuring
+in advance; revisit only if concurrent active searches justify it. Stage 5 adds no BigMode search instance
+or shared revision service and leaves observer rebuilding unchanged.
 
 Search parity, scope/owner, protection, concurrent-worker and stale-publication regressions live in the search
 service and search-view-model tests. Reproduce the synthetic 10,000/50,000-item Release measurements with

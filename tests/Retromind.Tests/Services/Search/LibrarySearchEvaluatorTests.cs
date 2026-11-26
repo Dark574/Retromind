@@ -63,6 +63,9 @@ public sealed class LibrarySearchEvaluatorTests
         {
             Assert.Equal(0, entry.Document.TagCount); Assert.Empty(entry.Document.CustomFields); Assert.Equal(0, entry.Document.AssetCount);
             Assert.Null(entry.Document.StoreProviderId);
+            Assert.Equal(0, entry.Document.StoreFileCount);
+            Assert.Null(entry.Document.StoreLauncherArgs);
+            Assert.Null(entry.Document.StoreDataRoot);
         });
         Assert.Throws<InvalidOperationException>(() => LibrarySearchEvaluator.Evaluate(snapshot, new("tag:space")));
     }

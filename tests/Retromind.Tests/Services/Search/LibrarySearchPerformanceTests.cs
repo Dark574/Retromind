@@ -10,6 +10,49 @@ namespace Retromind.Tests.Services.Search;
 public sealed class LibrarySearchPerformanceTests(ITestOutputHelper output)
 {
     [Theory]
+    [InlineData(5_000)]
+    [InlineData(10_000)]
+    [InlineData(50_000)]
+    public async Task PortableFilesWithoutStoreIdentityAreCapturedForBackgroundRecognition(int count)
+    {
+        AvaloniaTestDispatcher.EnsureStarted();
+        List<MediaNode> roots = [];
+        await UiThreadHelper.InvokeAsync(() =>
+        {
+            roots = CreateLibrary(count);
+            foreach (var node in roots[0].Children)
+            foreach (var item in node.Items)
+            {
+                item.CustomFields.Clear();
+                item.Files = [new() { Kind = MediaFileKind.LibraryRelative, Path = $"Library/Games/{item.Id}/game.rom", Index = 1 }];
+            }
+        });
+        var query = new LibrarySearchQuery("store:gog AND has:video");
+        LibrarySearchSnapshot? snapshot = null;
+        var measurements = new List<(double Time, long Bytes)>();
+        var repetitions = Environment.GetEnvironmentVariable("RETROMIND_SEARCH_BENCHMARK") == "1" ? 6 : 1;
+        for (var i = 0; i < repetitions; i++)
+        {
+            await UiThreadHelper.InvokeAsync(() =>
+            {
+                var allocated = GC.GetAllocatedBytesForCurrentThread();
+                var watch = Stopwatch.StartNew();
+                snapshot = LibrarySearchSnapshot.Capture(roots, query: query);
+                watch.Stop();
+                measurements.Add((watch.Elapsed.TotalMilliseconds, GC.GetAllocatedBytesForCurrentThread() - allocated));
+            });
+        }
+        Assert.Equal(count, snapshot!.Entries.Count);
+        Assert.All(snapshot.Entries, entry => Assert.Equal(1, entry.Document.StoreFileCount));
+        Assert.Empty(await LibrarySearchEvaluator.EvaluateAsync(snapshot, query));
+        if (repetitions > 1)
+        {
+            var samples = measurements.Skip(1).OrderBy(m => m.Time).ToArray();
+            output.WriteLine($"{count} portable ROM files | UI capture median {samples[2].Time:F3} ms / {samples[2].Bytes / 1048576.0:F3} MiB; max {samples[^1].Time:F3} ms | worker {Measure(() => LibrarySearchEvaluator.Evaluate(snapshot, query))}");
+        }
+    }
+
+    [Theory]
     [InlineData(10_000)]
     [InlineData(50_000)]
     public async Task LargeLibraryParityAndReproducibleCostMeasurements(int count)

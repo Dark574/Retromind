@@ -16,6 +16,8 @@ public sealed class SearchAreaViewModelSearchLifecycleTests
     [InlineData("metadata")]
     [InlineData("tags")]
     [InlineData("asset")]
+    [InlineData("store_files")]
+    [InlineData("store_args")]
     [InlineData("remove")]
     [InlineData("move")]
     [InlineData("protect")]
@@ -59,6 +61,8 @@ public sealed class SearchAreaViewModelSearchLifecycleTests
                 case "metadata": item.Description = "Edited"; break;
                 case "tags": item.Tags.Add("new"); break;
                 case "asset": item.Assets[0].RelativePath = "new.mp4"; break;
+                case "store_files": item.Files = [new() { Path = "steam" }]; break;
+                case "store_args": item.LauncherArgs = "steam://run/123"; break;
                 case "remove": roots[0].Items.Remove(item); break;
                 case "move": roots[0].Items.Remove(item); roots[1].Items.Add(item); break;
                 case "protect": item.IsProtected = true; break;
@@ -71,7 +75,7 @@ public sealed class SearchAreaViewModelSearchLifecycleTests
             await Task.Delay(80);
             Assert.Empty(vm.SearchResults);
             Assert.Equal(0, published);
-            if (change is "query" or "title" or "metadata" or "tags" or "asset" or "move")
+            if (change is "query" or "title" or "metadata" or "tags" or "asset" or "store_files" or "store_args" or "move")
             {
                 await secondPublished.Task.WaitAsync(TimeSpan.FromSeconds(5));
                 Assert.Single(vm.SearchResults);

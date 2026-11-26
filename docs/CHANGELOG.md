@@ -22,6 +22,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
+- reduce interface pauses during store searches in large portable libraries
 - keep global search results and category counts current when media are edited, moved, removed or protected during a search
 - restore BigMode video previews reliably after interrupted navigation or a failed playback resume, including opening menus, switching Home or achievements, losing focus and returning from a game
 - keep a shared BigMode fallback video running when navigating between media without their own video, including while its first preview is still starting

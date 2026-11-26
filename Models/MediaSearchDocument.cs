@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Retromind.Helpers;
 
 namespace Retromind.Models;
 
@@ -31,7 +32,13 @@ internal readonly struct MediaSearchDocument(MediaSearchValues values, int index
     internal MediaType MediaType => values.MediaType is { } column ? column[index] : default;
     internal bool IsFavorite => values.IsFavorite is { } column ? column[index] : false;
     internal bool HasPlayed => values.HasPlayed is { } column ? column[index] : false;
-    internal string? StoreProviderId => values.StoreProviderId is { } column ? column[index] : null;
+    internal string? StoreProviderId => StoreProviderBadgeHelper.GetProviderId(this);
+    internal string? StoredStoreProviderId => values.StoredStoreProviderId is { } column ? column[index] : null;
+    internal string? StoreLauncherArgs => values.StoreLauncherArgs is { } column ? column[index] : null;
+    internal string? StoreDataRoot => values.StoreDataRoot;
+    internal string? StoreDataRootPrefix => values.StoreDataRootPrefix;
+    internal int StoreFileCount => values.StoreFileOffsets is { } offsets ? offsets[index + 1] - offsets[index] : 0;
+    internal MediaSearchFile StoreFileAt(int offset) => values.StoreFiles![values.StoreFileOffsets![index] + offset];
     internal (bool IsGog, bool HasUpdate) GogUpdateSearchState => values.GogUpdateSearchState is { } column ? column[index] : default;
     internal int TagCount => values.TagOffsets is { } offsets ? offsets[index + 1] - offsets[index] : 0;
     internal string TagAt(int offset) => values.TagValues![values.TagOffsets![index] + offset];
@@ -64,7 +71,12 @@ internal sealed record MediaSearchValues
     internal IReadOnlyList<MediaType>? MediaType { get; init; }
     internal IReadOnlyList<bool>? IsFavorite { get; init; }
     internal IReadOnlyList<bool>? HasPlayed { get; init; }
-    internal IReadOnlyList<string?>? StoreProviderId { get; init; }
+    internal IReadOnlyList<string?>? StoredStoreProviderId { get; init; }
+    internal IReadOnlyList<string?>? StoreLauncherArgs { get; init; }
+    internal string? StoreDataRoot { get; init; }
+    internal string? StoreDataRootPrefix { get; init; }
+    internal IReadOnlyList<int>? StoreFileOffsets { get; init; }
+    internal IReadOnlyList<MediaSearchFile>? StoreFiles { get; init; }
     internal IReadOnlyList<(bool IsGog, bool HasUpdate)>? GogUpdateSearchState { get; init; }
     internal IReadOnlyList<int>? TagOffsets { get; init; }
     internal IReadOnlyList<string>? TagValues { get; init; }
@@ -76,3 +88,4 @@ internal sealed record MediaSearchValues
 }
 
 internal readonly record struct MediaSearchAsset(AssetType Type, string RelativePath);
+internal readonly record struct MediaSearchFile(MediaFileKind Kind, string Path, int? Index);

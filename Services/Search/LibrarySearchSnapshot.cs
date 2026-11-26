@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Retromind.Helpers;
@@ -130,6 +131,27 @@ internal sealed class LibrarySearchSnapshot
         var tags = Nested(matcher == null || matcher.NeedsSearchTags, item => item.Tags.Count, (item, i) => item.Tags[i]);
         var assets = Nested(matcher == null || matcher.NeedsSearchAssets, item => item.Assets.Count,
             (item, i) => new MediaSearchAsset(item.Assets[i].Type, item.Assets[i].RelativePath));
+        var needsStore = matcher == null || matcher.NeedsSearchStore;
+        var files = Nested(needsStore, item => item.Files?.Count ?? 0, (item, i) =>
+        {
+            token.ThrowIfCancellationRequested();
+            var file = item.Files[i];
+            var path = file.Path;
+            // Windows drive/root-relative paths depend on process context. Freeze that rare
+            // case here; ordinary portable relative paths are resolved by the worker.
+            if (file.Kind == MediaFileKind.LibraryRelative && Path.IsPathRooted(path) && !Path.IsPathFullyQualified(path))
+            {
+                try { path = Path.GetFullPath(path); }
+                catch { path = string.Empty; }
+            }
+            return new MediaSearchFile(file.Kind, path, file.Index);
+        });
+        string? storeRoot = null;
+        if (needsStore)
+        {
+            try { storeRoot = Path.GetFullPath(AppPaths.DataRoot); }
+            catch { /* Match the existing resolver's invalid-root behavior for portable paths. */ }
+        }
         return new MediaSearchValues
         {
             TagOffsets = tags.Offsets, TagValues = tags.Values,
@@ -153,7 +175,11 @@ internal sealed class LibrarySearchSnapshot
             MediaType = Column(true, item => item.MediaType),
             IsFavorite = Column(Needs(nameof(MediaItem.IsFavorite)) || query!.OnlyFavorites, item => item.IsFavorite),
             HasPlayed = Column(Needs(nameof(MediaItem.HasPlayedForSearch)), item => MediaPlayStateHelper.HasPlayEvidence(item)),
-            StoreProviderId = Column(matcher == null || matcher.NeedsSearchStore, item => StoreProviderBadgeHelper.GetProviderId(item)),
+            StoredStoreProviderId = Column(needsStore, item => item.CustomFields.TryGetValue(CustomFieldKeyHelper.StoreProviderId, out var provider) ? provider : null),
+            StoreLauncherArgs = Column(needsStore, item => item.LauncherArgs),
+            StoreFileOffsets = files.Offsets, StoreFiles = files.Values,
+            StoreDataRoot = storeRoot,
+            StoreDataRootPrefix = storeRoot == null || storeRoot.EndsWith(Path.DirectorySeparatorChar) ? storeRoot : storeRoot + Path.DirectorySeparatorChar,
             GogUpdateSearchState = Column(matcher == null || matcher.NeedsSearchGogUpdate, item => item.GogUpdateSearchState),
             CustomFields = Column(matcher == null || matcher.NeedsSearchCustomFields, item => item.CustomFields.Count == 0 ? EmptyCustomFields : new ReadOnlyDictionary<string, string>(new Dictionary<string, string>(item.CustomFields))),
             PrimarySortKey = Column(true, item => MediaSortHelper.GetPrimarySortKey(item)),
