@@ -13,6 +13,18 @@ namespace Retromind.ViewModels;
 
 public partial class BigModeViewModel
 {
+    private long _searchResultActivationGeneration;
+    private int _searchResultHomeTransitionGeneration;
+    private void InvalidateSearchResultActivation()
+    {
+        Interlocked.Increment(ref _searchResultActivationGeneration);
+        var ownedHomeTransition = Volatile.Read(ref _searchResultHomeTransitionGeneration);
+        // Until Home has actually been left, a newer intent also cancels the
+        // activation's owned exit. Never cancel a subsequent, unrelated transition.
+        if (ownedHomeTransition != 0 && IsHomeActive)
+            Interlocked.CompareExchange(ref _homeTransitionGeneration, unchecked(ownedHomeTransition + 1), ownedHomeTransition);
+    }
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSearchOpen))]
     private BigModeSearchViewModel? _search;
@@ -83,8 +95,22 @@ public partial class BigModeViewModel
         CloseSearch(resumePreview: false);
         try
         {
-            if (IsHomeActive) await ToggleHomeAsync();
-            if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress || InputContext != BigModeInputContext.Library ||
+            // ToggleHomeAsync consumes input synchronously before its first yield.
+            // Capture after that owned boundary, before newer UI input can overtake us.
+            var homeTransition = IsHomeActive ? ToggleHomeAsync() : Task.CompletedTask;
+            var ownedHomeTransition = !homeTransition.IsCompleted && IsHomeActive
+                ? Volatile.Read(ref _homeTransitionGeneration) : 0;
+            if (ownedHomeTransition != 0)
+                Volatile.Write(ref _searchResultHomeTransitionGeneration, ownedHomeTransition);
+            var generation = Volatile.Read(ref _searchResultActivationGeneration);
+            try { await homeTransition; }
+            finally
+            {
+                if (ownedHomeTransition != 0)
+                    Interlocked.CompareExchange(ref _searchResultHomeTransitionGeneration, 0, ownedHomeTransition);
+            }
+            if (generation != Volatile.Read(ref _searchResultActivationGeneration) ||
+                _disposed != 0 || _isLaunching || _isCloseRequestInProgress || InputContext != BigModeInputContext.Library ||
                 !BigModeSearchViewModel.TryResolveTarget(_rootNodes, _parentalFilterActive, row, out item, out _)) return false;
             _navigation.Refresh(_parentalFilterActive);
             if (!_navigation.TryReveal(new(BigModeNavigationEntryKind.MediaItem, row.ItemId))) return false;
@@ -101,9 +127,13 @@ public partial class BigModeViewModel
         finally { if (_disposed == 0 && !_isLaunching) TriggerPreviewPlaybackWithDebounce(); }
     }
 
-    private bool HandleSearchAction(BigModeKeyboardAction action)
+    private bool HandleSearchAction(BigModeKeyboardAction action, bool isRepeat = false)
     {
         if (Search is not { } search) return true;
+        var toggleKey = search.IsKeyboardFocused && search.SelectedKeyIndex >= 0 && search.SelectedKeyIndex < search.Keys.Count &&
+            search.Keys[search.SelectedKeyIndex].Kind is BigModeSearchKeyKind.Layer or BigModeSearchKeyKind.Case;
+        if (isRepeat && (action is BigModeKeyboardAction.NextPage or BigModeKeyboardAction.Details ||
+            action == BigModeKeyboardAction.Select && (search.IsScopeFocused || toggleKey))) return true;
         switch (action)
         {
             case BigModeKeyboardAction.NavigateUp: search.Navigate(Services.GamepadService.GamepadDirection.Up); break;
@@ -126,17 +156,18 @@ public partial class BigModeViewModel
     /// <summary>Native text editing owns printable bindings and editing keys, including Backspace.</summary>
     public bool HandleSearchTextKeyDown(Key key, KeyModifiers modifiers)
     {
-        _pressedKeyboardKeys.Add(key);
-        if (_blockedKeyboardKeys.Contains(key)) return true;
+        if (_windowInputInactive) return true;
         if (!IsSearchOpen) return false;
         if (!Search!.IsKeyboardFocused) return HandleKeyboardKeyDown(key, modifiers);
-        if (key == Key.Tab) { Search!.FocusResults(); return true; }
+        var isRepeat = !_pressedKeyboardKeys.Add(key);
+        if (_blockedKeyboardKeys.Contains(key)) return true;
+        if (key is Key.Enter or Key.Tab) { Search!.FocusResults(); return true; }
         if (modifiers != KeyModifiers.None || key is Key.Back or Key.Delete or Key.Left or Key.Right or Key.Up or Key.Down or Key.Home or Key.End ||
             key is >= Key.A and <= Key.Z || key is >= Key.D0 and <= Key.D9 || key is >= Key.NumPad0 and <= Key.NumPad9 || key is Key.Add or Key.Subtract or Key.Multiply or Key.Divide or Key.Decimal or Key.Separator || key == Key.Space || key.ToString().StartsWith("Oem", StringComparison.Ordinal)) return false;
         if (KeyboardBindingHelper.TryResolveAction(_settings.KeyboardBindings, key, out var action))
         {
             if (action == BigModeKeyboardAction.Select) { Search!.FocusResults(); return true; }
-            return HandleSearchAction(action);
+            return HandleSearchAction(action, isRepeat);
         }
         return false;
     }

@@ -564,8 +564,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public void SetGamepadUiInputEnabled(bool enabled)
     {
         _gamepadService.SetUiInputEnabled(enabled);
-        if (!enabled)
-            _bigModeSession.ActiveViewModel?.NotifyNavigationInputLost();
+        _bigModeSession.ActiveViewModel?.NotifyWindowFocusChanged(enabled);
     }
 
     private async Task HandleSessionExitRequestAsync()

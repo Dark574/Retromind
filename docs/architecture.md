@@ -925,6 +925,12 @@ owns this single timer; switching owners resets the monotonic hold timestamp and
 an older input does not stop the newer one, and releasing the owner never reactivates a still-held older
 input. Keyboard holds are tracked separately so one source cannot resume the preview
 while another is still scrolling. Window deactivation resets both sources through the main window model.
+The main window forwards actual activation/deactivation to `NotifyWindowFocusChanged`, separately from
+ordinary context/input loss. A real window-focus boundary clears pressed/blocked keyboard state because
+KeyUp may have occurred in another application; key-downs while inactive are consumed. Repeated activation
+notifications do not clear the hold protection of an open overlay. Reactivation synchronizes only keyboard
+state, preserving fresh controller presses already accepted by the input bridge. Ordinary overlay changes still consume
+held keys until KeyUp. No old navigation repeat is replayed when the window regains focus.
 Beginning a scroll cancels pending preview debounce work. A playing or pending preview with the same
 effective video path keeps running/starting across selection changes, including shared node fallbacks.
 This includes the interval after native `Play()` returns and clears the pending-start fields but before
@@ -1028,8 +1034,8 @@ rescans the frame nor traverses the library. Input cleanup precedes target publi
 the target's new preload batch. Cancel changes no library selection; preview debounce resumes normally,
 retaining the same fallback path/player and the Stage 1 failed-resume recovery behavior.
 
-`BigModeInputContext` names Library, Home, Achievements, Alphabet and SystemMenu without introducing
-an overlay framework. SystemMenu has priority and dismisses Alphabet; Alphabet is opened only in the
+`BigModeInputContext` names Library, Home, Achievements, Alphabet, Search and SystemMenu without introducing
+an overlay framework. SystemMenu has priority and dismisses Search/Alphabet; Alphabet is opened only in the
 library (including from SystemMenu), and existing achievements must be closed first. Direction, page,
 select, back and exit routing share this ownership and the existing navigation input generation.
 Opening/closing contexts consume the current holds through `EndNavigationScroll`: repeat owners stop,
@@ -1044,11 +1050,13 @@ an explicit `Unassigned` marker, keeping legacy missing/invalid/`None` fallback 
 existing capture/conflict-swap/save/reset workflow handles the optional action; swapping an occupied
 binding into an unassigned row explicitly unassigns the displaced action instead of restoring its default.
 
-Alphabet direction holds use the existing 350/80 ms repeat timer with one cell per tick. Library
-acceleration profiles remain unchanged. Page, launch, Home and achievement actions cannot leak into
+Alphabet direction holds use the existing 350/80 ms repeat timer with one cell per tick. After navigating,
+the press handler rechecks input generation and Alphabet ownership before arming repeat: a dirty-library
+flush can remove the open category and close the grid. Such an old press cannot start library repeat.
+Library acceleration profiles remain unchanged. Page, launch, Home and achievement actions cannot leak into
 the library from the grid. Focus/input loss and controller removal end holds without choosing a target;
 BigMode teardown closes the overlay. Attract Mode and its delayed work are suppressed while Alphabet
-is open, and closing starts a fresh idle interval. Search and the on-screen keyboard remain unimplemented.
+is open, and closing starts a fresh idle interval. Search extends this shared context as described below.
 
 ## Search architecture
 Global search uses a dedicated `SearchAreaViewModel`:
@@ -1122,6 +1130,17 @@ Closing releases results and keyboard keys; normal BigMode retains no additional
 `BigModeViewModel.Search` coordinates this context with the existing navigation session and regular
 `PlayCurrent` path. Confirm shows a result using `TryReveal`; Details starts it. Both revalidate current
 object identity, actual owner, visibility and protection, including after leaving Home asynchronously.
+A separate result-activation generation rejects a request overtaken by newer navigation, selection,
+context changes or input loss, even when the final context is Library again. Home row selection bindings
+also invalidate pending actions, so pointer selection is covered before the library cursor is restored. Controller presses invalidate
+at receipt, before dispatch, so a higher-priority Home continuation cannot overtake already received input;
+old queued callbacks still obey the existing navigation-generation guard. Capture follows the synchronous
+start of the activation's own Home transition. While Home is still active, a newer intent also invalidates
+that exact owned Home-transition generation, preventing an obsolete exit from restoring the library.
+Compare-exchange ownership ensures neither cleanup nor cancellation can affect a subsequent transition.
+Home restores its saved cursor while still active and does not invalidate its own transition; later library
+cursor changes do. Releasing confirmation is not a new
+intent. Final visibility/identity checks and the regular launch path remain authoritative.
 Search rows contain frozen display text, type geometry and an opaque item identity; they never trigger
 artwork or video requests and changing the search selection never moves the library cursor. Scope defaults
 to the entire library; optional category scope includes descendants of the category captured at opening.
@@ -1130,7 +1149,10 @@ to the entire library; optional category scope includes descendants of the categ
 10×5 keyboard and a virtualized result list with a five-row viewport, scrollbar and range label. View code
 only manages native focus, pointer gestures and scroll offsets. Query editing remains in the view model;
 physical keyboard text/caret/selection use the native TextBox. Printable bindings and editing keys belong
-to that TextBox while focused, preventing global actions while typing. Enter/Tab moves to results.
+to that TextBox while focused, preventing global actions while typing. Enter/Tab moves to results regardless
+of the configured Select binding; other focus regions retain semantic bindings. Search scope, symbol layer
+and case toggles accept only the first keyboard KeyDown of a hold. Navigation, backspace and native text
+editing remain repeatable; tracking runs once when delegating from native text to semantic routing.
 
 The existing shared input priority is System menu > Search > Alphabet > Achievements > Home > Library.
 Opening/closing or changing search focus consumes held inputs and discards queued SDL actions through the

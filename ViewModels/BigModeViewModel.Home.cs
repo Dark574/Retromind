@@ -189,6 +189,7 @@ public partial class BigModeViewModel
         if (_updatingHomeSelection || entry == null)
             return;
 
+        if (IsHomeActive) InvalidateSearchResultActivation();
         _updatingHomeSelection = true;
         try
         {

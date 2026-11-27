@@ -10,10 +10,25 @@ public partial class BigModeViewModel
     private readonly HashSet<Key> _keyboardScrollKeys = [];
     private readonly HashSet<Key> _pressedKeyboardKeys = [];
     private readonly HashSet<Key> _blockedKeyboardKeys = [];
+    private bool _windowInputInactive;
+
+    public void NotifyWindowFocusChanged(bool focused)
+    {
+        if (_windowInputInactive == !focused) return;
+        _windowInputInactive = !focused;
+        // Stop on deactivation. Reactivation must not consume fresh controller
+        // events already enabled by the window's input bridge.
+        if (!focused) EndNavigationScroll(resumePreview: true);
+        // A window focus boundary can lose KeyUp events entirely. Start a fresh
+        // keyboard stream; ordinary overlay transitions still block held keys.
+        _pressedKeyboardKeys.Clear();
+        _blockedKeyboardKeys.Clear();
+    }
 
     public bool HandleKeyboardKeyDown(Key key, KeyModifiers modifiers)
     {
-        _pressedKeyboardKeys.Add(key);
+        if (_windowInputInactive) return true;
+        var isRepeat = !_pressedKeyboardKeys.Add(key);
         if (_blockedKeyboardKeys.Contains(key)) return true;
         if (modifiers != KeyModifiers.None ||
             !KeyboardBindingHelper.TryResolveAction(_settings.KeyboardBindings, key, out var action))
@@ -24,7 +39,8 @@ public partial class BigModeViewModel
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress)
             return true;
 
-        if (InputContext == BigModeInputContext.Search) return HandleSearchAction(action);
+        InvalidateSearchResultActivation();
+        if (InputContext == BigModeInputContext.Search) return HandleSearchAction(action, isRepeat);
 
         if (InputContext == BigModeInputContext.Alphabet)
         {

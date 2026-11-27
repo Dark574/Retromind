@@ -12,6 +12,8 @@ public partial class BigModeViewModel
     private void OnGamepadPageStateChanged(int direction, bool pressed)
     {
         var generation = Volatile.Read(ref _navigationInputGeneration);
+        if (pressed && _disposed == 0 && !_isLaunching && !_isCloseRequestInProgress)
+            InvalidateSearchResultActivation();
         DispatchGamepadAction(() =>
         {
             if (IsSearchOpen)
@@ -54,6 +56,7 @@ public partial class BigModeViewModel
         if (_disposed != 0 || _isCloseRequestInProgress || _isLaunching || IsSystemMenuOpen || IsAlphabetNavigationOpen || direction == 0)
             return;
 
+        InvalidateSearchResultActivation();
         ResetAttractIdleTimer();
 
         var moved = IsAchievementsOverlayOpen

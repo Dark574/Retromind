@@ -28,6 +28,8 @@ public partial class BigModeViewModel
     private void OnGamepadDirectionStateChanged(GamepadService.GamepadDirection direction, bool isPressed)
     {
         var generation = Volatile.Read(ref _navigationInputGeneration);
+        if (isPressed && _disposed == 0 && !_isLaunching && !_isCloseRequestInProgress)
+            InvalidateSearchResultActivation();
         DispatchGamepadAction(() =>
         {
             if (_disposed != 0 || _isCloseRequestInProgress || generation != _navigationInputGeneration)
@@ -47,7 +49,13 @@ public partial class BigModeViewModel
             }
             if (InputContext == BigModeInputContext.Alphabet)
             {
-                if (isPressed) { NavigateAlphabet(direction); StartGamepadRepeat(direction); }
+                if (isPressed)
+                {
+                    var before = _navigationInputGeneration;
+                    NavigateAlphabet(direction);
+                    if (InputContext == BigModeInputContext.Alphabet && before == _navigationInputGeneration)
+                        StartGamepadRepeat(direction);
+                }
                 else StopGamepadRepeat(direction);
                 return;
             }
@@ -197,6 +205,10 @@ public partial class BigModeViewModel
     private void DispatchGamepadInput(Action action)
     {
         var generation = Volatile.Read(ref _navigationInputGeneration);
+        // Input may arrive while a Home continuation has higher dispatcher priority.
+        // Invalidate at receipt; the UI generation below still rejects stale actions.
+        if (_disposed == 0 && !_isLaunching && !_isCloseRequestInProgress)
+            InvalidateSearchResultActivation();
         DispatchGamepadAction(() =>
         {
             if (_disposed == 0 && !_isLaunching && !_isCloseRequestInProgress && generation == _navigationInputGeneration) action();
@@ -386,6 +398,7 @@ public partial class BigModeViewModel
     // not restart it in Home, an overlay, a returned game or a closing instance.
     private void EndNavigationScroll(bool resumePreview)
     {
+        InvalidateSearchResultActivation();
         Interlocked.Increment(ref _navigationInputGeneration);
         _gamepadService?.DiscardPendingUiInput();
         _blockedKeyboardKeys.UnionWith(_pressedKeyboardKeys);
@@ -456,6 +469,7 @@ public partial class BigModeViewModel
         if (InputContext != BigModeInputContext.Library) return;
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
+        InvalidateSearchResultActivation();
         ResetAttractIdleTimer();
         
         FlushNavigationChanges();
@@ -468,6 +482,7 @@ public partial class BigModeViewModel
         if (InputContext != BigModeInputContext.Library) return;
         if (_disposed != 0 || _isLaunching || _isCloseRequestInProgress) return;
 
+        InvalidateSearchResultActivation();
         ResetAttractIdleTimer();
         
         FlushNavigationChanges();

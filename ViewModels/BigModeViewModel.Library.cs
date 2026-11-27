@@ -129,6 +129,9 @@ public partial class BigModeViewModel
 
     private void OnNavigationChanged(object? sender, EventArgs args)
     {
+        // Home restores its own cursor while still active. Subsequent library
+        // cursor changes (including pointer selection) supersede pending search actions.
+        if (!IsHomeActive) InvalidateSearchResultActivation();
         if (!_applyingAttractSelection) ResetAttractIdleTimer();
         SynchronizeNavigation();
     }
