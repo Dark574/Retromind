@@ -17,7 +17,6 @@ internal sealed class DesktopBigModeSession
     private readonly Func<Window?> _getWindow;
     private readonly Func<MediaItem, Task<LaunchResult?>> _playMedia;
     private readonly Func<Task> _syncDesktopSelection;
-    private readonly Func<BigModeViewModel, Task> _prepareToDetach;
     private readonly Action<BigModeHostView> _restoreGameFocus;
     private Presentation? _presentation;
 
@@ -26,14 +25,12 @@ internal sealed class DesktopBigModeSession
         Func<Window?> getWindow,
         Func<MediaItem, Task<LaunchResult?>> playMedia,
         Func<Task> syncDesktopSelection,
-        Func<BigModeViewModel, Task>? prepareToDetach = null,
         Action<BigModeHostView>? restoreGameFocus = null)
     {
         _settings = settings;
         _getWindow = getWindow;
         _playMedia = playMedia;
         _syncDesktopSelection = syncDesktopSelection;
-        _prepareToDetach = prepareToDetach ?? (viewModel => viewModel.PrepareForThemeSwapAsync());
         _restoreGameFocus = restoreGameFocus ?? RestoreGameFocus;
     }
 
@@ -63,7 +60,10 @@ internal sealed class DesktopBigModeSession
             Opacity = 0,
             IsHitTestVisible = false
         };
-        var presentation = new Presentation(viewModel, host, previousWindowState);
+        var themeSwitcher = new BigModeThemeSwitcher(
+            viewModel, host, initialThemePath, GetEffectiveThemePath, ThemeLoader.LoadTheme,
+            viewModel.PrepareForThemeSwapAsync);
+        var presentation = new Presentation(viewModel, host, previousWindowState, themeSwitcher);
 
         viewModel.RequestPlay += item => PlayAsync(presentation, item);
         viewModel.RequestApplicationExit += () => UiThreadHelper.InvokeAsync(() => _getWindow()?.Close());
@@ -74,49 +74,70 @@ internal sealed class DesktopBigModeSession
         host.SetThemeContent(initialTheme.View, initialTheme);
         host.RevealAfterInitialLayout();
 
-        var themeSwitcher = new BigModeThemeSwitcher(
-            viewModel, host, initialThemePath, GetEffectiveThemePath, ThemeLoader.LoadTheme,
-            () => _prepareToDetach(viewModel));
         themeSwitcher.Refresh();
-        viewModel.RequestClose += () => CloseAsync(presentation, themeSwitcher);
+        viewModel.RequestClose += () => UiThreadHelper.InvokeAsync(() => CloseOnUiThread(presentation, restoreDesktop: true));
 
         viewModel.InvalidatePreviewCaches(stopCurrentPreview: false);
     }
 
-    private Task CloseAsync(Presentation presentation, BigModeThemeSwitcher themeSwitcher) =>
-        UiThreadHelper.InvokeAsync(async () =>
-        {
-            if (!ReferenceEquals(_presentation, presentation) || presentation.IsClosing)
-                return;
+    internal Task ShutdownAsync() => UiThreadHelper.InvokeAsync(() =>
+        _presentation is { } presentation
+            ? CloseOnUiThread(presentation, restoreDesktop: false)
+            : Task.CompletedTask);
 
-            presentation.IsClosing = true;
+    private Task CloseOnUiThread(Presentation presentation, bool restoreDesktop)
+    {
+        if (!ReferenceEquals(_presentation, presentation))
+            return Task.CompletedTask;
+        if (presentation.IsClosing)
+            return presentation.CloseTask;
+
+        presentation.IsClosing = true;
+        return presentation.CloseTask = FinishCloseAsync(presentation, restoreDesktop);
+    }
+
+    private async Task FinishCloseAsync(Presentation presentation, bool restoreDesktop)
+    {
+        var viewModel = presentation.ViewModel;
+        presentation.ThemeSwitcher.Dispose();
+
+        try
+        {
+            // Keep the original host until VLC has stopped and released its
+            // resources. The worker never needs the UI thread to finish.
             try
             {
-                var viewModel = presentation.ViewModel;
-                themeSwitcher.Dispose();
                 viewModel.SaveState();
-                await _prepareToDetach(viewModel);
-
-                _presentation = null;
-                ContentChanged?.Invoke();
-
-                var window = _getWindow();
-                if (window is { WindowState: WindowState.FullScreen } &&
-                    presentation.PreviousWindowState != WindowState.FullScreen)
-                    window.WindowState = presentation.PreviousWindowState;
-
-                viewModel.Dispose();
-                await _syncDesktopSelection();
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"[CoreApp] BigMode close handling failed: {ex}");
             }
             finally
             {
-                presentation.IsClosing = false;
+                await viewModel.DisposeAsync();
             }
-        });
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CoreApp] BigMode teardown failed: {ex}");
+        }
+
+        _presentation = null;
+        ContentChanged?.Invoke();
+        if (!restoreDesktop)
+            return;
+
+        var window = _getWindow();
+        if (window is { WindowState: WindowState.FullScreen } &&
+            presentation.PreviousWindowState != WindowState.FullScreen)
+            window.WindowState = presentation.PreviousWindowState;
+
+        try
+        {
+            await _syncDesktopSelection();
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"[CoreApp] Could not restore desktop selection: {ex}");
+        }
+    }
 
     private async Task PlayAsync(Presentation presentation, MediaItem item)
     {
@@ -191,8 +212,10 @@ internal sealed class DesktopBigModeSession
         return fallbackThemePath;
     }
 
-    private sealed record Presentation(BigModeViewModel ViewModel, BigModeHostView Host, WindowState PreviousWindowState)
+    private sealed record Presentation(BigModeViewModel ViewModel, BigModeHostView Host,
+        WindowState PreviousWindowState, BigModeThemeSwitcher ThemeSwitcher)
     {
         internal bool IsClosing { get; set; }
+        internal Task CloseTask { get; set; } = Task.CompletedTask;
     }
 }

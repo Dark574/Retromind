@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Retromind.Helpers.Video;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Services;
@@ -12,68 +14,93 @@ public sealed class DesktopBigModeSessionTests
     private static readonly TimeSpan TestTimeout = TimeSpan.FromSeconds(5);
 
     [Fact]
-    public async Task Close_SavesSelectionAndWaitsForPreviewBeforeDetaching()
+    public async Task Close_WaitsForNativeTeardownOffTheUiThreadBeforeTheNextSession()
     {
         using var temp = new TemporaryDirectory();
         using var environment = UseTestTheme(temp);
-        var stopStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var previewStopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var freeStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var allowFree = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var transitions = new List<string>();
-        BigModeNavigationFixture? fixture = null;
+        BigModeNavigationFixture? first = null;
+        BigModeNavigationFixture? second = null;
         DesktopBigModeSession? session = null;
         Task? closing = null;
+        Task? shutdown = null;
 
         try
         {
             await AvaloniaTestDispatcher.InvokeAsync(_ =>
             {
-                fixture = CreateNavigation();
+                first = CreateNavigation();
+                var surface = new LibVlcVideoSurface(null, 0, Marshal.AllocHGlobal, pointer =>
+                {
+                    freeStarted.SetResult();
+                    allowFree.Task.GetAwaiter().GetResult();
+                    Marshal.FreeHGlobal(pointer);
+                });
+                var chroma = Marshal.AllocHGlobal(4);
+                try
+                {
+                    IntPtr opaque = IntPtr.Zero;
+                    uint width = 16, height = 16, pitch = 0, lines = 0;
+                    Assert.Equal(1U, surface.VideoFormat(ref opaque, chroma, ref width, ref height, ref pitch, ref lines));
+                }
+                finally { Marshal.FreeHGlobal(chroma); }
+                first.Set("_videoSurfaceA", surface);
+
                 session = new DesktopBigModeSession(
-                    fixture.Settings, () => null, _ => throw new InvalidOperationException("Unexpected launch"),
+                    first.Settings, () => null, _ => throw new InvalidOperationException("Unexpected launch"),
                     () =>
                     {
-                        Assert.Equal(1, fixture.Get<int>("_disposed"));
+                        Assert.True(first.Vm.VideoTeardown.IsCompletedSuccessfully);
                         transitions.Add("sync desktop");
                         return Task.CompletedTask;
-                    },
-                    prepareToDetach: _ =>
-                    {
-                        transitions.Add("stop preview");
-                        stopStarted.SetResult();
-                        return previewStopped.Task;
                     });
                 session.ContentChanged += () => transitions.Add(session.Content != null ? "attach" : "detach");
-                session.Open(_ => fixture.Vm);
-                var host = Assert.IsType<BigModeHostView>(session.Content);
-                Assert.Same(fixture.Vm, host.DataContext);
-                fixture.Session.ActivateSelected();
-                closing = fixture.CallAsync("RequestBigModeCloseAsync");
+                session.Open(_ => first.Vm);
+                first.Session.ActivateSelected();
+                Assert.NotNull(first.Vm.SelectedItem);
+                first.Get<System.Collections.ObjectModel.ObservableCollection<MediaNode>>("_rootNodes")[0].Items.Clear();
+                closing = first.CallAsync("RequestBigModeCloseAsync");
             });
-            await stopStarted.Task.WaitAsync(TestTimeout);
+
+            await freeStarted.Task.WaitAsync(TestTimeout);
             await AvaloniaTestDispatcher.InvokeAsync(_ =>
             {
-                Assert.True(fixture!.Get<bool>("_stateSaved"));
-                Assert.Equal(0, fixture.Get<int>("_disposed"));
+                Assert.True(first!.Get<bool>("_stateSaved"));
+                Assert.NotNull(first.Settings.BigModeNavigation);
+                Assert.Null(first.Settings.BigModeNavigation.SelectedMediaId);
+                Assert.False(first.Vm.VideoTeardown.IsCompleted);
                 Assert.NotNull(session!.Content);
                 Assert.Null(session.ActiveViewModel);
-                Assert.Equal(["attach", "stop preview"], transitions);
-
-                // Keep the original host until its playback has settled.
+                Assert.Equal(["attach"], transitions);
                 session.Open(_ => throw new InvalidOperationException("Duplicate session"));
+                shutdown = session.ShutdownAsync();
+                Assert.False(shutdown.IsCompleted);
             });
 
-            previewStopped.SetResult();
-            await closing!.WaitAsync(TestTimeout);
-            Assert.Null(session!.Content);
-            Assert.Equal(["attach", "stop preview", "detach", "sync desktop"], transitions);
+            allowFree.SetResult();
+            await Task.WhenAll(closing!, shutdown!).WaitAsync(TestTimeout);
+            Assert.Equal(["attach", "detach", "sync desktop"], transitions);
+
+            await AvaloniaTestDispatcher.InvokeAsync(_ =>
+            {
+                second = CreateNavigation();
+                session!.Open(_ => second.Vm);
+                Assert.Same(second.Vm, session.ActiveViewModel);
+            });
+            await session!.ShutdownAsync().WaitAsync(TestTimeout);
+            Assert.Null(session.Content);
+            Assert.True(second!.Vm.VideoTeardown.IsCompletedSuccessfully);
         }
         finally
         {
-            previewStopped.TrySetResult();
-            if (closing != null)
-                await closing.WaitAsync(TestTimeout);
-            if (fixture != null)
-                await AvaloniaTestDispatcher.InvokeAsync(_ => DisposeFixtureIfNeeded(fixture));
+            allowFree.TrySetResult();
+            if (session != null)
+                await session.ShutdownAsync().WaitAsync(TestTimeout);
+            foreach (var fixture in new[] { first, second })
+                if (fixture != null)
+                    await AvaloniaTestDispatcher.InvokeAsync(_ => DisposeFixtureIfNeeded(fixture));
         }
     }
 
@@ -104,7 +131,6 @@ public sealed class DesktopBigModeSessionTests
                         return gameResult.Task;
                     },
                     () => Task.CompletedTask,
-                    prepareToDetach: _ => Task.CompletedTask,
                     restoreGameFocus: view => focusedHost = view);
                 session.Open(_ => fixture.Vm);
                 host = session.Content;

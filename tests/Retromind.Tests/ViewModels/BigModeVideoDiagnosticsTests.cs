@@ -174,31 +174,6 @@ public sealed class BigModeVideoDiagnosticsTests
         Assert.Same(report, Assert.Single(errors.Reports));
     }
 
-    [Fact]
-    public void MarkPreviewMediaForDispose_RapidSurfaceReuseRetainsEveryPendingMedia()
-    {
-        var vm = CreateShell(new RecordingErrorService());
-        var first = NativeShell<Media>();
-        var second = NativeShell<Media>();
-        var otherSurface = NativeShell<Media>();
-
-        SetField(vm, "_currentPreviewMediaA", first);
-        Invoke(vm, "MarkPreviewMediaForDispose", 0);
-        // No Stopped event has arrived before the same surface receives and queues another Media.
-        SetField(vm, "_currentPreviewMediaA", second);
-        Invoke(vm, "MarkPreviewMediaForDispose", 0);
-        SetField(vm, "_currentPreviewMediaB", otherSurface);
-        Invoke(vm, "MarkPreviewMediaForDispose", 1);
-        Invoke(vm, "MarkPreviewMediaForDispose", 0); // An already-queued media must not be queued twice.
-
-        var pending = (Dictionary<int, List<Media>>)Field(vm, "_pendingDisposeMedia")!;
-        Assert.Equal([first, second], pending[0]);
-        Assert.Equal([otherSurface], pending[1]);
-        Assert.Null(Field(vm, "_currentPreviewMediaA"));
-        Assert.Null(Field(vm, "_currentPreviewMediaB"));
-        // Only references are tested. These shells never own native VLC handles or get disposed.
-    }
-
     private static BigModeViewModel CreateShell(IErrorService errors)
     {
         // Avoid constructing LibVLC, SDL, or an Avalonia window. Only diagnostic state is exercised.
@@ -208,8 +183,6 @@ public sealed class BigModeVideoDiagnosticsTests
         SetField(vm, "_videoPlaybackGenerations", new int[3]);
         SetField(vm, "_videoPlaybackFailureReported", new int[3]);
         SetField(vm, "_videoDiagnosticsLock", Activator.CreateInstance(typeof(Lock))!);
-        SetField(vm, "_previewMediaLock", Activator.CreateInstance(typeof(Lock))!);
-        SetField(vm, "_pendingDisposeMedia", new Dictionary<int, List<Media>>());
         SetField(vm, "_videoSurfaceA", new LibVlcVideoSurface());
         SetField(vm, "_videoSurfaceB", new LibVlcVideoSurface());
         SetField(vm, "_secondaryVideoSurface", new LibVlcVideoSurface());

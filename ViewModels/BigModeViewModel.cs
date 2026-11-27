@@ -651,12 +651,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             _secondaryVideoSurface.VideoUnlock,
             _secondaryVideoSurface.VideoDisplay);
 
-        _secondaryPlayer.EndReached += OnSecondaryBackgroundEndReached;
-        _secondaryPlayer.EncounteredError += (_, _) =>
-        {
-            if (_secondaryPlayer is { } player)
-                OnVideoEncounteredError(2, player);
-        };
+        var secondaryPlayer = _secondaryPlayer;
+        secondaryPlayer.EndReached += (_, _) => OnSecondaryBackgroundEndReached(secondaryPlayer);
+        secondaryPlayer.EncounteredError += (_, _) => OnVideoEncounteredError(2, secondaryPlayer);
 
         ForceExitCommand = new AsyncRelayCommand(HardExitBigMode);
 
@@ -752,8 +749,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             surface.VideoUnlock,
             surface.VideoDisplay);
 
-        player.EndReached += (_, _) => OnPreviewEndReached(index);
-        player.Stopped += (_, _) => OnPreviewStopped(index);
+        player.EndReached += (_, _) => OnPreviewEndReached(index, player);
         player.EncounteredError += (_, _) => OnVideoEncounteredError(index, player);
 
         return player;
@@ -765,42 +761,19 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void UpdateSecondaryBackgroundVideo()
     {
+        if (_disposed != 0)
+            return;
+
         ExpectVideoStop(2);
-        // Stop previous content (best-effort)
-        try
-        {
-            if (_secondaryPlayer is { IsPlaying: true })
-                _secondaryPlayer.Stop();
-        }
-        catch (Exception ex)
-        {
-            _ = ReportVideoIssueAsync("Video.StopFailed", "StopSecondaryForUpdate", 2, ex);
-        }
-
-        try
-        {
-            _secondaryPlayer?.Media?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSecondaryPlayerMedia", 2, ex);
-        }
-
-        try
-        {
-            _secondaryBackgroundMedia?.Dispose();
-        }
-        catch (Exception ex)
-        {
-            _ = ReportVideoIssueAsync("Video.ResourceCleanupFailed", "DisposeSecondaryMedia", 2, ex);
-        }
-
+        var player = _secondaryPlayer;
+        var previousMedia = _secondaryBackgroundMedia;
         _secondaryBackgroundMedia = null;
+        var stopped = previousMedia == null || ReleaseVideoPlayer(2, player, previousMedia, "SecondaryForUpdate");
 
         SecondaryVideoHasContent = false;
         SecondaryVideoIsPlaying = false;
 
-        if (!_theme.SecondaryVideoEnabled || _secondaryPlayer == null || _secondaryVideoSurface == null)
+        if (!stopped || !_theme.SecondaryVideoEnabled || player == null || _secondaryVideoSurface == null)
             return;
 
         // Resolve theme folder + theme-defined relative path for background video
@@ -818,7 +791,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
             _secondaryVideoSurface.VideoPath = candidate;
             var media = new Media(_secondaryLibVlc, new Uri(candidate));
             _secondaryBackgroundMedia = media;
-            _secondaryPlayer.Media = media;
+            player.Media = media;
 
             SecondaryVideoHasContent = true;
 
@@ -826,9 +799,10 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         }
         catch (Exception ex)
         {
-            // If this fails, keep the secondary channel disabled
-            SecondaryVideoHasContent = false;
-            SecondaryVideoIsPlaying = false;
+            var media = _secondaryBackgroundMedia;
+            _secondaryBackgroundMedia = null;
+            if (media != null)
+                ReleaseVideoPlayer(2, player, media, "SecondaryForUpdate");
             _ = ReportVideoIssueAsync("Video.PlaybackFailed", "PrepareSecondary", 2, ex);
         }
     }
@@ -838,7 +812,7 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     private void EnsureSecondaryBackgroundPlayingIfReady()
     {
-        if (IsHomeActive || !_theme.SecondaryVideoEnabled || !_isViewReady || _isLaunching)
+        if (_disposed != 0 || IsHomeActive || !_theme.SecondaryVideoEnabled || !_isViewReady || _isLaunching)
             return;
 
         if (!SecondaryVideoHasContent || _secondaryPlayer == null || _secondaryBackgroundMedia == null)
@@ -881,26 +855,23 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
         SecondaryVideoIsPlaying = false;
     }
 
-    private void OnSecondaryBackgroundEndReached(object? sender, EventArgs e)
+    private void OnSecondaryBackgroundEndReached(MediaPlayer player)
     {
-        // Loop the background video indefinitely
-        if (_isLaunching || IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
-            return;
-
-        UiThreadHelper.Post(() =>
+        var generation = Volatile.Read(ref _videoPlaybackGenerations[2]);
+        Dispatcher.UIThread.Post(() =>
         {
-            if (_isLaunching || IsHomeActive || !SecondaryVideoHasContent || _secondaryPlayer == null)
+            if (!IsCurrentVideoCallback(2, player, generation) || IsHomeActive || !SecondaryVideoHasContent)
                 return;
 
             var operation = "StopSecondaryLoop";
             ExpectVideoStop(2);
             try
             {
-                _secondaryPlayer.Stop();
+                player.Stop();
                 operation = "LoopSecondary";
                 BeginVideoPlayback(2, _secondaryVideoSurface?.VideoPath,
                     System.Threading.Interlocked.Increment(ref _secondaryPlaybackGeneration));
-                if (!_secondaryPlayer.Play())
+                if (!player.Play())
                     _ = ReportVideoPlaybackFailureAsync(2, operation);
                 SecondaryVideoIsPlaying = true;
             }
@@ -1047,6 +1018,9 @@ public partial class BigModeViewModel : ViewModelBase, IDisposable
     /// </summary>
     public void UpdateTheme(Theme newTheme)
     {
+        if (_disposed != 0)
+            return;
+
         _theme = newTheme ?? throw new ArgumentNullException(nameof(newTheme));
         ResetThemeWindowUsage();
         OnPropertyChanged(nameof(NavigationPresentation));

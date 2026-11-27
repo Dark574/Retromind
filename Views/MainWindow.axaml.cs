@@ -297,7 +297,7 @@ public partial class MainWindow : Window
                 }
 
                 // The user explicitly accepted possible data loss.
-                vm.Cleanup();
+                await vm.CleanupAsync();
             }
         }
 

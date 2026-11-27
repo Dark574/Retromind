@@ -54,9 +54,10 @@ Main window is a layered shell:
 `MainWindowViewModel` is the core orchestrator:
 - owns tree/content selection, command wiring, persistence triggers, and lifecycle cleanup
 - delegates the BigMode overlay lifecycle to `DesktopBigModeSession`. The session manages the host,
-  theme switcher, and window state, and waits for the preview stop before detaching the host. It
-  restores focus after a tracked launch if the same session is still active. The main window
-  decides when the desktop library is ready and restores the desktop selection after BigMode closes.
+  theme switcher, and window state. Closing keeps the current presentation until the awaitable VLC
+  teardown finishes on a worker. A second open request cannot create another session during cleanup.
+  Normal window shutdown joins the same close task. The session restores focus after a tracked launch
+  if it is still active and restores the desktop selection after BigMode closes.
 - delegates the center view lifecycle to `DesktopContentSession`, which owns the active node or search
   view, its event subscriptions, and cancelable media load requests. Opening search, changing nodes, or
   disposing the session prevents an old request from publishing over the current view
@@ -449,15 +450,18 @@ so a concurrent format change cannot combine dimensions from different frames; r
 is checked as well. Native callback pointers are still trusted inputs from VLC;
 arbitrary invalid non-null pointers or native decoder/driver crashes cannot be recovered by managed logging.
 
-The previous pending-media map could lose a reference: queue media M1 for surface A, reuse A with M2 before
-the delayed `Stopped` callback arrives, then queue M2. Assigning `_pendingDisposeMedia[0] = M2` replaced M1
-without disposing it. A deterministic regression test reproduces these two queue operations without loading
-VLC. Each surface now retains a list; the existing stop/idle disposal points drain every queued media, and
-final teardown snapshots and clears the lists under the media lock before disposing their contents. This
-changes ownership bookkeeping, not crossfade timing or stop policy. Actual decoder memory corruption from
-the former unchecked size arithmetic, and hardware-specific consequences of unaligned buffers, have not
-been reproduced with real playback; the invalid calculations and missing alignment guarantee are confirmed
-by code inspection and callback/buffer tests.
+Each player slot owns its assigned managed `Media` wrapper. VLC retains its own native reference when
+the wrapper is assigned. Playback changes release the tracked wrapper after stopping and detaching the
+media on the player-owning thread. This removes both the pending list and the extra retaining
+`MediaPlayer.Media` getter. Replay retains the current wrapper. The secondary channel can also keep its
+prepared media for resume. `Stopped` does not own cleanup.
+
+Closing first invalidates delayed starts, fades and frame notifications on the UI thread. The VM hands
+player and media ownership to one awaitable worker task. Stop, detach, player disposal and release of
+the application's wrapper are attempted independently. Surfaces are released after native input has
+quiesced. The AppImage stop/start workaround still recreates the target preview player. Delayed
+stops recheck the preview generation on the UI thread, and queued loop requests verify player identity
+and playback generation before touching VLC.
 The former lifetime check outside the buffer lock also allowed a format callback already waiting for that
 lock to allocate after disposal; a coordinated callback/dispose regression test confirms the corrected
 ordering without real playback. Native error events carry no media-generation ID: guards reject known stale

@@ -46,7 +46,6 @@ internal sealed class BigModeNavigationFixture : IDisposable
         Set("_mainVideoActiveSurfaceIndex", -1);
         Set("_activePreviewIndex", -1);
         Set("_videoDiagnosticsLock", Activator.CreateInstance(typeof(System.Threading.Lock)));
-        Set("_previewMediaLock", Activator.CreateInstance(typeof(System.Threading.Lock)));
         Set("_videoPlaybackExpected", new int[3]);
         Set("_videoPlaybackGenerations", new int[3]);
         Set("_videoPlaybackFailureReported", new int[3]);

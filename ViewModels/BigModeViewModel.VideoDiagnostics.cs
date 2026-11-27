@@ -46,6 +46,11 @@ public partial class BigModeViewModel
         }
     }
 
+    private bool IsCurrentVideoCallback(int index, MediaPlayer player, int generation) =>
+        _disposed == 0 && _isViewReady && !_isLaunching &&
+        _videoPlaybackExpected[index] != 0 && generation == _videoPlaybackGenerations[index] &&
+        ReferenceEquals(player, index == 2 ? _secondaryPlayer : GetMediaPlayer(index));
+
     private void OnVideoEncounteredError(int index, MediaPlayer player)
     {
         _ = ReportVideoPlaybackFailureAsync(index, "EncounteredError", expectedPlayer: player,

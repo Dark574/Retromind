@@ -57,6 +57,7 @@ public sealed class BigModeInputLifecycleTests
                 Assert.False(fixture.Get<bool>("_previewPausedForScroll"));
                 Assert.Equal(7, fixture.Get<int>("_previewPlayGeneration"));
                 Assert.Equal(path, fixture.Get<string?>("_currentPreviewVideoPath"));
+                fixture.Call("BeginVideoPlayback", surface, path, 7, true);
                 fixture.Call("OnMainVideoFrameReady", surface);
                 dispatcher.RunJobs();
                 Assert.Equal(surface, fixture.Get<int>("_activePreviewIndex"));

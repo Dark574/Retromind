@@ -945,7 +945,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         if (_metadataBackups.RequiresRestart)
         {
-            await UiThreadHelper.InvokeAsync(Cleanup).ConfigureAwait(false);
+            await CleanupAsync().ConfigureAwait(false);
             return true;
         }
 
@@ -955,7 +955,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            await _persistence.FlushAsync(() => UiThreadHelper.InvokeAsync(Cleanup)).ConfigureAwait(false);
+            await _persistence.FlushAsync(CleanupAsync).ConfigureAwait(false);
             return true;
         }
         catch (Exception ex)
@@ -966,6 +966,12 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
     
+    public async Task CleanupAsync()
+    {
+        await _bigModeSession.ShutdownAsync().ConfigureAwait(false);
+        await UiThreadHelper.InvokeAsync(Cleanup).ConfigureAwait(false);
+    }
+
     /// <summary>
     /// Fast cleanup. No IO here (no saving).
     /// Safe to call from Exit handlers too.
@@ -975,6 +981,9 @@ public partial class MainWindowViewModel : ViewModelBase
         // Guard against double-cleanup (can happen when Closing triggers Close(), then desktop.Exit runs)
         if (Interlocked.Exchange(ref _cleanupOnce, 1) == 1)
             return;
+
+        // The application lifetime's Exit handler may bypass the awaited close.
+        _ = _bigModeSession.ShutdownAsync();
         
         _audioService.StopMusic();
         _audioService.MusicPlaybackEnded -= OnMusicPlaybackEnded;
