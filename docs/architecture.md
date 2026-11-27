@@ -670,6 +670,15 @@ or constrained by a separately audited allowlist model.
 
 ## Image loading and cache
 
+Desktop media and search views share `MediaItemContextMenu` and its view-owned controller.
+The menu actions remain in one XAML definition. Each view creates its menu only on the first item
+context request and reuses that tree. An explicit scope supplies the current item, command owner and
+optional library node, preserving live store-state bindings across the popup boundary. Closing clears
+the scope and its temporary target/selection/layout subscriptions. Recycling, hiding the target row,
+changing selection or entering multi-select closes the item menu. The list owns the popup, so a cached
+popup does not retain a removed tile as its placement target. The library's separate area menu remains
+independent. Commands and application workflows stay in the existing view models and services.
+
 `AsyncImageHelper` owns asynchronous bitmap loading, downsampling, cancellation, and its shared LRU cache.
 Cache entries are reference-counted while controls display them. The cache has hard limits of 200 entries
 and 128 MiB of decoded pixel storage (width × height × 4 bytes). Both limits include pinned entries. LRU

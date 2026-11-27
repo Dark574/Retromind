@@ -37,9 +37,10 @@
         </Content>
     </ItemGroup>
 
-    <!-- The SDK project at the repository root would otherwise compile test sources too. -->
+    <!-- The root SDK project must not compile test or benchmark harness sources. -->
     <ItemGroup>
         <Compile Remove="tests/**/*.cs" />
+        <Compile Remove="benchmarks/**/*.cs" />
     </ItemGroup>
 
     <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">

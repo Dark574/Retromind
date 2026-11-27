@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia;
@@ -18,6 +17,7 @@ public partial class SearchAreaView : UserControl
 {
     private SearchAreaViewModel? _currentViewModel;
     private ListBox? _resultsList;
+    private readonly MediaItemContextMenuController? _itemMenu;
     private bool _isScopeDialogOpen;
 
     public SearchAreaView()
@@ -27,7 +27,10 @@ public partial class SearchAreaView : UserControl
         Loaded += OnLoaded;
         _resultsList = this.FindControl<ListBox>("ResultsList");
         if (_resultsList != null)
+        {
             _resultsList.SizeChanged += OnResultsSizeChanged;
+            _itemMenu = new MediaItemContextMenuController(this, _resultsList);
+        }
 
         AddHandler(
             KeyDownEvent,
@@ -130,17 +133,14 @@ public partial class SearchAreaView : UserControl
 
         e.Handled = true;
 
-        if (updateKind == PointerUpdateKind.RightButtonPressed &&
-            sender is Control { ContextMenu: { } contextMenu } placementTarget)
-        {
-            contextMenu.Open(placementTarget);
-        }
+        if (updateKind == PointerUpdateKind.RightButtonPressed && sender is Control target)
+            _itemMenu?.Request(target, new ContextRequestedEventArgs(e));
     }
 
-    private void OnItemContextMenuOpening(object? sender, CancelEventArgs e)
+    private void OnItemContextRequested(object? sender, ContextRequestedEventArgs e)
     {
-        if (DataContext is SearchAreaViewModel { IsMultiSelectMode: true })
-            e.Cancel = true;
+        if (sender is Control target)
+            _itemMenu?.Request(target, e);
     }
 
     private void OnLoaded(object? sender, RoutedEventArgs e)

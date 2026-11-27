@@ -23,6 +23,7 @@ and this project (aims to) adhere to [Semantic Versioning](https://semver.org/sp
 - keep GOG main-game and DLC offline installers together in a readable game folder for both queued downloads and manual installations, while continuing to recognize existing archives
 
 ### Fixed
+- reduce blank covers and stuttering when scrolling quickly through the library and search results
 - release preview video resources before reopening BigMode and keep the window responsive while video playback shuts down
 - keep BigMode keyboard input responsive after returning to the window, prevent interrupted alphabet holds from moving the library, and cancel search-result actions overtaken by newer navigation
 - make Enter consistently reach BigMode search results with custom bindings and prevent held keys from repeatedly toggling search scope or keyboard layers

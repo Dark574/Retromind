@@ -21,6 +21,7 @@ public partial class MediaAreaView : UserControl
 
     private MediaAreaViewModel? _currentViewModel;
     private ListBox? _mediaList;
+    private readonly MediaItemContextMenuController? _itemMenu;
     private MediaItem? _draggedItem;
     private Point? _dragStartPoint;
     private PointerPressedEventArgs? _dragStartPressedEvent;
@@ -32,7 +33,10 @@ public partial class MediaAreaView : UserControl
         
         _mediaList = this.FindControl<ListBox>("MediaList");
         if (_mediaList != null)
+        {
             _mediaList.SizeChanged += OnMediaListSizeChanged;
+            _itemMenu = new MediaItemContextMenuController(this, _mediaList);
+        }
 
         AddHandler(
             KeyDownEvent,
@@ -106,15 +110,10 @@ public partial class MediaAreaView : UserControl
         _mediaList?.Focus();
     }
 
-    private void OnItemContextMenuOpened(object? sender, RoutedEventArgs e)
+    private void OnItemContextRequested(object? sender, ContextRequestedEventArgs e)
     {
-        if (DataContext is not MediaAreaViewModel vm)
-            return;
-
-        if (sender is not ContextMenu { DataContext: MediaItem item })
-            return;
-
-        vm.SelectedMediaItem = item;
+        if (sender is Control target)
+            _itemMenu?.Request(target, e);
     }
 
     private async void OnItemPointerMoved(object? sender, PointerEventArgs e)

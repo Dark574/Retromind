@@ -1,0 +1,141 @@
+<ContextMenu xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:Retromind.Helpers"
+             xmlns:converters="using:Avalonia.Data.Converters"
+             xmlns:p="clr-namespace:Retromind.Resources"
+             x:Class="Retromind.Views.MediaItemContextMenu"
+             x:CompileBindings="False">
+    <MenuItem Header="{x:Static p:Strings.Button_Edit}"
+              Command="{Binding Commands.EditMediaCommand}"
+              CommandParameter="{Binding Item}"
+              FontWeight="Bold" />
+    <MenuItem Header="{Binding Commands.MetadataSearchItemText}"
+              Command="{Binding Commands.ScrapeMediaCommand}"
+              CommandParameter="{Binding Item}" />
+    <MenuItem Header="{Binding Commands.RetroAchievementsSearchItemText}"
+              Command="{Binding Commands.IdentifyMediaWithRetroAchievementsCommand}"
+              CommandParameter="{Binding Item}" />
+    <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddManual}"
+              Command="{Binding Commands.AddManualToMediaCommand}"
+              CommandParameter="{Binding Item}" />
+
+    <Separator />
+
+    <MenuItem Header="{Binding Commands.TestPlayMediaMenuText}"
+              Command="{Binding Commands.TestPlayMediaCommand}"
+              CommandParameter="{Binding Item}" />
+    <MenuItem Header="{Binding Commands.ViewLastLaunchLogMenuText}"
+              Command="{Binding Commands.ViewLastLaunchLogCommand}"
+              CommandParameter="{Binding Item}" />
+    <MenuItem Header="{Binding Commands.MoveMediaMenuText}"
+              Command="{Binding Commands.MoveMediaCommand}"
+              CommandParameter="{Binding Item}" />
+
+    <Separator>
+        <Separator.IsVisible>
+            <MultiBinding Converter="{x:Static converters:BoolConverters.Or}">
+                <Binding Path="HasLibraryActions" />
+                <Binding Path="Item.StorePresentationState" Converter="{x:Static helpers:ObjectConverters.StoreMenuVisible}" />
+            </MultiBinding>
+        </Separator.IsVisible>
+    </Separator>
+
+    <MenuItem Header="{x:Static p:Strings.Ctx_Media_Add}" IsVisible="{Binding HasLibraryActions}"
+              Command="{Binding Commands.AddMediaCommand}"
+              CommandParameter="{Binding Node}" />
+    <MenuItem Header="{x:Static p:Strings.Ctx_Media_AddEmpty}" IsVisible="{Binding HasLibraryActions}"
+              Command="{Binding Commands.AddEmptyMediaCommand}"
+              CommandParameter="{Binding Node}" />
+    <MenuItem Header="{x:Static p:Strings.Button_Import}" IsVisible="{Binding HasLibraryActions}" FontWeight="Bold">
+        <MenuItem Header="{x:Static p:Strings.Import_Roms}"
+                  Command="{Binding Commands.ImportRomsCommand}"
+                  CommandParameter="{Binding Node}" />
+        <Separator />
+        <MenuItem Header="{x:Static p:Strings.Import_Steam}"
+                  Command="{Binding Commands.ImportSteamCommand}"
+                  CommandParameter="{Binding Commands.SelectedNode}" />
+        <MenuItem Header="{x:Static p:Strings.Import_Epic}"
+                  Command="{Binding Commands.ImportEpicCommand}"
+                  CommandParameter="{Binding Commands.SelectedNode}" />
+        <MenuItem Header="{Binding Commands.ImportGogText}"
+                  Command="{Binding Commands.ImportGogCommand}"
+                  CommandParameter="{Binding Commands.SelectedNode}" />
+    </MenuItem>
+    <MenuItem Header="{Binding Commands.StoreContextMenuText}"
+              IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreMenuVisible}}">
+        <MenuItem Header="{x:Static p:Strings.Button_Install}"
+                  Command="{Binding Commands.InstallStoreItemCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreInstallMenuVisible}}" />
+
+        <MenuItem Header="{Binding Commands.GogCheckUpdatesMenuText}"
+                  Command="{Binding Commands.CheckGogUpdatesCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUpdateCheckMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.GogUpdateMenuText}"
+                  Command="{Binding Commands.UpdateGogCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUpdateMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.GogReinstallMenuText}"
+                  Command="{Binding Commands.ReinstallGogCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.GogManageDlcsMenuText}"
+                  Command="{Binding Commands.ManageGogDlcsCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogInstalledMenuVisible}}" />
+
+        <MenuItem Header="{Binding Commands.EpicCheckUpdatesMenuText}"
+                  Command="{Binding Commands.CheckEpicUpdatesCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUpdateCheckMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.EpicUpdateMenuText}"
+                  Command="{Binding Commands.UpdateEpicCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUpdateMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.EpicRepairMenuText}"
+                  Command="{Binding Commands.RepairEpicCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.EpicManageDlcsMenuText}"
+                  Command="{Binding Commands.ManageEpicDlcsCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicInstalledMenuVisible}}" />
+
+        <Separator IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.GogUninstallMenuText}"
+                  Command="{Binding Commands.UninstallGogCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.GogUninstallMenuVisible}}"
+                  Foreground="Red" />
+        <Separator IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.EpicUninstallMenuText}"
+                  Command="{Binding Commands.UninstallEpicCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.EpicUninstallMenuVisible}}"
+                  Foreground="Red" />
+
+        <Separator IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreLinkChangeSeparatorVisible}}" />
+        <MenuItem Header="{Binding Commands.GogLinkStoreMenuText}"
+                  Command="{Binding Commands.LinkMediaItemToGogCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreLinkGogMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.GogSwitchStoreMenuText}"
+                  Command="{Binding Commands.LinkMediaItemToGogCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreSwitchToGogMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.EpicLinkStoreMenuText}"
+                  Command="{Binding Commands.LinkMediaItemToEpicCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreLinkEpicMenuVisible}}" />
+        <MenuItem Header="{Binding Commands.EpicSwitchStoreMenuText}"
+                  Command="{Binding Commands.LinkMediaItemToEpicCommand}"
+                  CommandParameter="{Binding Item}"
+                  IsVisible="{Binding Item.StorePresentationState, Converter={x:Static helpers:ObjectConverters.StoreSwitchToEpicMenuVisible}}" />
+    </MenuItem>
+
+    <MenuItem Header="{x:Static p:Strings.Button_Delete}"
+              Command="{Binding Commands.DeleteMediaCommand}"
+              CommandParameter="{Binding Item}"
+              Foreground="Red" />
+</ContextMenu>
