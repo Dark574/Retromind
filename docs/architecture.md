@@ -85,6 +85,9 @@ and the RetroAchievements and Steam Web API keys) are stored through `ISecretSto
 - atomic write strategy: temp -> backup -> replace
 - IO is serialized with `SemaphoreSlim`
 - `LibraryChangeTracker` owns versioned dirty tracking and debounced saves
+- Desktop startup rescans each node through the shared asset scanner using captured item prefixes and folder names.
+  The worker enumerates files once per node. Background-priority dispatcher callbacks apply up to 500 items
+  at a time after checking cancellation, library version, node membership and current item and asset state.
 - complete library-save pipelines are serialized so snapshot serialization cannot reorder writes
 - bound collections are snapshotted on the UI thread and serialized in the background
 - dirty state is cleared only after a successful write; save failures remain dirty and are surfaced to the user

@@ -1371,3 +1371,190 @@ Skripte, Variantenpatches und kompakte Daten bleiben lokal unter
 Der diagnostische Allokatorversuch und die Desktop-Analyse sind getrennte
 Untersuchungen. Dieses AppImage dient der manuellen Prüfung von Audio, Crossfades,
 Navigation, Themewechseln und AttractMode.
+
+## Etappe 4a – Asset-Scan pro Knoten und Desktop-Warmup
+
+Ausgangsstand ist `4fb8de2`. Etappe 4a übernimmt ausschließlich den Batch-Scan
+im Desktop-Startup-Warmup. Der Scanner, den auch der Import verwendet, erhält
+pro Knoten einmal die auf der UI erfassten Titel/IDs, Asset-Zustände und
+Ordnernamen. Er verwendet die vorhandene Präfix- und Dateinamenzuordnung,
+Pfadauflösung und relative Speicherung. Die Dateisystemarbeit läuft auf dem
+Worker. Fehlende Ordner liefern wie bisher leere Ergebnisse. Bei einem
+Enumerationsfehler wird für den betroffenen Knoten keine unvollständige Liste
+übernommen. Der vorhandene Warmup-Fehlerpfad bleibt zuständig.
+
+Die Übernahme erfolgt weiter in Gruppen zu höchstens 500 Einträgen. Vor jeder
+Gruppe werden Abbruch, die Versionsnummer des Bibliothekstrackers und die
+aktuelle Abstammung des Knotens geprüft. Verschobene oder ersetzte Einträge und
+zwischenzeitlich geänderte Titel, IDs und Asset-Listen werden übersprungen. Das
+gilt auch für Änderungen an bestehenden Asset-Objekten. Eine Gruppe kann bei
+Abbruch zwischen zwei Einträgen anhalten. Bereits übernommene Änderungen werden
+auch nach späterem Abbruch oder einer fehlgeschlagenen Enumeration zur
+Speicherung markiert. Die Sortierung verwendet dieselbe Reihenfolge wie zuvor.
+
+Der erste isolierte QHD-Versuch aus der Diagnose meldete einen früheren Inhalt
+(1.108 → 956 ms), aber einen späteren Render-Callback (1.213 → 1.307 ms). Der
+zusätzliche Pilot dieser Etappe trennt die Priorität von der Scannerarbeit. Im
+großen QHD-Profil begann die Übernahme mit normaler Priorität in beiden Läufen
+vor dem ersten Render-Callback (rund 77 und 133 ms vorher). Der Warmup-Sort lief
+ebenfalls vor diesem Callback. Mit Hintergrundpriorität begannen Übernahme und
+Sortierung in beiden Läufen danach. Der Prioritätsvergleich bestätigt die
+mögliche zeitliche Konkurrenz. Er isoliert keinen exakten Beitrag zu den
+ursprünglichen 94 ms Differenz. Die Implementierung priorisiert Eingabe und
+Render-Arbeit vor Snapshots, Übernahme und Warmup-Sortierung. Sie setzt keine
+feste Wartezeit ein.
+
+Der getrennte Allokatorversuch aus dem Anschluss an Etappe 3b bleibt ein
+Kandidat für weitere Untersuchung. Bei jeweils zwei frischen 1080p-/4K-Prozessen
+wurden nach dem vollständigen BigMode-Abbau durch einmaliges `malloc_trim(0)`
+190–207 MiB bzw. 165–648 MiB PSS frei. Beide Messkontrollen zeigten keinen
+vergleichbaren unmittelbaren Rückgang. Ein Teil des Speichers wurde beim
+Wiederöffnen erneut belegt. Das belegt freigebbare glibc-Seiten in den
+Testprozessen, keine allgemeine Speicher- oder Laufzeitverbesserung. Der Aufruf
+existiert ausschließlich im lokalen Diagnose-Hook unter
+`benchmarks/allocator-trim/`. Physische Wayland-/Audioabnahme und der frühere
+native Absturzbefund bleiben wie in Etappe 3b offen.
+
+### Messverfahren und Profilgrenzen
+
+Die Hauptreihe vergleicht `4fb8de2` und den hier vorliegenden 4a-Code mit
+identischer lokaler Instrumentierung. Je Profil und Auflösungsblock starten
+fünf frische Prozesse pro Build, in abwechselnder Reihenfolge. QHD nutzt die
+kleine Bibliothek (24 Titel), die große Bibliothek (5.000 Titel mit einem
+assetreichen 256er-Knoten) und die Kopie der produktiven Struktur (1.567 Titel,
+neun Knoten, 135 verwaltete reguläre Assets). Das ergänzende 4K-Paarprofil nutzt
+die große Bibliothek mit 150 % gemessener Avalonia-Skalierung. Alle Prozesse
+laufen in einer isolierten virtuellen KWin/Xwayland-Sitzung. Testbibliotheken,
+Metadaten und Einstellungen sind privat. Die Vorlagen liegen auf NVMe. Der
+Host stellte keine mechanische Platte zur Verfügung. Dateicaches wurden nicht
+systemweit geleert. Wiederholungen sind daher natürliche, tendenziell warme
+Cache-Läufe und bilden keinen Kaltstart von HDD ab.
+
+Die Bibliotheksphase umfasst Laden und Zuweisen der Wurzelobjekte. Der erste
+Inhaltswechsel reicht vom Beginn der Knotenauswahl bis zur fertigen ersten
+Desktop-Projektion. Top-Level-Measure/Arrange, Layout-Event und ein nach dem
+Inhaltswechsel angeforderter Render-Callback werden getrennt gemessen. Die
+Bedienbarkeit wird über den ersten nach diesem Callback tatsächlich im
+Retromind-Fenster empfangenen X11-Shift-Tastendruck angenähert. Der Treiber
+sendet synthetische X11-Ereignisse direkt an das isolierte Fenster. Alle
+gesendeten Ereignisse werden in Reihenfolge den empfangenen zugeordnet. Die
+Werte enthalten das Abtast- und Sendeintervall und stehen nicht für menschliche
+Eingabe oder für physische Präsentation.
+
+Der Scan-Beginn und das Scan-Ende sind Zeitpunkte der ersten und letzten
+Scanner-Operation. Die Scannerarbeit ist deren aufsummierte Dauer. Die
+UI-Übernahme und der Sort werden direkt um ihre Dispatcher-Aufrufe gemessen.
+CPU-Arbeit ist aufsummierte Prozess-CPU-Zeit in Millisekunden. Managed
+Allokationen sind kumulierte Bytes bis zum Warmup-Ende, kein lebender Heap.
+Das Prozessmaß enthält auch die Instrumentierung und konkurrierende
+Startarbeit. Die Scanner-Bytes werden separat auf dem jeweiligen Worker
+gezählt. PSS wird ungefähr alle 50 ms abgetastet. Der Ruhewert ist der Median
+der letzten rund 20 Stichproben nach fünf Sekunden Leerlauf. Die
+Dispatcher-Probe läuft nominal alle 25 ms. Bei sehr kurzen Warmup-Intervallen
+kann ihr P95 aus wenigen Werten bestehen und durch den ersten langen Abstand
+bestimmt sein. Der Gesamtpeak ist der größte gemessene Wert und kann kurze
+native Spitzen übersehen.
+
+### Vorher und nachher
+
+Startphasen in ms, Median Baseline → Batch
+
+| Profil | Bibliotheksladen | Erster Inhaltswechsel | Erster Inhalt ab Start | Erstes Layout ab Start | Render-Callback ab Start | Erste Eingabe nach Render ab Start |
+|---|---:|---:|---:|---:|---:|---:|
+| QHD klein | 155,7 → 153,8 | 220,6 → 220,6 | 991,4 → 978,7 | 753,6 → 738,1 | 1.135,3 → 1.095,8 | 1.160,3 → 1.109,5 |
+| QHD 5.000 Titel | 165,7 → 168,4 | 257,5 → 87,3 | 1.039,8 → 867,9 | 763,4 → 761,0 | 1.335,3 → 1.205,3 | 1.367,3 → 1.218,0 |
+| QHD produktive Struktur | 155,8 → 153,6 | 352,3 → 329,1 | 1.127,2 → 1.086,9 | 751,2 → 734,4 | 1.260,7 → 1.207,3 | 1.309,9 → 1.260,4 |
+| 4K 5.000 Titel bei 150 % | 169,2 → 167,2 | 248,4 → 86,7 | 1.046,1 → 886,1 | 758,7 → 756,0 | 1.355,3 → 1.227,1 | 1.373,3 → 1.259,3 |
+
+Layout und Warmup in ms. Measure/Arrange bis zum ersten Render-Callback
+
+| Profil | Measure | Arrange | Scan-Beginn ab Start | Scan-Ende ab Start | Scannerarbeit | Übernahme | Sortierung | Warmup |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| QHD klein | 99,4 → 97,8 | 29,5 → 29,2 | 1.016,0 → 1.100,1 | 1.027,0 → 1.111,5 | 10,6 → 11,4 | 1,6 → 1,9 | 0,7 → 0,9 | 129,1 → 132,9 |
+| QHD 5.000 Titel | 109,3 → 111,0 | 45,2 → 28,1 | 1.098,8 → 1.216,0 | 1.393,6 → 1.245,5 | 302,2 → 24,6 | 2,7 → 2,9 | 29,5 → 27,4 | 373,2 → 390,8 |
+| QHD produktive Struktur | 98,0 → 97,6 | 24,9 → 24,3 | 1.150,0 → 1.213,3 | 1.290,2 → 1.228,4 | 135,8 → 11,6 | 2,2 → 2,6 | 6,2 → 6,0 | 153,6 → 139,9 |
+| 4K 5.000 Titel bei 150 % | 110,5 → 110,3 | 46,0 → 28,1 | 1.079,3 → 1.244,4 | 1.382,6 → 1.266,2 | 295,5 → 27,1 | 2,6 → 3,0 | 28,5 → 27,9 | 359,8 → 389,3 |
+
+Dateiarbeit und kumulierte Allokationen
+
+| Profil | Ordnerenumerationen | Dateinamenprüfungen | Scanner-Allokationen (MiB) | Prozess-Allokationen (MiB) | Allokationsrate (MiB/s) | CPU-Arbeit bis Warmup-Ende (ms) | CPU-Arbeit im Warmup (ms) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| QHD klein | 96,0 → 4,0 | 2.304,0 → 96,0 | 2,9 → 0,3 | 34,1 → 31,7 | 30,1 → 28,0 | 1.400,0 → 1.420,0 | 220,0 → 220,0 |
+| QHD 5.000 Titel | 1.024,0 → 4,0 | 262.144,0 → 1.024,0 | 299,3 → 2,5 | 379,7 → 69,3 | 261,4 → 54,4 | 2.270,0 → 1.920,0 | 980,0 → 850,0 |
+| QHD produktive Struktur | 4.630,0 → 20,0 | 71.450,0 → 135,0 | 89,7 → 0,7 | 147,8 → 59,5 | 114,0 → 48,1 | 1.790,0 → 1.670,0 | 260,0 → 200,0 |
+| 4K 5.000 Titel bei 150 % | 1.024,0 → 4,0 | 262.144,0 → 1.024,0 | 299,3 → 2,5 | 379,7 → 69,3 | 266,8 → 55,1 | 2.280,0 → 1.940,0 | 900,0 → 850,0 |
+
+UI- und Speicherwerte
+
+| Profil | UI-Callback P95 (ms) | Größter UI-Abstand (ms) | Größte X11-Eingabelatenz (ms) | PSS-Spitze (MiB) | PSS nach Ruhe (MiB) |
+|---|---:|---:|---:|---:|---:|
+| QHD klein | 514,2 → 32,4 | 514,2 → 492,5 | 5,3 → 4,6 | 213,1 → 209,5 | 197,3 → 197,8 |
+| QHD 5.000 Titel | 49,9 → 44,0 | 721,2 → 606,5 | 5,8 → 7,9 | 255,6 → 244,0 | 243,7 → 230,3 |
+| QHD produktive Struktur | 36,7 → 35,0 | 641,5 → 612,9 | 6,0 → 4,9 | 233,2 → 230,0 | 233,2 → 230,0 |
+| 4K 5.000 Titel bei 150 % | 38,8 → 40,9 | 735,2 → 612,0 | 17,7 → 12,0 | 257,2 → 245,5 | 242,8 → 232,3 |
+
+Die Hashes der normalisierten gespeicherten Zuordnungen
+(Item-ID, Asset-Typ, relativer Pfad) sind je Profil über alle 40 Hauptläufe
+identisch. Die sich wiederholende Arbeit entfällt besonders bei vielen Titeln
+pro Ordner. Im großen QHD-Profil wird rund ein Zwölftel der Scannerzeit und
+weniger als ein Hundertstel seiner bisherigen kumulierten Allokationen
+benötigt. Die Scanner-Arbeit liegt bei 302,2 → 24,6 ms und die CPU-Arbeit bis
+Warmup-Ende bei 2.270 → 1.920 ms. Die rund 310 MiB weniger kumulierten
+Prozessallokationen entsprechen keiner gleich hohen residenten Einsparung.
+Die PSS sinkt im selben Block um rund 12 MiB am gemessenen Peak und 13 MiB
+nach der kurzen Ruhephase. Das kleine Profil zeigt praktisch gleichen
+Ruheverbrauch.
+
+Alle vier Mediane für ersten Render-Callback und bestätigte nachfolgende
+Eingabe liegen günstiger. Einzelne Läufe in QHD und 4K liegen in der
+jeweils anderen Richtung. Die früher beobachtete spätere Render-Bereitschaft
+wiederholt sich hier nicht systematisch. In allen 20 Batch-Prozessen beginnen
+Asset-Übernahme und Sortierung nach dem ersten Render-Callback. Die durch
+das Verschieben der UI-Arbeit hinzugekommene Wartezeit zeigt sich im großen
+Profil als moderat längeres Warmup-Intervall ab Inhaltsbereitschaft
+(QHD +18 ms, 4K +30 ms). Dieses Intervall ist von der Zeit ab Prozessstart
+zu unterscheiden. Das Warmup-Ende ab Prozessstart liegt bei QHD bei
+1.425 → 1.274 ms und bei 4K bei 1.414 → 1.294 ms. Hauptthread-Arbeit
+für eine komplette UI-Übernahme
+liegt im Median bei etwa 2–3 ms. Die Sortierung selbst benötigt im großen
+Profil weiterhin rund 27–30 ms. Die kleine Änderung der größten gemessenen
+X11-Eingabelatenz im QHD-Großprofil (5,8 → 7,9 ms) liegt innerhalb des
+Stichprobenrauschens. Die 25-ms-Callbacks zeigen weiterhin lange Abstände
+in der Initialisierung. Der deutlich früher gemeldete erste Inhaltswechsel
+ist vor Start des neuen Scans. Er kann dem Scanner deshalb nicht direkt
+als kausaler Zeitgewinn zugeschrieben werden.
+
+### Verbleibende Grenzen
+
+Die Instrumentierung, der natürliche Dateicache und die kleine Zahl von
+Prozessen je Gruppe begrenzen die Aussage zu seltenen Startspitzen. Der
+Pilot trennt die Priorität experimentell. Der Hauptvergleich prüft den
+tatsächlichen Vorschlag als Ganzes. Die vorhandene Sortierung kann bei sehr
+großen unsortierten Knoten weiter spürbare UI-Arbeit erzeugen. Die Ablage im
+Dateisystem ist kein atomarer Snapshot gegenüber externen Änderungen.
+Die Übernahme schützt die zwischenzeitlich geänderte Bibliothek im Prozess,
+und ein Fehler während der Enumeration kann wie bisher den Warmup beenden.
+Die Ergebnisse erlauben keine Extrapolation auf HDD-Kaltstarts.
+
+Skripte, Probevarianten und kompakte Einzeldaten liegen lokal unter
+`benchmarks/desktop-warmup/`, isolierte Builds und Rohdaten unter
+`.build-work/desktop-warmup/`. Beide Verzeichnisse sind ignoriert. Die
+Auswertung der Benchmarks baut auf dem geprüften Packaging-Ausschluss aus
+Etappe 3b auf.
+
+### Validierung und Übergabe
+
+- Der Release-Build mit `dotnet build Retromind.csproj -c Release --no-restore`
+  besteht mit null Warnungen und null Fehlern.
+- Die vollständige `Retromind.Tests`-Suite besteht mit **2.597 Tests**,
+  ohne Fehler oder übersprungene Tests. Darin sind 17 neue Fälle für
+  Mehrfachpräfixe, eindeutige Titel-IDs, Displaypräfixe, relative AppImage-Pfade,
+  fehlende Ordner/Assets, leere Knoten, Abbruch während Enumeration und zwischen
+  Einträgen, unlesbare Verzeichnisse, zwischenzeitliche Modelländerungen,
+  Wiederholbarkeit und die erneute Prüfung nach der 500er-Grenze enthalten.
+- Identische Asset-Hashes wurden je Profil in allen 40 Hauptprozessen geprüft.
+  Die ursprünglich erfassten produktiven Profil-JSONs sind weiterhin bytegleich.
+- `git diff --check` besteht. Die ausgewerteten MSBuild-Items enthalten keine
+  Benchmark- oder Testquellen im App-Projekt. Der Git-Index enthält keine
+  Benchmarkdateien. Etappe 4a wurde auf Grundlage dieser Messungen zur Übernahme
+  freigegeben. Der HDD-Kaltstartvergleich steht weiterhin aus.

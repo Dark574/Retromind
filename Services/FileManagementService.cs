@@ -264,6 +264,14 @@ public partial class FileManagementService
         List<string> nodePathStack,
         IProgress<FolderImportProgress>? progress = null,
         CancellationToken cancellationToken = default)
+        => ScanItemsAssets(items, BuildItemAssetPrefix, nodePathStack, progress, cancellationToken);
+
+    internal List<(T Item, List<MediaAsset> Assets)> ScanItemsAssets<T>(
+        IReadOnlyList<T> items,
+        Func<T, string> getPrefix,
+        List<string> nodePathStack,
+        IProgress<FolderImportProgress>? progress = null,
+        CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var results = items
@@ -283,7 +291,7 @@ public partial class FileManagementService
         for (var index = 0; index < items.Count; index++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var prefix = BuildItemAssetPrefix(items[index]);
+            var prefix = getPrefix(items[index]);
             if (!itemIndexesByPrefix.TryGetValue(prefix, out var matchingIndexes))
             {
                 matchingIndexes = new List<int>();

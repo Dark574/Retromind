@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
+using Avalonia.Threading;
 using Retromind.Helpers;
 using Retromind.Models;
 using Retromind.Resources;
@@ -818,133 +819,53 @@ public partial class MainWindowViewModel
 
     private async Task RescanAllAssetsAsync(CancellationToken cancellationToken)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        List<MediaNode> rootNodes = new();
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            rootNodes = RootItems.ToList();
-        });
-
-        var anyChanged = false;
-
-        // Offload recursion and filesystem scanning to a background thread.
-        await Task.Run(async () => 
-        { 
-            foreach (var rootNode in rootNodes) 
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (await RescanNodeRecursive(rootNode, cancellationToken))
-                    anyChanged = true;
-            }
-        }, cancellationToken);
-
-        cancellationToken.ThrowIfCancellationRequested();
-        if (anyChanged)
-            _libraryTracker.MarkDirty();
-    }
-
-    private async Task<bool> RescanNodeRecursive(
-        MediaNode node,
-        CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-
-        List<string> nodePath = new();
-        List<MediaItem> items = new();
-        List<MediaNode> children = new();
-
-        await UiThreadHelper.InvokeAsync(() =>
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            nodePath = PathHelper.GetNodePath(node, RootItems);
-            items = node.Items.ToList();
-            children = node.Children.ToList();
-        });
-        
-        // 1) Scan assets off the UI thread (filesystem only).
-        var scanned = await Task.Run(() =>
-        {
-            var list = new List<(MediaItem Item, List<MediaAsset> Assets)>(items.Count);
-
-            foreach (var item in items)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var assets = _fileService.ScanItemAssets(item, nodePath);
-                list.Add((item, assets));
-            }
-
-            return list;
-        }, cancellationToken);
-
         var changed = false;
-
-        // 2) Apply results on UI thread in batches to keep the UI responsive for very large nodes.
-        const int batchSize = 500;
-        for (int i = 0; i < scanned.Count; i += batchSize)
+        try
         {
+            var roots = await Dispatcher.UIThread.InvokeAsync(() => RootItems.ToArray(),
+                DispatcherPriority.Background, cancellationToken).GetTask().ConfigureAwait(false);
+            foreach (var root in roots)
+                await RescanNodeRecursive(root).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-
-            var start = i;
-            var count = Math.Min(batchSize, scanned.Count - start);
-
-            await UiThreadHelper.InvokeAsync(() =>
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                for (int j = start; j < start + count; j++)
+        }
+        finally
+        {
+            // An earlier batch may already have changed the tree when cancellation or IO failure occurs.
+            if (changed)
+                await Dispatcher.UIThread.InvokeAsync(() =>
                 {
-                    var (item, assets) = scanned[j];
+                    if (Volatile.Read(ref _cleanupOnce) == 0)
+                        _libraryTracker.MarkDirty();
+                }, DispatcherPriority.Background);
+        }
 
-                    if (AssetsMatch(item.Assets, assets))
-                        continue;
+        async Task RescanNodeRecursive(MediaNode node)
+        {
+            var (snapshot, version) = await Dispatcher.UIThread.InvokeAsync(() =>
+                (StartupAssetScanSnapshot.Capture(RootItems, node, cancellationToken), _libraryTracker.DirtyVersion),
+                DispatcherPriority.Background, cancellationToken).GetTask().ConfigureAwait(false);
+            if (snapshot == null)
+                return;
 
-                    changed = true;
-
-                    item.Assets.Clear();
-                    foreach (var asset in assets)
-                        item.Assets.Add(asset);
+            if (snapshot.Items.Length > 0)
+            {
+                var scanned = await Task.Run(() => _fileService.ScanItemsAssets(snapshot.Items,
+                    static item => item.Prefix, snapshot.NodePath, cancellationToken: cancellationToken),
+                    cancellationToken).ConfigureAwait(false);
+                for (var start = 0; start < scanned.Count; start += StartupAssetScanSnapshot.ApplyBatchSize)
+                {
+                    var applied = await Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        if (_libraryTracker.DirtyVersion != version)
+                            return false;
+                        return snapshot.ApplyBatch(RootItems, scanned, start, cancellationToken);
+                    }, DispatcherPriority.Background, cancellationToken).GetTask().ConfigureAwait(false);
+                    changed |= applied;
                 }
-            });
+            }
 
-            // Yield between batches so the UI can process input/layout/render.
-            await Task.Yield();
+            foreach (var child in snapshot.Children)
+                await RescanNodeRecursive(child).ConfigureAwait(false);
         }
-
-        // 3) Recurse children
-        foreach (var child in children)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (await RescanNodeRecursive(child, cancellationToken))
-                changed = true;
-        }
-
-        return changed;
     }
-
-    private static bool AssetsMatch(IList<MediaAsset> existing, List<MediaAsset> scanned)
-    {
-        if (existing.Count != scanned.Count)
-            return false;
-
-        var set = new HashSet<(AssetType Type, string Path)>(existing.Count);
-        foreach (var asset in existing)
-        {
-            var path = asset.RelativePath ?? string.Empty;
-            set.Add((asset.Type, path));
-        }
-
-        foreach (var asset in scanned)
-        {
-            var path = asset.RelativePath ?? string.Empty;
-            if (!set.Contains((asset.Type, path)))
-                return false;
-        }
-
-        return true;
-    }
-    
 }

@@ -13,6 +13,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using Avalonia.Styling;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Retromind.Helpers;
@@ -645,7 +646,7 @@ public partial class MainWindowViewModel : ViewModelBase
             if (_downloadsReady && !_closingDownloads)
                 _downloads.Start();
 
-            // Heavy startup maintenance runs in the background after first content is visible.
+            // Start maintenance after the first content update. UI work yields to input and rendering.
             _startupWarmupCts = new CancellationTokenSource();
             _startupWarmupTask = RunDeferredStartupWarmupAsync(_startupWarmupCts.Token);
         }
@@ -680,9 +681,9 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             await RescanAllAssetsAsync(cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
-            await UiThreadHelper.InvokeAsync(
-                    () => SortAllNodesRecursive(RootItems, cancellationToken))
-                .ConfigureAwait(false);
+            await Dispatcher.UIThread.InvokeAsync(
+                () => SortAllNodesRecursive(RootItems, cancellationToken),
+                DispatcherPriority.Background, cancellationToken).GetTask().ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
