@@ -5,6 +5,10 @@
 .build-cache
 .build-work
 dist
+benchmarks
+tests
+docs
+AGENTS.md
 **/[Bb]in
 **/[Oo]bj
 Library

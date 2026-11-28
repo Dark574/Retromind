@@ -5,7 +5,6 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
-using Avalonia.VisualTree;
 
 namespace Retromind.Helpers.Video;
 
@@ -23,6 +22,12 @@ public class VideoSurfaceControl : Control
     private WriteableBitmap? _bitmap;
     private int _latestFrameRevision;
     private int _frameCopyPending;
+    private int _surfaceGeneration;
+    private int _requestedSurfaceGeneration;
+    private Action? _frameReadyHandler;
+    private bool _bitmapHasFrame;
+    // A bound but never attached theme slot must not allocate presentation pixels.
+    private bool _detached = true;
 
     public IVideoSurface? Surface
     {
@@ -50,49 +55,52 @@ public class VideoSurfaceControl : Control
 
     private void OnSurfaceChanged(IVideoSurface? oldSurface, IVideoSurface? newSurface)
     {
-        if (oldSurface != null)
-            oldSurface.FrameReady -= OnFrameReady;
-
+        Unsubscribe(oldSurface);
         DisposeBitmap(oldSurface);
-
-        if (newSurface != null)
-        {
-            newSurface.FrameReady += OnFrameReady;
-            // Bitmap is created dynamically in CopyFrameAndInvalidate
-            // once Width/Height are known from the video callback.
-        }
-
+        if (!_detached)
+            Subscribe(newSurface);
         InvalidateVisual();
+    }
+
+    private void Unsubscribe(IVideoSurface? surface)
+    {
+        Interlocked.Increment(ref _surfaceGeneration);
+        if (surface != null && _frameReadyHandler != null)
+            surface.FrameReady -= _frameReadyHandler;
+        _frameReadyHandler = null;
+    }
+
+    private void Subscribe(IVideoSurface? surface)
+    {
+        if (surface == null)
+            return;
+        var generation = Volatile.Read(ref _surfaceGeneration);
+        _frameReadyHandler = () => OnFrameReady(generation);
+        surface.FrameReady += _frameReadyHandler;
     }
 
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
-
-        if (Surface != null)
-        {
-            // Avoid double subscription if we're reattached with the same surface.
-            Surface.FrameReady -= OnFrameReady;
-            Surface.FrameReady += OnFrameReady;
-        }
+        _detached = false;
+        Unsubscribe(Surface);
+        Subscribe(Surface);
     }
 
     protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
     {
-        if (Surface != null)
-            Surface.FrameReady -= OnFrameReady;
-
+        _detached = true;
+        Unsubscribe(Surface);
         DisposeBitmap(Surface);
-
         base.OnDetachedFromVisualTree(e);
     }
 
-    private void OnFrameReady()
+    private void OnFrameReady(int generation)
     {
-        // Likely called from a background thread (timer, LibVLC, ...).
-        // The actual work MUST run on the UI thread. Coalesce frames while the
-        // UI thread is busy so old video frames cannot build up behind input and
-        // render work. A newer frame is copied after the current pass finishes.
+        // A captured callback from a replaced/detached surface cannot enqueue a new copy.
+        if (generation != Volatile.Read(ref _surfaceGeneration))
+            return;
+        Volatile.Write(ref _requestedSurfaceGeneration, generation);
         Interlocked.Increment(ref _latestFrameRevision);
         QueueLatestFrameCopy();
     }
@@ -111,7 +119,8 @@ public class VideoSurfaceControl : Control
 
         try
         {
-            CopyFrameAndInvalidate();
+            if (!_detached && _surfaceGeneration == Volatile.Read(ref _requestedSurfaceGeneration))
+                CopyFrameAndInvalidate();
         }
         catch (Exception ex) when (Surface is LibVlcVideoSurface)
         {
@@ -194,6 +203,7 @@ public class VideoSurfaceControl : Control
             }
         }
 
+        _bitmapHasFrame = true;
         InvalidateVisual();
     }
 
@@ -201,6 +211,10 @@ public class VideoSurfaceControl : Control
     {
         var bitmap = _bitmap;
         _bitmap = null;
+        _bitmapHasFrame = false;
+        // DrawingContext records its own ref-counted platform-bitmap reference.
+        // Dropping this UI owner's reference does not invalidate render work that
+        // Avalonia has already recorded for the compositor.
         try
         {
             bitmap?.Dispose();
@@ -215,7 +229,7 @@ public class VideoSurfaceControl : Control
     {
         base.Render(context);
 
-        if (_bitmap == null)
+        if (_bitmap == null || !_bitmapHasFrame)
             return;
 
         var sourceSize = _bitmap.Size;

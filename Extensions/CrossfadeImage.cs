@@ -392,6 +392,13 @@ public class CrossfadeImage : Grid
             if (generation != _loadGeneration || !string.IsNullOrWhiteSpace(_currentUrl))
                 return;
 
+            // The animation clock may lag wall time while the UI is busy.
+            if (_imageA.Opacity != 0 || _imageB.Opacity != 0)
+            {
+                _ = ClearImagesAfterFadeAsync(generation, 16);
+                return;
+            }
+
             ClearImagesImmediately();
         });
     }
@@ -607,7 +614,7 @@ public class CrossfadeImage : Grid
         var delayMs = (int)duration.TotalMilliseconds;
         if (delayMs <= 0)
         {
-            SetActiveVisibility(activeIndex);
+            HideInactiveImage(activeIndex);
             return;
         }
 
@@ -633,7 +640,22 @@ public class CrossfadeImage : Grid
             if (_activeIndex != activeIndex)
                 return;
 
-            SetActiveVisibility(activeIndex);
+            var active = activeIndex == 0 ? _imageA : _imageB;
+            var inactive = activeIndex == 0 ? _imageB : _imageA;
+            if (active.Opacity != 1 || inactive.Opacity != 0)
+            {
+                _ = DeactivateInactiveAfterDelayAsync(generation, activeIndex, 16);
+                return;
+            }
+
+            HideInactiveImage(activeIndex);
         });
+    }
+
+    private void HideInactiveImage(int activeIndex)
+    {
+        SetActiveVisibility(activeIndex);
+        // Retain the existing A/B lease: re-decoding uncached artwork measurably
+        // delays a return to the previous title. Clear/detach still release it.
     }
 }

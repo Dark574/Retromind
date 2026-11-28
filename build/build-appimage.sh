@@ -4,7 +4,7 @@ set -eu
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$PROJECT_ROOT/build"
 OUT_DIR="$PROJECT_ROOT/dist"
-WORK_DIR="$PROJECT_ROOT/.build-work"
+WORK_DIR="$PROJECT_ROOT/.build-work/appimage"
 APPDIR="$WORK_DIR/AppDir"
 TOOL_CACHE_DIR="$PROJECT_ROOT/.build-cache/appimage-tools"
 LEGENDARY_VERSION_FILE="$BUILD_DIR/legendary-version.env"

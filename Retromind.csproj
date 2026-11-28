@@ -8,6 +8,7 @@
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
         <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
         <NoWarn>$(NoWarn);NU1900</NoWarn>
+        <DefaultItemExcludes>$(DefaultItemExcludes);benchmarks/**;tests/**;docs/**;AGENTS.md</DefaultItemExcludes>
 
         <!-- App / NuGet / Assembly version -->
         <Version>0.2.5</Version>
@@ -27,20 +28,10 @@
 
     <ItemGroup>
         <AvaloniaResource Include="Assets\**"/>
-        <Content Include=".github\ISSUE_TEMPLATE\bug_report.md" />
-        <Content Include=".github\ISSUE_TEMPLATE\config.yml" />
-        <Content Include=".github\ISSUE_TEMPLATE\feature_request.md" />
-        <Content Include=".github\pull_request_template.md" />
         <Content Include="Themes\**">
             <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
             <CopyToPublishDirectory>Always</CopyToPublishDirectory>
         </Content>
-    </ItemGroup>
-
-    <!-- The root SDK project must not compile test or benchmark harness sources. -->
-    <ItemGroup>
-        <Compile Remove="tests/**/*.cs" />
-        <Compile Remove="benchmarks/**/*.cs" />
     </ItemGroup>
 
     <ItemGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">

@@ -700,6 +700,26 @@ before a replacement for the same key starts. Completed/abandoned operations lea
 `CrossfadeImage` cancels superseded load-delay timers and unfinished internal image requests immediately,
 while preserving decoded outgoing images and existing fade timings. Detach invalidates pending generations;
 reattach resumes loading. Image completions are applied through the control's owning dispatcher.
+Once the effective opacity transitions settle, only the current generation may hide the outgoing image.
+Clear waits for both animated opacities to reach zero; a superseding selection invalidates its cleanup.
+The existing two A/B image leases remain bounded until replacement, explicit clear or detach. Releasing
+an uncached outgoing image at every completed fade was measured separately and rejected because returning
+to the previous title required decoding again and delayed artwork readiness. Cache and preload ownership
+are unchanged. Wall time alone does not prove a transition completed.
+
+Video controls subscribe to frames only while attached. Captured surface generations reject
+notifications and queued copies from replaced or detached surfaces. A newly allocated bitmap is not
+drawn until a frame copy succeeds, including after output-size changes. Frame coalescing and copying
+otherwise retain the existing pipeline; native playback ownership and stop barriers remain in the
+view model's established VLC cleanup path. Additional presentation playback-epoch state was measured
+separately and is not adopted after failing its PSS acceptance comparison.
+Video bitmap storage retains the original bounded slot lifetime: at most one compatible BGRA8888/Premul
+bitmap per existing A/B slot, plus the independent background control. Stop, fade-out or temporary hiding
+alone do not evict reusable storage. Output-size changes, surface replacement and detach dispose the old
+bitmap. Full BigMode removal detaches these controls. There is no global pool or additional retention timer.
+The UI owns copy/replacement/disposal; Avalonia's recorded drawing commands retain their own platform-bitmap
+references until rendering finishes. Native VLC callback-buffer ownership and the AppImage audio workaround
+remain unchanged. Never-attached controls do not subscribe to frames or allocate presentation pixels.
 
 HTTP image loads have a 32 MiB encoded-body limit. A larger `Content-Length` is rejected before reading;
 missing or misleading headers cannot bypass the streaming counter. A pooled 64 KiB buffer reads at most
@@ -2016,11 +2036,13 @@ Parental behavior is not isolated to one screen:
 
 ## AppImage build environment
 
-Packaging tools are prepared before Docker work or `.build-work` cleanup. `build/cache-appimage-tool.sh`
+Packaging tools are prepared before Docker work or `.build-work/appimage` cleanup. `build/cache-appimage-tool.sh`
 checks the existing ELF header and pinned SHA-256 on every reuse, or downloads into a unique temporary file
 and publishes it atomically after verification. `build/build-appimage.sh` assigns checksum-addressed paths
 under `.build-cache/appimage-tools/`, outside the disposable work directory. These two directories and generated
-`bin`/`obj` directories at any depth are excluded from the Docker context. Failed tool preparation leaves
+`bin`/`obj` directories at any depth are excluded from the Docker context. Tests, benchmarks and development
+documentation are excluded from the application project and the Docker context. Runtime themes and
+third-party notices and licenses are included in packaging. Failed tool preparation leaves
 the preceding work directory and Docker cache untouched. The packaging-tool pins and BuildKit size limits
 remain unchanged; the final prune override is independent of the builder's automatic GC configuration.
 

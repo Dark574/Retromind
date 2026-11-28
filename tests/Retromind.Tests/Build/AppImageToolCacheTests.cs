@@ -205,7 +205,7 @@ public sealed class AppImageToolCacheTests : IDisposable
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("Download failed", result.StandardError);
-        Assert.True(File.Exists(Path.Combine(project, ".build-work", "previous-build")));
+        Assert.True(File.Exists(Path.Combine(project, ".build-work", "appimage", "previous-build")));
         Assert.StartsWith("curl ", Assert.Single(_fixture.Commands()));
         AssertNoTemporaryDownloads();
     }
@@ -222,7 +222,7 @@ public sealed class AppImageToolCacheTests : IDisposable
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("continuous runtime may have changed", result.StandardOutput);
         Assert.Equal(Elf, File.ReadAllBytes(tool));
-        Assert.True(File.Exists(Path.Combine(project, ".build-work", "previous-build")));
+        Assert.True(File.Exists(Path.Combine(project, ".build-work", "appimage", "previous-build")));
         Assert.NotEmpty(_fixture.Commands());
         Assert.All(_fixture.Commands(), command => Assert.StartsWith("curl ", command));
         AssertNoTemporaryDownloads();
@@ -247,7 +247,8 @@ public sealed class AppImageToolCacheTests : IDisposable
             Assert.Equal(data, File.ReadAllBytes(tool));
             AssertExecutable(tool);
         }
-        Assert.False(File.Exists(Path.Combine(project, ".build-work", "previous-build")));
+        Assert.False(File.Exists(Path.Combine(project, ".build-work", "appimage", "previous-build")));
+        Assert.True(File.Exists(Path.Combine(project, ".build-work", "benchmark-data")));
         AssertNoTemporaryDownloads();
     }
 
@@ -264,7 +265,8 @@ public sealed class AppImageToolCacheTests : IDisposable
         Assert.Equal(78, result.ExitCode);
         Assert.Equal(2, Regex.Matches(result.StandardOutput, "Using verified cached").Count);
         Assert.All(tools, tool => Assert.True(File.Exists(tool)));
-        Assert.False(File.Exists(Path.Combine(project, ".build-work", "previous-build")));
+        Assert.False(File.Exists(Path.Combine(project, ".build-work", "appimage", "previous-build")));
+        Assert.True(File.Exists(Path.Combine(project, ".build-work", "benchmark-data")));
         var commands = File.ReadAllText(_fixture.LogPath);
         Assert.DoesNotContain("curl ", commands);
         Assert.Contains("docker buildx build ", commands);
@@ -331,7 +333,8 @@ public sealed class AppImageToolCacheTests : IDisposable
         var runtime = _fixture.Files.GetPath("runtime-download");
         File.WriteAllBytes(runtime, Runtime);
         _fixture.Environment["RETROMIND_TEST_RUNTIME_DOWNLOAD"] = runtime;
-        _fixture.Files.CreateFile("project with spaces/.build-work/previous-build", "preserve until tools are ready");
+        _fixture.Files.CreateFile("project with spaces/.build-work/appimage/previous-build", "preserve until tools are ready");
+        _fixture.Files.CreateFile("project with spaces/.build-work/benchmark-data", "separate local work");
         _fixture.Executable("git", """
             case "$*" in
               *rev-parse*) printf 'test-commit\n' ;;

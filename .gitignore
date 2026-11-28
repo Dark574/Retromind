@@ -40,5 +40,8 @@ docker-build.log
 # Python tooling caches
 __pycache__/
 
+# Local benchmark sources and results
+/benchmarks/
+
 # Local dependency and update-planning inventory
 /docs/COMPONENTS.md
